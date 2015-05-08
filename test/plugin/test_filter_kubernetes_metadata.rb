@@ -45,9 +45,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       VCR.use_cassette('valid_kubernetes_api_server') do
         d = create_driver(%[
           kubernetes_url https://localhost:8443
-          ca_file /var/lib/openshift/openshift.local.certificates/ca/cert.crt
-          client_cert /var/lib/openshift/openshift.local.certificates/admin/cert.crt
-          client_key /var/lib/openshift/openshift.local.certificates/admin/key.key
         ])
         assert_equal('https://localhost:8443', d.instance.kubernetes_url)
         assert_equal(1000, d.instance.cache_size)
@@ -58,9 +55,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       VCR.use_cassette('valid_kubernetes_api_server') do
         d = create_driver(%[
           kubernetes_url https://localhost:8443
-          ca_file /var/lib/openshift/openshift.local.certificates/ca/cert.crt
-          client_cert /var/lib/openshift/openshift.local.certificates/admin/cert.crt
-          client_key /var/lib/openshift/openshift.local.certificates/admin/key.key
           cache_size 1
         ])
         assert_equal('https://localhost:8443', d.instance.kubernetes_url)
@@ -73,9 +67,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
 
     def emit(msg, config=%[
           kubernetes_url https://localhost:8443
-          ca_file /var/lib/openshift/openshift.local.certificates/ca/cert.crt
-          client_cert /var/lib/openshift/openshift.local.certificates/admin/cert.crt
-          client_key /var/lib/openshift/openshift.local.certificates/admin/key.key
           cache_size 1
         ])
       d = create_driver(config)
