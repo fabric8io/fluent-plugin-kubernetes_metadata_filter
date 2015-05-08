@@ -18,11 +18,12 @@ Gem::Specification.new do |gem|
   gem.require_paths = ["lib"]
   gem.has_rdoc      = false
 
-  gem.required_ruby_version = '>= 1.9.3'
+  gem.required_ruby_version = '>= 2.0.0'
 
   gem.add_runtime_dependency "fluentd"
   gem.add_runtime_dependency "lru_redux"
   gem.add_runtime_dependency "kubeclient"
+  gem.add_runtime_dependency "fluent-plugin-docker_metadata_filter"
 
   gem.add_development_dependency "bundler", "~> 1.3"
   gem.add_development_dependency "rake"
