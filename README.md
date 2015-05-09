@@ -9,14 +9,15 @@
 
 ## Configuration
 
-Configuration options are:
+Configuration options for fluent.conf are:
 
 * `kubernetes_url` - URL to the API server. *This is required*
 * `apiVersion` - API version to use (default: `v1beta3`)
-* `client_cert` - path to a client cert file to authenticate to the API server
-* `client_key` - path to a client key file to authenticate to the API server
 * `ca_file` - path to CA file for Kubernetes server certificate validation
 * `verify_ssl` - validate SSL certificates (default: true)
+* `client_cert` - path to a client cert file to authenticate to the API server
+* `client_key` - path to a client key file to authenticate to the API server
+* `bearer_token_file` - path to a file containing the bearer token to use for authentication
 * `container_name_to_kubernetes_name_regexp` - the regular expression used to extract kubernetes metadata (pod name, container name, namespace) from the Docker container name. This must used named capture groups for `pod_container_name`, `pod_name` & `namespace` (default: `'\/?[^_]+_(?<pod_container_name>[^\.]+)[^_]+_(?<pod_name>[^_]+)_(?<namespace>[^_]+)'`)
 * `cache_size` - size of the cache of Kubernetes metadata to reduce requests to the API server (default: `1000`)
 
