@@ -61,6 +61,18 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         assert_equal(1, d.instance.cache_size)
       end
     end
+
+    test 'invalid API server config' do
+      VCR.use_cassette('invalid_api_server_config') do
+        assert_raise Fluent::ConfigError do
+          d = create_driver(%[
+            kubernetes_url https://localhost:8443
+            bearer_token_file test/plugin/test.token
+            verify_ssl false
+          ])
+        end
+      end
+    end
   end
 
   sub_test_case 'filter_stream' do
