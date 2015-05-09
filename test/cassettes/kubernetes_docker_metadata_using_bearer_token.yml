@@ -1,0 +1,184 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://localhost:8443/api
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      Accept:
+      - "*/*; q=0.5, application/xml"
+      Accept-Encoding:
+      - gzip, deflate
+      User-Agent:
+      - Ruby
+      Authorization:
+      - Bearer YzYyYzFlODMtODdhNS00ZTMyLWIzMmItNmY4NDc4OTI1ZWFh
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Date:
+      - Sat, 09 May 2015 13:51:07 GMT
+      Content-Length:
+      - '67'
+    body:
+      encoding: UTF-8
+      string: |-
+        {
+          "versions": [
+            "v1beta1",
+            "v1beta2",
+            "v1beta3"
+          ]
+        }
+    http_version: 
+  recorded_at: Sat, 09 May 2015 13:51:07 GMT
+- request:
+    method: get
+    uri: https://localhost:8443/api/v1beta3/namespaces/default/pods/fabric8-console-controller-98rqc
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      Accept:
+      - "*/*; q=0.5, application/xml"
+      Accept-Encoding:
+      - gzip, deflate
+      User-Agent:
+      - Ruby
+      Authorization:
+      - Bearer YzYyYzFlODMtODdhNS00ZTMyLWIzMmItNmY4NDc4OTI1ZWFh
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Date:
+      - Sat, 09 May 2015 13:51:07 GMT
+      Transfer-Encoding:
+      - chunked
+    body:
+      encoding: UTF-8
+      string: |-
+        {
+          "kind": "Pod",
+          "apiVersion": "v1beta3",
+          "metadata": {
+            "name": "fabric8-console-controller-98rqc",
+            "generateName": "fabric8-console-controller-",
+            "namespace": "default",
+            "selfLink": "/api/v1beta3/namespaces/default/pods/fabric8-console-controller-98rqc",
+            "uid": "c76927af-f563-11e4-b32d-54ee7527188d",
+            "resourceVersion": "3556",
+            "creationTimestamp": "2015-05-08T09:22:42Z",
+            "labels": {
+              "component": "fabric8Console"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "openshift-cert-secrets",
+                "hostPath": null,
+                "emptyDir": null,
+                "gcePersistentDisk": null,
+                "gitRepo": null,
+                "secret": {
+                  "secretName": "openshift-cert-secrets"
+                },
+                "nfs": null,
+                "iscsi": null,
+                "glusterfs": null
+              }
+            ],
+            "containers": [
+              {
+                "name": "fabric8-console-container",
+                "image": "fabric8/hawtio-kubernetes:latest",
+                "ports": [
+                  {
+                    "containerPort": 9090,
+                    "protocol": "TCP"
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "OAUTH_CLIENT_ID",
+                    "value": "fabric8-console"
+                  },
+                  {
+                    "name": "OAUTH_AUTHORIZE_URI",
+                    "value": "https://localhost:8443/oauth/authorize"
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "openshift-cert-secrets",
+                    "readOnly": true,
+                    "mountPath": "/etc/secret-volume"
+                  }
+                ],
+                "terminationMessagePath": "/dev/termination-log",
+                "imagePullPolicy": "IfNotPresent",
+                "capabilities": {}
+              }
+            ],
+            "restartPolicy": "Always",
+            "dnsPolicy": "ClusterFirst",
+            "host": "jimmi-redhat.localnet"
+          },
+          "status": {
+            "phase": "Running",
+            "Condition": [
+              {
+                "type": "Ready",
+                "status": "True"
+              }
+            ],
+            "hostIP": "172.17.42.1",
+            "podIP": "172.17.0.4",
+            "containerStatuses": [
+              {
+                "name": "fabric8-console-container",
+                "state": {
+                  "running": {
+                    "startedAt": "2015-05-09T13:33:38Z"
+                  }
+                },
+                "lastState": {},
+                "ready": true,
+                "restartCount": 2,
+                "image": "fabric8/hawtio-kubernetes:latest",
+                "imageID": "docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303",
+                "containerID": "docker://1b1d1f61c1205fe73328c75b2945e2ce05acfba2fde16299a8103fb22e9ec58a"
+              },
+              {
+                "name": "POD",
+                "state": {
+                  "termination": {
+                    "exitCode": 0,
+                    "startedAt": "2015-05-09T09:45:08Z",
+                    "finishedAt": "2015-05-09T09:47:00Z"
+                  }
+                },
+                "lastState": {},
+                "ready": false,
+                "restartCount": 1,
+                "image": "openshift/origin-pod:v0.4.4",
+                "imageID": "docker://81fa37a83ec46fed9dddf30a9c3c43f54bfe4b65dea74a4c152fd515a0bf92a8",
+                "containerID": "docker://9c8ed1a9bbb6d9804b12379654461dcd3b447438c02c52ca7f7d2504e14ae96b"
+              }
+            ]
+          }
+        }
+    http_version: 
+  recorded_at: Sat, 09 May 2015 13:51:07 GMT
+recorded_with: VCR 2.9.3

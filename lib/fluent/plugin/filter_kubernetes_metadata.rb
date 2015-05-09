@@ -30,10 +30,11 @@ module Fluent
     config_param :container_name_to_kubernetes_name_regexp,
                  :string,
                  :default => '\/?[^_]+_(?<pod_container_name>[^\.]+)[^_]+_(?<pod_name>[^_]+)_(?<namespace>[^_]+)'
+    config_param :bearer_token_file, :string, :default => ''
 
-    def self.get_metadata(pod_name, container_name, namespace)
+    def get_metadata(pod_name, container_name, namespace)
       begin
-        metadata = @@client.get_pod(pod_name, namespace)
+        metadata = @client.get_pod(pod_name, namespace)
         if metadata
           return {
             :uid => metadata['metadata']['uid'],
@@ -60,19 +61,27 @@ module Fluent
       require 'active_support/core_ext/object/blank'
       require 'lru_redux'
 
-      @@client = Kubeclient::Client.new @kubernetes_url, @apiVersion
+      @client = Kubeclient::Client.new @kubernetes_url, @apiVersion
 
-      if @client_cert.present? && @client_key.present? && @ca_file.present?
+      @client.ssl_options(
+        client_cert: @client_cert.present? ? OpenSSL::X509::Certificate.new(File.read(@client_cert)) : nil,
+        client_key: @client_key.present? ? OpenSSL::PKey::RSA.new(File.read(@client_key)) : nil,
+        ca_file: @ca_file,
+        verify_ssl: @verify_ssl ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
+      )
 
-        @@client.ssl_options(
-          client_cert: OpenSSL::X509::Certificate.new(File.read(@client_cert)),
-          client_key: OpenSSL::PKey::RSA.new(File.read(@client_key)),
-          ca_file: @ca_file,
-          verify_ssl: @verify_ssl ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
-        )
+      if @bearer_token_file.present?
+        bearer_token = File.read(@bearer_token_file)
+        RestClient.add_before_execution_proc do |req, params|
+          req['authorization'] ||= "Bearer #{bearer_token}"
+        end
       end
 
-      raise Fluent::ConfigError, 'Invalid Kubernetes API endpoint' unless @@client.api_valid?
+      begin
+        @client.api_valid?
+      rescue KubeException => kube_error
+        raise Fluent::ConfigError, "Invalid Kubernetes API endpoint: #{kube_error.message}"
+      end
 
       @cache = LruRedux::ThreadSafeCache.new(@cache_size)
       @container_name_to_kubernetes_name_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_name_regexp)
@@ -83,10 +92,11 @@ module Fluent
 
       es.each {|time, record|
         if record.has_key?(:docker) && record[:docker].has_key?(:name)
+          this = self
           metadata = @cache.getset(record[:docker][:name]){
             match_data = record[:docker][:name].match(@container_name_to_kubernetes_name_regexp_compiled)
             if match_data
-              KubernetesMetadataFilter.get_metadata(
+              this.get_metadata(
                 match_data[:pod_name],
                 match_data[:pod_container_name],
                 match_data[:namespace]

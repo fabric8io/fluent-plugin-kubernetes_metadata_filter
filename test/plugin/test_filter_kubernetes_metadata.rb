@@ -99,6 +99,34 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       end
     end
 
+    test 'with docker & kubernetes metadata using bearer token' do
+      VCR.use_cassette('kubernetes_docker_metadata_using_bearer_token') do
+        msg = {
+            :docker => {
+                :name => '/k8s_fabric8-console-container.efbd6e64_fabric8-console-controller-98rqc_default_c76927af-f563-11e4-b32d-54ee7527188d_42cbc279'
+            }
+        }
+        es = emit(msg, %[
+          kubernetes_url https://localhost:8443
+          verify_ssl false
+          bearer_token_file test/plugin/test.token
+        ])
+        expected_kube_metadata = {
+            :kubernetes => {
+              :host => "jimmi-redhat.localnet",
+              :pod_name =>"fabric8-console-controller-98rqc",
+              :container_name => "fabric8-console-container",
+              :namespace => "default",
+              :uid => "c76927af-f563-11e4-b32d-54ee7527188d",
+              :labels => {
+                :component => "fabric8Console"
+              }
+            }
+        }
+        assert_equal(msg.merge(expected_kube_metadata), es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
     test 'with docker metadata, non-kubernetes' do
       VCR.use_cassette('non_kubernetes_docker_metadata') do
         msg = {
