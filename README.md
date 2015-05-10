@@ -20,6 +20,7 @@ Configuration options for fluent.conf are:
 * `bearer_token_file` - path to a file containing the bearer token to use for authentication
 * `container_name_to_kubernetes_name_regexp` - the regular expression used to extract kubernetes metadata (pod name, container name, namespace) from the Docker container name. This must used named capture groups for `pod_container_name`, `pod_name` & `namespace` (default: `'\/?[^_]+_(?<pod_container_name>[^\.]+)[^_]+_(?<pod_name>[^_]+)_(?<namespace>[^_]+)'`)
 * `cache_size` - size of the cache of Kubernetes metadata to reduce requests to the API server (default: `1000`)
+* `cache_ttl` - TTL in seconds of each cached element. Set to negative value to disable TTL eviction (default: `3600` - 1 hour)
 
 ```
 <source>

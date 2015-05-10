@@ -21,6 +21,7 @@ module Fluent
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
 
     config_param :cache_size, :integer, :default => 1000
+    config_param :cache_ttl, :integer, :default => 60 * 60
     config_param :kubernetes_url, :string
     config_param :apiVersion, :string, :default => 'v1beta3'
     config_param :client_cert, :string, :default => ''
@@ -83,7 +84,10 @@ module Fluent
         raise Fluent::ConfigError, "Invalid Kubernetes API endpoint: #{kube_error.message}"
       end
 
-      @cache = LruRedux::ThreadSafeCache.new(@cache_size)
+      if @cache_ttl < 0
+        @cache_ttl = :none
+      end
+      @cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
       @container_name_to_kubernetes_name_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_name_regexp)
     end
 
