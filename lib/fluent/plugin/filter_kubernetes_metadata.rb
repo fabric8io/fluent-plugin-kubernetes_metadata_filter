@@ -74,7 +74,7 @@ module Fluent
       if @bearer_token_file.present?
         bearer_token = File.read(@bearer_token_file)
         RestClient.add_before_execution_proc do |req, params|
-          req['authorization'] ||= "Bearer #{bearer_token}"
+          req['Authorization'] ||= "Bearer: #{bearer_token}"
         end
       end
 
