@@ -16,7 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-require "codeclimate-test-reporter"
+require 'codeclimate-test-reporter'
 SimpleCov.start do
   formatter SimpleCov::Formatter::MultiFormatter[
     SimpleCov::Formatter::HTMLFormatter,
@@ -34,7 +34,7 @@ require 'webmock/test_unit'
 require 'vcr'
 
 VCR.configure do |config|
-  config.cassette_library_dir = "test/cassettes"
+  config.cassette_library_dir = 'test/cassettes'
   config.hook_into :webmock # or :fakeweb
   config.ignore_hosts 'codeclimate.com'
 end
@@ -55,7 +55,7 @@ def ipv6_enabled?
   require 'socket'
 
   begin
-    TCPServer.open("::1", 0)
+    TCPServer.open('::1', 0)
     true
   rescue
     false

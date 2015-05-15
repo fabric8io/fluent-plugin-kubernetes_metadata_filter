@@ -20,9 +20,10 @@ module Fluent
   class KubernetesMetadataFilter < Fluent::Filter
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
 
+    config_param :kubernetes_url, :string
     config_param :cache_size, :integer, :default => 1000
     config_param :cache_ttl, :integer, :default => 60 * 60
-    config_param :kubernetes_url, :string
+    config_param :watch, :bool, :default => true
     config_param :apiVersion, :string, :default => 'v1beta3'
     config_param :client_cert, :string, :default => ''
     config_param :client_key, :string, :default => ''
@@ -38,12 +39,12 @@ module Fluent
         metadata = @client.get_pod(pod_name, namespace)
         if metadata
           return {
-            :uid => metadata['metadata']['uid'],
-            :namespace => metadata['metadata']['namespace'],
-            :pod_name => metadata['metadata']['name'],
-            :container_name => container_name,
-            :labels => metadata['metadata']['labels'].to_h,
-            :host => metadata['spec']['host']
+            uid: metadata['metadata']['uid'],
+            namespace: metadata['metadata']['namespace'],
+            pod_name: metadata['metadata']['name'],
+            container_name: container_name,
+            labels: metadata['metadata']['labels'].to_h,
+            host: metadata['spec']['host']
           }
         end
       rescue KubeException
@@ -73,9 +74,7 @@ module Fluent
 
       if @bearer_token_file.present?
         bearer_token = File.read(@bearer_token_file)
-        RestClient.add_before_execution_proc do |req, params|
-          req['authorization'] ||= "Bearer #{bearer_token}"
-        end
+        @client.bearer_token(bearer_token)
       end
 
       begin
@@ -89,15 +88,49 @@ module Fluent
       end
       @cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
       @container_name_to_kubernetes_name_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_name_regexp)
+
+      if @watch
+        thread = Thread.new(@client, @cache) { |client, cache|
+          resource_version = client.get_pods.resourceVersion
+          watcher = client.watch_pods(resource_version)
+          watcher.each do |notice|
+            if notice && notice.type && notice.object && notice.object.status && notice.object.status.containerStatuses.size > 0
+              case notice.type
+                when 'MODIFIED'
+                  notice.object.status.containerStatuses.each { |container_status|
+                    if container_status.containerID
+                      containerId = container_status.containerID.sub(/^docker:\/\//, '')
+                      cached = cache[containerId]
+                      if cached
+                        # Only thing that can be modified is labels
+                        cached[:labels] = v.object.metadata.labels.to_h
+                        cache[containerId] = cached
+                      end
+                    end
+                  }
+                when 'DELETED'
+                  notice.object.status.containerStatuses.each { |container_status|
+                    if container_status.containerID
+                      cache.delete(container_status.containerID.sub(/^docker:\/\//, ''))
+                    end
+                  }
+                else
+                  # ignoring...
+              end
+            end
+          end
+        }
+        thread.abort_on_exception = true
+      end
     end
 
     def filter_stream(tag, es)
       new_es = MultiEventStream.new
 
       es.each {|time, record|
-        if record.has_key?(:docker) && record[:docker].has_key?(:name)
+        if record.has_key?(:docker) && record[:docker].has_key?(:id) && record[:docker].has_key?(:name)
           this = self
-          metadata = @cache.getset(record[:docker][:name]){
+          metadata = @cache.getset(record[:docker][:id]){
             match_data = record[:docker][:name].match(@container_name_to_kubernetes_name_regexp_compiled)
             if match_data
               this.get_metadata(
