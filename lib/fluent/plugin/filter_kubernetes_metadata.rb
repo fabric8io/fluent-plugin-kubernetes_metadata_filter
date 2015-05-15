@@ -90,35 +90,8 @@ module Fluent
       @container_name_to_kubernetes_name_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_name_regexp)
 
       if @watch
-        thread = Thread.new(@client, @cache) { |client, cache|
-          resource_version = client.get_pods.resourceVersion
-          watcher = client.watch_pods(resource_version)
-          watcher.each do |notice|
-            if notice && notice.type && notice.object && notice.object.status && notice.object.status.containerStatuses.size > 0
-              case notice.type
-                when 'MODIFIED'
-                  notice.object.status.containerStatuses.each { |container_status|
-                    if container_status.containerID
-                      containerId = container_status.containerID.sub(/^docker:\/\//, '')
-                      cached = cache[containerId]
-                      if cached
-                        # Only thing that can be modified is labels
-                        cached[:labels] = v.object.metadata.labels.to_h
-                        cache[containerId] = cached
-                      end
-                    end
-                  }
-                when 'DELETED'
-                  notice.object.status.containerStatuses.each { |container_status|
-                    if container_status.containerID
-                      cache.delete(container_status.containerID.sub(/^docker:\/\//, ''))
-                    end
-                  }
-                else
-                  # ignoring...
-              end
-            end
-          end
+        thread = Thread.new(self) { |this|
+          this.start_watch
         }
         thread.abort_on_exception = true
       end
@@ -149,6 +122,39 @@ module Fluent
 
       new_es
     end
-  end
 
+    def start_watch
+      resource_version = @client.get_pods.resourceVersion
+      watcher = @client.watch_pods(resource_version)
+      watcher.each do |notice|
+        puts notice
+        case notice.type
+          when 'MODIFIED'
+            if notice.object.status.containerStatuses
+              notice.object.status.containerStatuses.each { |container_status|
+                if container_status['containerId']
+                  containerId = container_status['containerId'].sub(/^docker:\/\//, '')
+                  cached = @cache[containerId]
+                  if cached
+                    # Only thing that can be modified is labels
+                    cached[:labels] = v.object.metadata.labels.to_h
+                    @cache[containerId] = cached
+                  end
+                end
+              }
+            end
+          when 'DELETED'
+            if notice.object.status.containerStatuses
+              notice.object.status.containerStatuses.each { |container_status|
+                if container_status['containerId']
+                  @cache.delete(container_status['containerId'].sub(/^docker:\/\//, ''))
+                end
+              }
+            end
+          else
+            # ignoring...
+        end
+      end
+    end
+  end
 end
