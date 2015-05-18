@@ -168,5 +168,21 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       end
     end
 
+    test 'merges json log data' do
+      VCR.use_cassette('valid_kubernetes_api_server') do
+        json_log = {
+          'hello' => 'world'
+        }
+        msg = {
+          'log' => "#{json_log.to_json}"
+        }
+        es = emit(msg, '
+            kubernetes_url https://localhost:8443
+            verify_ssl false
+            watch false
+          ')
+        assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
+      end
+    end
   end
 end
