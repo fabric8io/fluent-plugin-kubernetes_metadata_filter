@@ -11,35 +11,33 @@
 
 Configuration options for fluent.conf are:
 
-* `kubernetes_url` - URL to the API server. *This is required*
+* `kubernetes_url` - URL to the API server. Set this to retrieve further kubernetes metadata for logs from kubernetes API server
 * `apiVersion` - API version to use (default: `v1beta3`)
 * `ca_file` - path to CA file for Kubernetes server certificate validation
 * `verify_ssl` - validate SSL certificates (default: true)
 * `client_cert` - path to a client cert file to authenticate to the API server
 * `client_key` - path to a client key file to authenticate to the API server
 * `bearer_token_file` - path to a file containing the bearer token to use for authentication
-* `container_name_to_kubernetes_name_regexp` - the regular expression used to extract kubernetes metadata (pod name, container name, namespace) from the Docker container name. This must used named capture groups for `pod_container_name`, `pod_name` & `namespace` (default: `'\/?[^_]+_(?<pod_container_name>[^\.]+)[^_]+_(?<pod_name>[^_]+)_(?<namespace>[^_]+)'`)
+* `tag_to_kubernetes_name_regexp` - the regular expression used to extract kubernetes metadata (pod name, container name, namespace) from the current fluentd tag.
+This must used named capture groups for `container_name`, `pod_name` & `namespace` (default: `\.(?<pod_name>[^\._]+)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$</pod>)`)
 * `cache_size` - size of the cache of Kubernetes metadata to reduce requests to the API server (default: `1000`)
 * `cache_ttl` - TTL in seconds of each cached element. Set to negative value to disable TTL eviction (default: `3600` - 1 hour)
+* `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
+* `merge_json_log` - merge logs in JSON format as top level keys (default: `true`)
 
 ```
 <source>
   type tail
-  path /var/lib/docker/containers/*/*-json.log
+  path /var/log/containers/*.log
   pos_file fluentd-docker.pos
   time_format %Y-%m-%dT%H:%M:%S
-  tag docker.*
+  tag kubernetes.*
   format json
   read_from_head true
 </source>
 
-<filter docker.var.lib.docker.containers.*.*.log>
-  type docker_metadata
-</filter>
-
-<filter docker.var.lib.docker.containers.*.*.log>
+<filter kubernetes.var.lib.docker.containers.*.*.log>
   type kubernetes_metadata
-  kubernetes_url https://localhost:8443
 </filter>
 
 <match **>
@@ -49,12 +47,10 @@ Configuration options for fluent.conf are:
 
 ## Example input/output
 
-Docker logs in JSON format. Log files are normally in
-`/var/lib/docker/containers/*/*-json.log`, depending on what your Docker
-data directory is.
+Kubernetes creates symlinks to Docker log files in `/var/log/containers/*.log`. Docker logs in JSON format.
 
 Assuming following inputs are coming from a log file:
-df14e0d5ae4c07284fa636d739c8fc2e6b52bc344658de7d3f08c36a2e804115-json.log:
+
 ```
 {
   "log": "2015/05/05 19:54:41 \n",
@@ -70,11 +66,6 @@ Then output becomes as belows
   "stream": "stderr",
   "docker": {
     "id": "df14e0d5ae4c07284fa636d739c8fc2e6b52bc344658de7d3f08c36a2e804115",
-    "name": "/k8s_fabric8-console-container.efbd6e64_fabric8-console-controller-9knhj_default_8ae2f621-f360-11e4-8d12-54ee7527188d_7ec9aa3e",
-    "container_hostname": "fabric8-console-controller-9knhj",
-    "image": "fabric8/hawtio-kubernetes:latest",
-    "image_id": "b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303",
-    "labels": {}
   }
   "kubernetes": {
     "host": "jimmi-redhat.localnet",
