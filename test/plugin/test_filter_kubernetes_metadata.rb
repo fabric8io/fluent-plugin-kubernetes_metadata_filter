@@ -31,14 +31,13 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
   end
 
   def create_driver(conf = '')
-    Test::FilterTestDriver.new(KubernetesMetadataFilter).configure(conf, true)
+    Test::FilterTestDriver.new(KubernetesMetadataFilter, 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log').configure(conf, true)
   end
 
   sub_test_case 'configure' do
     test 'check default' do
-      assert_raise Fluent::ConfigError do
-        create_driver
-      end
+      d = create_driver
+      assert_equal(1000, d.instance.cache_size)
     end
 
     test 'kubernetes url' do
@@ -80,7 +79,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
 
   sub_test_case 'filter_stream' do
 
-    def emit(msg, config='
+    def emit(msg={}, config='
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -91,16 +90,24 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       }.filtered
     end
 
+    def emit_with_tag(tag, msg={}, config='
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+        ')
+      d = create_driver(config)
+      d.run {
+        d.emit_with_tag(tag, msg, @time)
+      }.filtered
+    end
+
     test 'with docker & kubernetes metadata' do
       VCR.use_cassette('kubernetes_docker_metadata') do
-        msg = {
-          docker: {
-            id: '/49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
-            name: '/k8s_fabric8-console-container.efbd6e64_fabric8-console-controller-98rqc_default_c76927af-f563-11e4-b32d-54ee7527188d_42cbc279'
-          }
-        }
-        es = emit(msg)
+        es = emit()
         expected_kube_metadata = {
+          docker: {
+              container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
           kubernetes: {
             host:           'jimmi-redhat.localnet',
             pod_name:       'fabric8-console-controller-98rqc',
@@ -112,25 +119,22 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        assert_equal(msg.merge(expected_kube_metadata), es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
 
     test 'with docker & kubernetes metadata using bearer token' do
       VCR.use_cassette('kubernetes_docker_metadata_using_bearer_token') do
-        msg = {
-          docker: {
-            id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
-            name: '/k8s_fabric8-console-container.efbd6e64_fabric8-console-controller-98rqc_default_c76927af-f563-11e4-b32d-54ee7527188d_42cbc279'
-          }
-        }
-        es = emit(msg, '
+        es = emit({}, '
           kubernetes_url https://localhost:8443
           verify_ssl false
           watch false
           bearer_token_file test/plugin/test.token
         ')
         expected_kube_metadata = {
+          docker: {
+            container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
           kubernetes: {
             host:           'jimmi-redhat.localnet',
             pod_name:       'fabric8-console-controller-98rqc',
@@ -142,47 +146,41 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        assert_equal(msg.merge(expected_kube_metadata), es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
+
+    test 'with docker & kubernetes metadata but no configured api server' do
+      es = emit({}, '')
+      expected_kube_metadata = {
+          docker: {
+              container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          kubernetes: {
+              pod_name:       'fabric8-console-controller-98rqc',
+              container_name: 'fabric8-console-container',
+              namespace:      'default',
+          }
+      }
+      assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+    end
+
+
 
     test 'with docker metadata, non-kubernetes' do
-      VCR.use_cassette('non_kubernetes_docker_metadata') do
-        msg = {
-          docker: {
-            id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
-            name: '/k8s_POD.c0b903ca_fabric8-forge-controller-ymkew_default_bcde9961-f4b7-11e4-bdbf-54ee7527188d_e1f00705'
-          }
-        }
-        es = emit(msg)
-        assert_equal(msg, es.instance_variable_get(:@record_array)[0])
-        assert_false(es.instance_variable_get(:@record_array)[0].has_key?(:kubernetes))
-      end
-    end
-
-    test 'without docker metadata' do
-      VCR.use_cassette('valid_kubernetes_api_server') do
-        msg = {'foo' => 'bar'}
-        es = emit(msg)
-        assert_equal(msg, es.instance_variable_get(:@record_array)[0])
-      end
+      es = emit_with_tag('non-kubernetes', {}, '')
+      assert_false(es.instance_variable_get(:@record_array)[0].has_key?(:kubernetes))
     end
 
     test 'merges json log data' do
-      VCR.use_cassette('valid_kubernetes_api_server') do
-        json_log = {
-          'hello' => 'world'
-        }
-        msg = {
-          'log' => "#{json_log.to_json}"
-        }
-        es = emit(msg, '
-            kubernetes_url https://localhost:8443
-            verify_ssl false
-            watch false
-          ')
-        assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
-      end
+      json_log = {
+        'hello' => 'world'
+      }
+      msg = {
+        'log' => "#{json_log.to_json}"
+      }
+      es = emit_with_tag('non-kubernetes', msg, '')
+      assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
     end
   end
 end

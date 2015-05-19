@@ -20,7 +20,7 @@ module Fluent
   class KubernetesMetadataFilter < Fluent::Filter
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
 
-    config_param :kubernetes_url, :string
+    config_param :kubernetes_url, :string, default: ''
     config_param :cache_size, :integer, default: 1000
     config_param :cache_ttl, :integer, default: 60 * 60
     config_param :watch, :bool, default: true
@@ -29,9 +29,9 @@ module Fluent
     config_param :client_key, :string, default: ''
     config_param :ca_file, :string, default: ''
     config_param :verify_ssl, :bool, default: true
-    config_param :container_name_to_kubernetes_name_regexp,
+    config_param :tag_to_kubernetes_name_regexp,
                  :string,
-                 :default => '\/?[^_]+_(?<pod_container_name>[^\.]+)[^_]+_(?<pod_name>[^_]+)_(?<namespace>[^_]+)'
+                 :default => '\.(?<pod_name>[^\._]+)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
     config_param :bearer_token_file, :string, default: ''
     config_param :merge_json_log, :bool, default: true
 
@@ -40,12 +40,12 @@ module Fluent
         metadata = @client.get_pod(pod_name, namespace)
         if metadata
           return {
-            uid:            metadata['metadata']['uid'],
-            namespace:      metadata['metadata']['namespace'],
-            pod_name:       metadata['metadata']['name'],
-            container_name: container_name,
-            labels:         metadata['metadata']['labels'].to_h,
-            host:           metadata['spec']['host']
+              uid:            metadata['metadata']['uid'],
+              namespace:      metadata['metadata']['namespace'],
+              pod_name:       metadata['metadata']['name'],
+              container_name: container_name,
+              labels:         metadata['metadata']['labels'].to_h,
+              host:           metadata['spec']['host']
           }
         end
       rescue KubeException
@@ -64,59 +64,80 @@ module Fluent
       require 'active_support/core_ext/object/blank'
       require 'lru_redux'
 
-      @client = Kubeclient::Client.new @kubernetes_url, @apiVersion
-
-      @client.ssl_options(
-        client_cert: @client_cert.present? ? OpenSSL::X509::Certificate.new(File.read(@client_cert)) : nil,
-        client_key:  @client_key.present? ? OpenSSL::PKey::RSA.new(File.read(@client_key)) : nil,
-        ca_file:     @ca_file,
-        verify_ssl:  @verify_ssl ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
-      )
-
-      if @bearer_token_file.present?
-        bearer_token = File.read(@bearer_token_file)
-        @client.bearer_token(bearer_token)
-      end
-
-      begin
-        @client.api_valid?
-      rescue KubeException => kube_error
-        raise Fluent::ConfigError, "Invalid Kubernetes API endpoint: #{kube_error.message}"
-      end
-
       if @cache_ttl < 0
         @cache_ttl = :none
       end
-      @cache                                             = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
-      @container_name_to_kubernetes_name_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_name_regexp)
+      @cache                                  = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+      @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
 
-      if @watch
-        thread                    = Thread.new(self) { |this|
-          this.start_watch
-        }
-        thread.abort_on_exception = true
+      if @kubernetes_url.present?
+        @client = Kubeclient::Client.new @kubernetes_url, @apiVersion
+
+        @client.ssl_options(
+            client_cert: @client_cert.present? ? OpenSSL::X509::Certificate.new(File.read(@client_cert)) : nil,
+            client_key:  @client_key.present? ? OpenSSL::PKey::RSA.new(File.read(@client_key)) : nil,
+            ca_file:     @ca_file,
+            verify_ssl:  @verify_ssl ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
+        )
+
+        if @bearer_token_file.present?
+          bearer_token = File.read(@bearer_token_file)
+          @client.bearer_token(bearer_token)
+        end
+
+        begin
+          @client.api_valid?
+        rescue KubeException => kube_error
+          raise Fluent::ConfigError, "Invalid Kubernetes API endpoint: #{kube_error.message}"
+        end
+
+        if @watch
+          thread                    = Thread.new(self) { |this|
+            this.start_watch
+          }
+          thread.abort_on_exception = true
+        end
       end
     end
 
     def filter_stream(tag, es)
       new_es = MultiEventStream.new
 
-      es.each { |time, record|
-        if record.has_key?(:docker) && record[:docker].has_key?(:id) && record[:docker].has_key?(:name)
-          this                = self
-          metadata            = @cache.getset(record[:docker][:id]) {
-            match_data = record[:docker][:name].match(@container_name_to_kubernetes_name_regexp_compiled)
-            if match_data
-              this.get_metadata(
-                match_data[:pod_name],
-                match_data[:pod_container_name],
-                match_data[:namespace]
-              )
-            end
-          }
+      match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
 
-          record[:kubernetes] = metadata if metadata
+      if match_data
+        metadata = {
+            docker: {
+                container_id: match_data['docker_id']
+            },
+            kubernetes: {
+                namespace: match_data['namespace'],
+                pod_name: match_data['pod_name'],
+                container_name: match_data['container_name']
+            }
+        }
+
+        if @kubernetes_url.present?
+          cache_key = "#{metadata['namespace']}_#{metadata['pod_name']}_#{metadata['pod_container_name']}"
+
+          if cache_key.present?
+            this                = self
+            metadata            = @cache.getset(cache_key) {
+              if metadata
+                metadata[:kubernetes] = this.get_metadata(
+                    metadata[:kubernetes][:pod_name],
+                    metadata[:kubernetes][:container_name],
+                    metadata[:kubernetes][:namespace]
+                )
+                metadata
+              end
+            }
+          end
         end
+      end
+
+      es.each { |time, record|
+        record = record.merge(metadata) if metadata
 
         if @merge_json_log
           record = merge_json_log(record)
@@ -134,7 +155,7 @@ module Fluent
         if log[0].eql?('{') && log[-1].eql?('}')
           begin
             parsed_log = JSON.parse(log)
-            record = record.merge(parsed_log)
+            record     = record.merge(parsed_log)
             unless parsed_log.has_key?('log')
               record.delete('log')
             end
