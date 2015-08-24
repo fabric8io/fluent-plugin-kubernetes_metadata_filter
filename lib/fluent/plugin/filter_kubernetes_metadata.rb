@@ -123,7 +123,7 @@ module Fluent
         }
 
         if @kubernetes_url.present?
-          cache_key = "#{metadata['namespace']}_#{metadata['pod_name']}_#{metadata['pod_container_name']}"
+          cache_key = "#{metadata[:kubernetes][:namespace]}_#{metadata[:kubernetes][:pod_name]}_#{metadata[:kubernetes][:container_name]}"
 
           if cache_key.present?
             this                = self
