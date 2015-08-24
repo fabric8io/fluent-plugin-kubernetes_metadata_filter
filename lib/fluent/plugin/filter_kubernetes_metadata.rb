@@ -24,7 +24,7 @@ module Fluent
     config_param :cache_size, :integer, default: 1000
     config_param :cache_ttl, :integer, default: 60 * 60
     config_param :watch, :bool, default: true
-    config_param :apiVersion, :string, default: 'v1beta3'
+    config_param :apiVersion, :string, default: 'v1'
     config_param :client_cert, :string, default: ''
     config_param :client_key, :string, default: ''
     config_param :ca_file, :string, default: ''
@@ -71,19 +71,24 @@ module Fluent
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
 
       if @kubernetes_url.present?
-        @client = Kubeclient::Client.new @kubernetes_url, @apiVersion
 
-        @client.ssl_options(
+        ssl_options = {
             client_cert: @client_cert.present? ? OpenSSL::X509::Certificate.new(File.read(@client_cert)) : nil,
             client_key:  @client_key.present? ? OpenSSL::PKey::RSA.new(File.read(@client_key)) : nil,
             ca_file:     @ca_file,
             verify_ssl:  @verify_ssl ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
-        )
+        }
+
+        auth_options = {}
 
         if @bearer_token_file.present?
           bearer_token = File.read(@bearer_token_file)
-          @client.bearer_token(bearer_token)
+          auth_options[:bearer_token] = bearer_token
         end
+
+        @client = Kubeclient::Client.new @kubernetes_url, @apiVersion,
+                                         ssl_options: ssl_options,
+                                         auth_options: auth_options
 
         begin
           @client.api_valid?

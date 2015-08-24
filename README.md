@@ -12,7 +12,7 @@
 Configuration options for fluent.conf are:
 
 * `kubernetes_url` - URL to the API server. Set this to retrieve further kubernetes metadata for logs from kubernetes API server
-* `apiVersion` - API version to use (default: `v1beta3`)
+* `apiVersion` - API version to use (default: `v1`)
 * `ca_file` - path to CA file for Kubernetes server certificate validation
 * `verify_ssl` - validate SSL certificates (default: true)
 * `client_cert` - path to a client cert file to authenticate to the API server

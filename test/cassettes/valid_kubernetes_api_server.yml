@@ -47,9 +47,7 @@ http_interactions:
       string: |-
         {
           "versions": [
-            "v1beta1",
-            "v1beta2",
-            "v1beta3"
+            "v1"
           ]
         }
     http_version: 

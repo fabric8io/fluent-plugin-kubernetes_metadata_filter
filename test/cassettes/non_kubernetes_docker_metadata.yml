@@ -47,16 +47,14 @@ http_interactions:
       string: |-
         {
           "versions": [
-            "v1beta1",
-            "v1beta2",
-            "v1beta3"
+            "v1"
           ]
         }
     http_version: 
   recorded_at: Fri, 08 May 2015 10:35:37 GMT
 - request:
     method: get
-    uri: https://localhost:8443/api/v1beta3/namespaces/default/pods/fabric8-forge-controller-ymkew
+    uri: https://localhost:8443/api/v1/namespaces/default/pods/fabric8-forge-controller-ymkew
     body:
       encoding: US-ASCII
       string: ''
@@ -83,7 +81,7 @@ http_interactions:
       string: |-
         {
           "kind": "Status",
-          "apiVersion": "v1beta3",
+          "apiVersion": "v1",
           "metadata": {},
           "status": "Failure",
           "message": "pods \"fabric8-forge-controller-ymkew\" not found",

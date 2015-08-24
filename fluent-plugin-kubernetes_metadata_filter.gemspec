@@ -22,7 +22,7 @@ Gem::Specification.new do |gem|
 
   gem.add_runtime_dependency "fluentd"
   gem.add_runtime_dependency "lru_redux"
-  gem.add_runtime_dependency "kubeclient", "~> 0.1.15"
+  gem.add_runtime_dependency "kubeclient", "~> 0.4.0"
   gem.add_runtime_dependency "fluent-plugin-docker_metadata_filter"
 
   gem.add_development_dependency "bundler", "~> 1.3"
@@ -34,4 +34,5 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency "webmock"
   gem.add_development_dependency "vcr"
   gem.add_development_dependency "bump"
+  gem.add_development_dependency "yajl-ruby"
 end
