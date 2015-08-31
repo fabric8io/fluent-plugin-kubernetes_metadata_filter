@@ -129,11 +129,12 @@ module Fluent
             this                = self
             metadata            = @cache.getset(cache_key) {
               if metadata
-                metadata[:kubernetes] = this.get_metadata(
+                kubernetes_metadata = this.get_metadata(
                     metadata[:kubernetes][:pod_name],
                     metadata[:kubernetes][:container_name],
                     metadata[:kubernetes][:namespace]
                 )
+                metadata[:kubernetes] = kubernetes_metadata if kubernetes_metadata
                 metadata
               end
             }
