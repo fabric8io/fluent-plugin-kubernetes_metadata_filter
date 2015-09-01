@@ -35,7 +35,7 @@ module Fluent
     config_param :bearer_token_file, :string, default: ''
     config_param :merge_json_log, :bool, default: true
 
-    def get_metadata(pod_name, container_name, namespace)
+    def get_metadata(namespace, pod_name, container_name)
       begin
         metadata = @client.get_pod(pod_name, namespace)
         if metadata
@@ -125,26 +125,24 @@ module Fluent
         if @kubernetes_url.present?
           cache_key = "#{metadata[:kubernetes][:namespace]}_#{metadata[:kubernetes][:pod_name]}_#{metadata[:kubernetes][:container_name]}"
 
-          if cache_key.present?
-            this                = self
-            metadata            = @cache.getset(cache_key) {
-              if metadata
-                kubernetes_metadata = this.get_metadata(
-                    metadata[:kubernetes][:pod_name],
-                    metadata[:kubernetes][:container_name],
-                    metadata[:kubernetes][:namespace]
-                )
-                metadata[:kubernetes] = kubernetes_metadata if kubernetes_metadata
-                metadata
-              end
-            }
-          end
+          this     = self
+          metadata = @cache.getset(cache_key) {
+            if metadata
+              kubernetes_metadata = this.get_metadata(
+                metadata[:kubernetes][:namespace],
+                metadata[:kubernetes][:pod_name],
+                metadata[:kubernetes][:container_name]
+              )
+              metadata[:kubernetes] = kubernetes_metadata if kubernetes_metadata
+              metadata
+            end
+          }
         end
       end
 
       es.each { |time, record|
         record = merge_json_log(record) if @merge_json_log
-        
+
         record = record.merge(metadata) if metadata
 
         new_es.add(time, record)
