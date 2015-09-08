@@ -34,20 +34,20 @@ module Fluent
                  :default => '\.(?<pod_name>[^\._]+)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
     config_param :bearer_token_file, :string, default: ''
     config_param :merge_json_log, :bool, default: true
+    config_param :include_namespace_id, :bool, default: false
 
-    def get_metadata(namespace, pod_name, container_name)
+    def get_metadata(namespace_name, pod_name, container_name)
       begin
-        metadata = @client.get_pod(pod_name, namespace)
-        if metadata
-          return {
-              uid:            metadata['metadata']['uid'],
-              namespace:      metadata['metadata']['namespace'],
-              pod_name:       metadata['metadata']['name'],
-              container_name: container_name,
-              labels:         metadata['metadata']['labels'].to_h,
-              host:           metadata['spec']['host']
-          }
-        end
+        metadata = @client.get_pod(pod_name, namespace_name)
+        return if !metadata
+        return {
+            namespace_name: namespace_name,
+            pod_id:         metadata['metadata']['uid'],
+            pod_name:       pod_name,
+            container_name: container_name,
+            labels:         metadata['metadata']['labels'].to_h,
+            host:           metadata['spec']['host']
+        }
       rescue KubeException
         nil
       end
@@ -67,7 +67,10 @@ module Fluent
       if @cache_ttl < 0
         @cache_ttl = :none
       end
-      @cache                                  = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+      @cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+      if @include_namespace_id
+        @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+      end
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
 
       if @kubernetes_url.present?
@@ -97,10 +100,12 @@ module Fluent
         end
 
         if @watch
-          thread                    = Thread.new(self) { |this|
-            this.start_watch
-          }
+          thread = Thread.new(self) { |this| this.start_watch }
           thread.abort_on_exception = true
+          if @include_namespace_id
+            namespace_thread = Thread.new(self) { |this| this.start_namespace_watch }
+            namespace_thread.abort_on_exception = true
+          end
         end
       end
     end
@@ -116,20 +121,20 @@ module Fluent
                 container_id: match_data['docker_id']
             },
             kubernetes: {
-                namespace: match_data['namespace'],
+                namespace_name: match_data['namespace'],
                 pod_name: match_data['pod_name'],
                 container_name: match_data['container_name']
             }
         }
 
         if @kubernetes_url.present?
-          cache_key = "#{metadata[:kubernetes][:namespace]}_#{metadata[:kubernetes][:pod_name]}_#{metadata[:kubernetes][:container_name]}"
+          cache_key = "#{metadata[:kubernetes][:namespace_name]}_#{metadata[:kubernetes][:pod_name]}_#{metadata[:kubernetes][:container_name]}"
 
           this     = self
           metadata = @cache.getset(cache_key) {
             if metadata
               kubernetes_metadata = this.get_metadata(
-                metadata[:kubernetes][:namespace],
+                metadata[:kubernetes][:namespace_name],
                 metadata[:kubernetes][:pod_name],
                 metadata[:kubernetes][:container_name]
               )
@@ -137,6 +142,14 @@ module Fluent
               metadata
             end
           }
+          if @include_namespace_id
+            namespace_name = metadata[:kubernetes][:namespace_name]
+            namespace_id = @namespace_cache.getset(namespace_name) {
+              namespace = @client.get_namespace(namespace_name)
+              namespace['metadata']['uid'] if namespace
+            }
+            metadata[:kubernetes][:namespace_id] = namespace_id if namespace_id
+          end
         end
       end
 
@@ -196,7 +209,23 @@ module Fluent
               }
             end
           else
-            # ignoring...
+            # Don't pay attention to creations, since the created pod may not
+            # end up on this node.
+        end
+      end
+    end
+
+    def start_namespace_watch
+      resource_version = @client.get_namespaces.resourceVersion
+      watcher          = @client.watch_namespaces(resource_version)
+      watcher.each do |notice|
+        puts notice
+        case notice.type
+          when 'DELETED'
+            @namespace_cache.delete(notice.object['metadata']['uid'])
+          else
+            # We only care about each namespace's name and UID, neither of which
+            # is modifiable, so we only have to care about deletions.
         end
       end
     end

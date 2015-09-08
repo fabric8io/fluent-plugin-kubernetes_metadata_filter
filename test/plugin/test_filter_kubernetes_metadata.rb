@@ -112,8 +112,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             host:           'jimmi-redhat.localnet',
             pod_name:       'fabric8-console-controller-98rqc',
             container_name: 'fabric8-console-container',
-            namespace:      'default',
-            uid:            'c76927af-f563-11e4-b32d-54ee7527188d',
+            namespace_name:      'default',
+            pod_id:            'c76927af-f563-11e4-b32d-54ee7527188d',
             labels: {
               component: 'fabric8Console'
             }
@@ -139,8 +139,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             host:           'jimmi-redhat.localnet',
             pod_name:       'fabric8-console-controller-98rqc',
             container_name: 'fabric8-console-container',
-            namespace:      'default',
-            uid:            'c76927af-f563-11e4-b32d-54ee7527188d',
+            namespace_name:      'default',
+            pod_id:            'c76927af-f563-11e4-b32d-54ee7527188d',
             labels: {
               component: 'fabric8Console'
             }
@@ -159,7 +159,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           kubernetes: {
               pod_name:       'fabric8-console-controller-98rqc',
               container_name: 'fabric8-console-container',
-              namespace:      'default',
+              namespace_name:      'default',
           }
       }
       assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
@@ -180,7 +180,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         kubernetes: {
           pod_name:       'fabric8-console-controller-98rqc',
           container_name: 'fabric8-console-container',
-          namespace:      'default'
+          namespace_name:      'default'
         }
       }
       assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
