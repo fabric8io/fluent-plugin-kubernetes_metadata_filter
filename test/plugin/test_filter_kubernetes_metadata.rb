@@ -123,6 +123,34 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       end
     end
 
+    test 'with docker & kubernetes metadata & namespace_id enabled' do
+      VCR.use_cassette('metadata_with_namespace_id') do
+        es = emit({}, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          include_namespace_id true
+        ')
+        expected_kube_metadata = {
+          docker: {
+              container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          kubernetes: {
+            host:           'jimmi-redhat.localnet',
+            pod_name:       'fabric8-console-controller-98rqc',
+            container_name: 'fabric8-console-container',
+            namespace_name: 'default',
+            namespace_id:   '898268c8-4a36-11e5-9d81-42010af0194c',
+            pod_id:         'c76927af-f563-11e4-b32d-54ee7527188d',
+            labels: {
+              component: 'fabric8Console'
+            }
+          }
+        }
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
     test 'with docker & kubernetes metadata using bearer token' do
       VCR.use_cassette('kubernetes_docker_metadata_using_bearer_token') do
         es = emit({}, '
