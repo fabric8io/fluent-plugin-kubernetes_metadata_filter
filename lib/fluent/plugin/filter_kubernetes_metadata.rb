@@ -31,7 +31,7 @@ module Fluent
     config_param :verify_ssl, :bool, default: true
     config_param :tag_to_kubernetes_name_regexp,
                  :string,
-                 :default => '\.(?<pod_name>[^\._]+)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
+                 :default => 'var\.log\.containers\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
     config_param :bearer_token_file, :string, default: ''
     config_param :merge_json_log, :bool, default: true
     config_param :include_namespace_id, :bool, default: false
