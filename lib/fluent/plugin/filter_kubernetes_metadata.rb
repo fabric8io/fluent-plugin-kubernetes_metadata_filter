@@ -169,11 +169,7 @@ module Fluent
         log = record['log'].strip
         if log[0].eql?('{') && log[-1].eql?('}')
           begin
-            parsed_log = JSON.parse(log)
-            record     = record.merge(parsed_log)
-            unless parsed_log.has_key?('log')
-              record.delete('log')
-            end
+            record = JSON.parse(log).merge(record)
           rescue JSON::ParserError
           end
         end
