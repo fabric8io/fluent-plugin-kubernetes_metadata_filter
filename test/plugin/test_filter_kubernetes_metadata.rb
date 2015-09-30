@@ -248,7 +248,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'log' => "#{json_log.to_json}"
       }
       es = emit_with_tag('non-kubernetes', msg, '')
-      assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
+      assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
     end
   end
 end
