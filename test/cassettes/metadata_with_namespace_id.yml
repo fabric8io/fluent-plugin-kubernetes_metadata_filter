@@ -145,7 +145,7 @@ http_interactions:
             ],
             "restartPolicy": "Always",
             "dnsPolicy": "ClusterFirst",
-            "host": "jimmi-redhat.localnet"
+            "nodeName": "jimmi-redhat.localnet"
           },
           "status": {
             "phase": "Running",
