@@ -46,7 +46,7 @@ module Fluent
             pod_name:       pod_name,
             container_name: container_name,
             labels:         metadata['metadata']['labels'].to_h,
-            host:           metadata['spec']['host']
+            host:           metadata['spec']['nodeName']
         }
       rescue KubeException
         nil
