@@ -20,7 +20,7 @@ Gem::Specification.new do |gem|
 
   gem.required_ruby_version = '>= 2.0.0'
 
-  gem.add_runtime_dependency "fluentd"
+  gem.add_runtime_dependency "fluentd", "~> 0.12.0"
   gem.add_runtime_dependency "lru_redux"
   gem.add_runtime_dependency "kubeclient", "~> 0.4.0"
   gem.add_runtime_dependency "fluent-plugin-docker_metadata_filter"
