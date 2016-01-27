@@ -75,6 +75,53 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         end
       end
     end
+
+    test 'service account credentials' do
+      VCR.use_cassette('valid_kubernetes_api_server') do
+        begin
+          ENV['KUBERNETES_SERVICE_HOST'] = 'localhost'
+          ENV['KUBERNETES_SERVICE_PORT'] = '8443'
+
+          Dir.mktmpdir { |dir|
+            # Fake token file and CA crt.
+            expected_cert_path = File.join(dir, KubernetesMetadataFilter::K8_POD_CA_CERT)
+            expected_token_path = File.join(dir, KubernetesMetadataFilter::K8_POD_TOKEN)
+
+            File.open(expected_cert_path, "w") {}
+            File.open(expected_token_path, "w") {}
+
+            d = create_driver("
+              watch false
+              secret_dir #{dir}
+            ")
+
+            assert_equal(d.instance.kubernetes_url, "https://localhost:8443/api")
+            assert_equal(d.instance.ca_file, expected_cert_path)
+            assert_equal(d.instance.bearer_token_file, expected_token_path)
+          }
+        ensure
+          ENV['KUBERNETES_SERVICE_HOST'] = nil
+          ENV['KUBERNETES_SERVICE_PORT'] = nil
+        end
+      end
+    end
+
+    test 'service account credential files are tested for existence' do
+      VCR.use_cassette('valid_kubernetes_api_server') do
+        begin
+          ENV['KUBERNETES_SERVICE_HOST'] = 'localhost'
+          ENV['KUBERNETES_SERVICE_PORT'] = '8443'
+
+          d = create_driver('watch false')
+          assert_equal(d.instance.kubernetes_url, "https://localhost:8443/api")
+          assert_false(d.instance.ca_file.present?)
+          assert_false(d.instance.bearer_token_file.present?)
+        ensure
+          ENV['KUBERNETES_SERVICE_HOST'] = nil
+          ENV['KUBERNETES_SERVICE_PORT'] = nil
+        end
+      end
+    end
   end
 
   sub_test_case 'filter_stream' do

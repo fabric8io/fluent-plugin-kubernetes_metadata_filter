@@ -18,6 +18,9 @@
 #
 module Fluent
   class KubernetesMetadataFilter < Fluent::Filter
+    K8_POD_CA_CERT = 'ca.crt'
+    K8_POD_TOKEN = 'token'
+
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
 
     config_param :kubernetes_url, :string, default: ''
@@ -35,6 +38,7 @@ module Fluent
     config_param :bearer_token_file, :string, default: ''
     config_param :merge_json_log, :bool, default: true
     config_param :include_namespace_id, :bool, default: false
+    config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
 
     def get_metadata(namespace_name, pod_name, container_name)
       begin
@@ -72,6 +76,29 @@ module Fluent
         @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
       end
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
+
+      # Use Kubernetes default service account if we're in a pod.
+      if !@kubernetes_url.present?
+        env_host = ENV['KUBERNETES_SERVICE_HOST']
+        env_port = ENV['KUBERNETES_SERVICE_PORT']
+        if !env_host.nil? and !env_port.nil?
+          @kubernetes_url = "https://#{env_host}:#{env_port}/api"
+        end
+      end
+
+      # Use SSL certificate and bearer token from Kubernetes service account.
+      if Dir.exist?(@secret_dir)
+        ca_cert = File.join(@secret_dir, K8_POD_CA_CERT)
+        pod_token = File.join(@secret_dir, K8_POD_TOKEN)
+
+        if !@ca_file.present? and File.exist?(ca_cert)
+          @ca_file = ca_cert
+        end
+
+        if !@bearer_token_file.present? and File.exist?(pod_token)
+          @bearer_token_file = pod_token
+        end
+      end
 
       if @kubernetes_url.present?
 
