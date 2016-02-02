@@ -112,10 +112,15 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           ENV['KUBERNETES_SERVICE_HOST'] = 'localhost'
           ENV['KUBERNETES_SERVICE_PORT'] = '8443'
 
-          d = create_driver('watch false')
-          assert_equal(d.instance.kubernetes_url, "https://localhost:8443/api")
-          assert_false(d.instance.ca_file.present?)
-          assert_false(d.instance.bearer_token_file.present?)
+          Dir.mktmpdir { |dir|
+            d = create_driver("
+              watch false
+              secret_dir #{dir}
+            ")
+            assert_equal(d.instance.kubernetes_url, "https://localhost:8443/api")
+            assert_false(d.instance.ca_file.present?)
+            assert_false(d.instance.bearer_token_file.present?)
+          }
         ensure
           ENV['KUBERNETES_SERVICE_HOST'] = nil
           ENV['KUBERNETES_SERVICE_PORT'] = nil
