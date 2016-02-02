@@ -14,7 +14,7 @@ Configuration options for fluent.conf are:
 * `kubernetes_url` - URL to the API server. Set this to retrieve further kubernetes metadata for logs from kubernetes API server
 * `apiVersion` - API version to use (default: `v1`)
 * `ca_file` - path to CA file for Kubernetes server certificate validation
-* `verify_ssl` - validate SSL certificates (default: true)
+* `verify_ssl` - validate SSL certificates (default: `true`)
 * `client_cert` - path to a client cert file to authenticate to the API server
 * `client_key` - path to a client key file to authenticate to the API server
 * `bearer_token_file` - path to a file containing the bearer token to use for authentication
@@ -24,6 +24,8 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `cache_ttl` - TTL in seconds of each cached element. Set to negative value to disable TTL eviction (default: `3600` - 1 hour)
 * `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
 * `merge_json_log` - merge logs in JSON format as top level keys (default: `true`)
+* `de_dot` - replace dots in labels with configured `de_dot_separator`, required for ElasticSearch 2.x compatibility (default: `true`)
+* `de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
 
 ```
 <source>

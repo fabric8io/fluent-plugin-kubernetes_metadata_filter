@@ -39,17 +39,23 @@ module Fluent
     config_param :merge_json_log, :bool, default: true
     config_param :include_namespace_id, :bool, default: false
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
+    config_param :de_dot, :bool, default: true
+    config_param :de_dot_separator, :string, default: '_'
 
     def get_metadata(namespace_name, pod_name, container_name)
       begin
         metadata = @client.get_pod(pod_name, namespace_name)
         return if !metadata
+        labels = metadata['metadata']['labels'].to_h
+        if @de_dot
+          self.de_dot!(labels)
+        end
         return {
             namespace_name: namespace_name,
             pod_id:         metadata['metadata']['uid'],
             pod_name:       pod_name,
             container_name: container_name,
-            labels:         metadata['metadata']['labels'].to_h,
+            labels:         labels,
             host:           metadata['spec']['nodeName']
         }
       rescue KubeException
@@ -67,6 +73,10 @@ module Fluent
       require 'kubeclient'
       require 'active_support/core_ext/object/blank'
       require 'lru_redux'
+
+      if @de_dot && (@de_dot_separator =~ /\./).present?
+        raise Fluent::ConfigError, "Invalid de_dot_separator: cannot be or contain '.'"
+      end
 
       if @cache_ttl < 0
         @cache_ttl = :none
@@ -204,6 +214,16 @@ module Fluent
       record
     end
 
+    def de_dot!(h)
+      h.keys.each do |ref|
+        if h[ref] && ref =~ /\./
+          v = h.delete(ref)
+          newref = ref.to_s.gsub('.', @de_dot_separator)
+          h[newref.to_sym] = v
+        end
+      end
+    end
+
     def start_watch
       resource_version = @client.get_pods.resourceVersion
       watcher          = @client.watch_pods(resource_version)
@@ -217,7 +237,11 @@ module Fluent
                   cached      = @cache[containerId]
                   if cached
                     # Only thing that can be modified is labels
-                    cached[:labels]     = v.object.metadata.labels.to_h
+                    labels = v.object.metadata.labels.to_h
+                    if @de_dot
+                      self.de_dot!(labels)
+                    end
+                    cached[:labels]     = labels
                     @cache[containerId] = cached
                   end
                 end

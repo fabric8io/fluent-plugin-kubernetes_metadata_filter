@@ -302,5 +302,62 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       es = emit_with_tag('non-kubernetes', msg, '')
       assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
     end
+
+    test 'with kubernetes dotted labels, de_dot enabled' do
+      VCR.use_cassette('kubernetes_docker_metadata_dotted_labels') do
+        es = emit()
+        expected_kube_metadata = {
+          docker: {
+              container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          kubernetes: {
+            host:           'jimmi-redhat.localnet',
+            pod_name:       'fabric8-console-controller-98rqc',
+            container_name: 'fabric8-console-container',
+            namespace_name: 'default',
+            pod_id:         'c76927af-f563-11e4-b32d-54ee7527188d',
+            labels: {
+              'kubernetes_io/test': 'somevalue'
+            }
+          }
+        }
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
+    test 'with kubernetes dotted labels, de_dot disabled' do
+      VCR.use_cassette('kubernetes_docker_metadata_dotted_labels') do
+        es = emit({}, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          de_dot false
+        ')
+        expected_kube_metadata = {
+          docker: {
+              container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          kubernetes: {
+            host:           'jimmi-redhat.localnet',
+            pod_name:       'fabric8-console-controller-98rqc',
+            container_name: 'fabric8-console-container',
+            namespace_name: 'default',
+            pod_id:         'c76927af-f563-11e4-b32d-54ee7527188d',
+            labels: {
+              'kubernetes.io/test': 'somevalue'
+            }
+          }
+        }
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
+    test 'invalid de_dot_separator config' do
+      assert_raise Fluent::ConfigError do
+        create_driver('
+          de_dot_separator contains.
+        ')
+      end
+    end
   end
 end
