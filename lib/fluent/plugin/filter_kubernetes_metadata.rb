@@ -23,19 +23,19 @@ module Fluent
 
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
 
-    config_param :kubernetes_url, :string, default: ''
+    config_param :kubernetes_url, :string, default: nil
     config_param :cache_size, :integer, default: 1000
     config_param :cache_ttl, :integer, default: 60 * 60
     config_param :watch, :bool, default: true
     config_param :apiVersion, :string, default: 'v1'
-    config_param :client_cert, :string, default: ''
-    config_param :client_key, :string, default: ''
-    config_param :ca_file, :string, default: ''
+    config_param :client_cert, :string, default: nil
+    config_param :client_key, :string, default: nil
+    config_param :ca_file, :string, default: nil
     config_param :verify_ssl, :bool, default: true
     config_param :tag_to_kubernetes_name_regexp,
                  :string,
                  :default => 'var\.log\.containers\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
-    config_param :bearer_token_file, :string, default: ''
+    config_param :bearer_token_file, :string, default: nil
     config_param :merge_json_log, :bool, default: true
     config_param :include_namespace_id, :bool, default: false
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
@@ -88,10 +88,10 @@ module Fluent
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
 
       # Use Kubernetes default service account if we're in a pod.
-      if !@kubernetes_url.present?
+      if @kubernetes_url.nil?
         env_host = ENV['KUBERNETES_SERVICE_HOST']
         env_port = ENV['KUBERNETES_SERVICE_PORT']
-        if !env_host.nil? and !env_port.nil?
+        if env_host.present? && env_port.present?
           @kubernetes_url = "https://#{env_host}:#{env_port}/api"
         end
       end
@@ -231,28 +231,27 @@ module Fluent
         case notice.type
           when 'MODIFIED'
             if notice.object.status.containerStatuses
+              pod_cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
               notice.object.status.containerStatuses.each { |container_status|
-                if container_status['containerId']
-                  containerId = container_status['containerId'].sub(/^docker:\/\//, '')
-                  cached      = @cache[containerId]
-                  if cached
-                    # Only thing that can be modified is labels
-                    labels = v.object.metadata.labels.to_h
-                    if @de_dot
-                      self.de_dot!(labels)
-                    end
-                    cached[:labels]     = labels
-                    @cache[containerId] = cached
+                cache_key = "#{pod_cache_key}_#{container_status['name']}"
+                cached    = @cache[cache_key]
+                if cached
+                  # Only thing that can be modified is labels
+                  labels = notice.object.metadata.labels.to_h
+                  if @de_dot
+                    self.de_dot!(labels)
                   end
+                  cached[:kubernetes][:labels] = labels
+                  @cache[cache_key]            = cached
                 end
               }
             end
           when 'DELETED'
             if notice.object.status.containerStatuses
+              pod_cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
               notice.object.status.containerStatuses.each { |container_status|
-                if container_status['containerId']
-                  @cache.delete(container_status['containerId'].sub(/^docker:\/\//, ''))
-                end
+                cache_key = "#{pod_cache_key}_#{container_status['name']}"
+                @cache.delete(cache_key)
               }
             end
           else
@@ -269,7 +268,7 @@ module Fluent
         puts notice
         case notice.type
           when 'DELETED'
-            @namespace_cache.delete(notice.object['metadata']['uid'])
+            @namespace_cache.delete(notice.object['metadata']['name'])
           else
             # We only care about each namespace's name and UID, neither of which
             # is modifiable, so we only have to care about deletions.
