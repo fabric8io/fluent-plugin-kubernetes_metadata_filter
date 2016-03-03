@@ -225,8 +225,13 @@ module Fluent
     end
 
     def start_watch
-      resource_version = @client.get_pods.resourceVersion
-      watcher          = @client.watch_pods(resource_version)
+      begin
+        resource_version = @client.get_pods.resourceVersion
+        watcher          = @client.watch_pods(resource_version)
+      rescue Exception => e
+        raise Fluent::ConfigError, "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
+      end
+
       watcher.each do |notice|
         case notice.type
           when 'MODIFIED'
