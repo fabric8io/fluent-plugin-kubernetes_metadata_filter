@@ -37,6 +37,7 @@ module Fluent
                  :default => 'var\.log\.containers\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
     config_param :bearer_token_file, :string, default: nil
     config_param :merge_json_log, :bool, default: true
+    config_param :preserve_json_log, :bool, default: true
     config_param :include_namespace_id, :bool, default: false
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
     config_param :de_dot, :bool, default: true
@@ -148,7 +149,7 @@ module Fluent
         begin
           @client.api_valid?
         rescue KubeException => kube_error
-          raise Fluent::ConfigError, "Invalid Kubernetes API endpoint: #{kube_error.message}"
+          raise Fluent::ConfigError, "Invalid Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{kube_error.message}"
         end
 
         if @watch
@@ -224,6 +225,9 @@ module Fluent
         if log[0].eql?('{') && log[-1].eql?('}')
           begin
             record = JSON.parse(log).merge(record)
+            unless @preserve_json_log
+              record.delete('log')
+            end
           rescue JSON::ParserError
           end
         end
