@@ -303,6 +303,23 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
     end
 
+    test 'merges json log data with message field' do
+      json_log = {
+        'timeMillis' => 1459853347608,
+        'thread' => 'main',
+        'level' => 'INFO',
+        'loggerName' => 'org.apache.camel.spring.SpringCamelContext',
+        'message' => 'Total 1 routes, of which 1 is started.',
+        'endOfBatch' => false,
+        'loggerFqcn' => 'org.apache.logging.slf4j.Log4jLogger'
+      }
+      msg = {
+        'log' => "#{json_log.to_json}"
+      }
+      es = emit_with_tag('non-kubernetes', msg, '')
+      assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
+    end
+
     test 'with kubernetes dotted labels, de_dot enabled' do
       VCR.use_cassette('kubernetes_docker_metadata_dotted_labels') do
         es = emit()
