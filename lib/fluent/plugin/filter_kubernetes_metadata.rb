@@ -42,21 +42,36 @@ module Fluent
     config_param :de_dot, :bool, default: true
     config_param :de_dot_separator, :string, default: '_'
 
+    def syms_to_strs(hsh)
+      newhsh = {}
+      hsh.each_pair do |kk,vv|
+        if vv.is_a?(Hash)
+          vv = syms_to_strs(vv)
+        end
+        if kk.is_a?(Symbol)
+          newhsh[kk.to_s] = vv
+        else
+          newhsh[kk] = vv
+        end
+      end
+      newhsh
+    end
+
     def get_metadata(namespace_name, pod_name, container_name)
       begin
         metadata = @client.get_pod(pod_name, namespace_name)
         return if !metadata
-        labels = metadata['metadata']['labels'].to_h
+        labels = syms_to_strs(metadata['metadata']['labels'].to_h)
         if @de_dot
           self.de_dot!(labels)
         end
         return {
-            namespace_name: namespace_name,
-            pod_id:         metadata['metadata']['uid'],
-            pod_name:       pod_name,
-            container_name: container_name,
-            labels:         labels,
-            host:           metadata['spec']['nodeName']
+            'namespace_name' => namespace_name,
+            'pod_id'         => metadata['metadata']['uid'],
+            'pod_name'       => pod_name,
+            'container_name' => container_name,
+            'labels'         => labels,
+            'host'           => metadata['spec']['nodeName']
         }
       rescue KubeException
         nil
@@ -147,6 +162,8 @@ module Fluent
       end
     end
 
+    # NOTE: fluentd requires that records/hashes have string keys, not symbol keys
+    # http://docs.fluentd.org/articles/plugin-development#record-format
     def filter_stream(tag, es)
       new_es = MultiEventStream.new
 
@@ -154,38 +171,38 @@ module Fluent
 
       if match_data
         metadata = {
-            docker: {
-                container_id: match_data['docker_id']
+            'docker' => {
+                'container_id' => match_data['docker_id']
             },
-            kubernetes: {
-                namespace_name: match_data['namespace'],
-                pod_name: match_data['pod_name'],
-                container_name: match_data['container_name']
+            'kubernetes' => {
+                'namespace_name' => match_data['namespace'],
+                'pod_name'       => match_data['pod_name'],
+                'container_name' => match_data['container_name']
             }
         }
 
         if @kubernetes_url.present?
-          cache_key = "#{metadata[:kubernetes][:namespace_name]}_#{metadata[:kubernetes][:pod_name]}_#{metadata[:kubernetes][:container_name]}"
+          cache_key = "#{metadata['kubernetes']['namespace_name']}_#{metadata['kubernetes']['pod_name']}_#{metadata['kubernetes']['container_name']}"
 
           this     = self
           metadata = @cache.getset(cache_key) {
             if metadata
               kubernetes_metadata = this.get_metadata(
-                metadata[:kubernetes][:namespace_name],
-                metadata[:kubernetes][:pod_name],
-                metadata[:kubernetes][:container_name]
+                metadata['kubernetes']['namespace_name'],
+                metadata['kubernetes']['pod_name'],
+                metadata['kubernetes']['container_name']
               )
-              metadata[:kubernetes] = kubernetes_metadata if kubernetes_metadata
+              metadata['kubernetes'] = kubernetes_metadata if kubernetes_metadata
               metadata
             end
           }
           if @include_namespace_id
-            namespace_name = metadata[:kubernetes][:namespace_name]
+            namespace_name = metadata['kubernetes']['namespace_name']
             namespace_id = @namespace_cache.getset(namespace_name) {
               namespace = @client.get_namespace(namespace_name)
               namespace['metadata']['uid'] if namespace
             }
-            metadata[:kubernetes][:namespace_id] = namespace_id if namespace_id
+            metadata['kubernetes']['namespace_id'] = namespace_id if namespace_id
           end
         end
       end
@@ -219,7 +236,7 @@ module Fluent
         if h[ref] && ref =~ /\./
           v = h.delete(ref)
           newref = ref.to_s.gsub('.', @de_dot_separator)
-          h[newref.to_sym] = v
+          h[newref] = v
         end
       end
     end
@@ -242,11 +259,11 @@ module Fluent
                 cached    = @cache[cache_key]
                 if cached
                   # Only thing that can be modified is labels
-                  labels = notice.object.metadata.labels.to_h
+                  labels = syms_to_strs(notice.object.metadata.labels.to_h)
                   if @de_dot
                     self.de_dot!(labels)
                   end
-                  cached[:kubernetes][:labels] = labels
+                  cached['kubernetes']['labels'] = labels
                   @cache[cache_key]            = cached
                 end
               }
