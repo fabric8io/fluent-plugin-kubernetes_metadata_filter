@@ -157,17 +157,17 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       VCR.use_cassette('kubernetes_docker_metadata') do
         es = emit()
         expected_kube_metadata = {
-          docker: {
-              container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
-          kubernetes: {
-            host:           'jimmi-redhat.localnet',
-            pod_name:       'fabric8-console-controller-98rqc',
-            container_name: 'fabric8-console-container',
-            namespace_name: 'default',
-            pod_id:         'c76927af-f563-11e4-b32d-54ee7527188d',
-            labels: {
-              component: 'fabric8Console'
+          'kubernetes' => {
+            'host'           => 'jimmi-redhat.localnet',
+            'pod_name'       => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            'namespace_name' => 'default',
+            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'labels' => {
+              'component' => 'fabric8Console'
             }
           }
         }
@@ -184,18 +184,18 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           include_namespace_id true
         ')
         expected_kube_metadata = {
-          docker: {
-              container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
-          kubernetes: {
-            host:           'jimmi-redhat.localnet',
-            pod_name:       'fabric8-console-controller-98rqc',
-            container_name: 'fabric8-console-container',
-            namespace_name: 'default',
-            namespace_id:   '898268c8-4a36-11e5-9d81-42010af0194c',
-            pod_id:         'c76927af-f563-11e4-b32d-54ee7527188d',
-            labels: {
-              component: 'fabric8Console'
+          'kubernetes' => {
+            'host'           => 'jimmi-redhat.localnet',
+            'pod_name'       => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            'namespace_name' => 'default',
+            'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
+            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'labels' => {
+              'component' => 'fabric8Console'
             }
           }
         }
@@ -212,17 +212,17 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           bearer_token_file test/plugin/test.token
         ')
         expected_kube_metadata = {
-          docker: {
-            container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          'docker' => {
+            'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
-          kubernetes: {
-            host:           'jimmi-redhat.localnet',
-            pod_name:       'fabric8-console-controller-98rqc',
-            container_name: 'fabric8-console-container',
-            namespace_name: 'default',
-            pod_id:         'c76927af-f563-11e4-b32d-54ee7527188d',
-            labels: {
-              component: 'fabric8Console'
+          'kubernetes' => {
+            'host'           => 'jimmi-redhat.localnet',
+            'pod_name'       => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            'namespace_name' => 'default',
+            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'labels' => {
+              'component' => 'fabric8Console'
             }
           }
         }
@@ -233,13 +233,13 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     test 'with docker & kubernetes metadata but no configured api server' do
       es = emit({}, '')
       expected_kube_metadata = {
-          docker: {
-              container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
-          kubernetes: {
-              pod_name:       'fabric8-console-controller-98rqc',
-              container_name: 'fabric8-console-container',
-              namespace_name: 'default',
+          'kubernetes' => {
+              'pod_name'       => 'fabric8-console-controller-98rqc',
+              'container_name' => 'fabric8-console-container',
+              'namespace_name' => 'default',
           }
       }
       assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
@@ -247,20 +247,20 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
 
     test 'with docker & inaccessible kubernetes metadata' do
       stub_request(:any, 'https://localhost:8443/api').to_return(
-        body: {
-          versions: ['v1beta3', 'v1']
+        'body' => {
+          'versions' => ['v1beta3', 'v1']
         }.to_json
       )
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc').to_timeout
       es = emit()
       expected_kube_metadata = {
-        docker: {
-          container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+        'docker' => {
+          'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
         },
-        kubernetes: {
-          pod_name:       'fabric8-console-controller-98rqc',
-          container_name: 'fabric8-console-container',
-          namespace_name: 'default'
+        'kubernetes' => {
+          'pod_name'       => 'fabric8-console-controller-98rqc',
+          'container_name' => 'fabric8-console-container',
+          'namespace_name' => 'default'
         }
       }
       assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
@@ -268,20 +268,20 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
 
     test 'with dot in pod name' do
       stub_request(:any, 'https://localhost:8443/api').to_return(
-        body: {
-          versions: ['v1beta3', 'v1']
+        'body' => {
+          'versions' => ['v1beta3', 'v1']
         }.to_json
       )
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller.98rqc').to_timeout
       es = emit_with_tag('var.log.containers.fabric8-console-controller.98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log', {}, '')
       expected_kube_metadata = {
-        docker: {
-          container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+        'docker' => {
+          'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
         },
-        kubernetes: {
-          pod_name:       'fabric8-console-controller.98rqc',
-          container_name: 'fabric8-console-container',
-          namespace_name: 'default'
+        'kubernetes' => {
+          'pod_name'       => 'fabric8-console-controller.98rqc',
+          'container_name' => 'fabric8-console-container',
+          'namespace_name' => 'default'
         }
       }
       assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
@@ -324,17 +324,17 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       VCR.use_cassette('kubernetes_docker_metadata_dotted_labels') do
         es = emit()
         expected_kube_metadata = {
-          docker: {
-              container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
-          kubernetes: {
-            host:           'jimmi-redhat.localnet',
-            pod_name:       'fabric8-console-controller-98rqc',
-            container_name: 'fabric8-console-container',
-            namespace_name: 'default',
-            pod_id:         'c76927af-f563-11e4-b32d-54ee7527188d',
-            labels: {
-              'kubernetes_io/test': 'somevalue'
+          'kubernetes' => {
+            'host'           => 'jimmi-redhat.localnet',
+            'pod_name'       => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            'namespace_name' => 'default',
+            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'labels' => {
+              'kubernetes_io/test' => 'somevalue'
             }
           }
         }
@@ -351,17 +351,17 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           de_dot false
         ')
         expected_kube_metadata = {
-          docker: {
-              container_id: '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
-          kubernetes: {
-            host:           'jimmi-redhat.localnet',
-            pod_name:       'fabric8-console-controller-98rqc',
-            container_name: 'fabric8-console-container',
-            namespace_name: 'default',
-            pod_id:         'c76927af-f563-11e4-b32d-54ee7527188d',
-            labels: {
-              'kubernetes.io/test': 'somevalue'
+          'kubernetes' => {
+            'host'           => 'jimmi-redhat.localnet',
+            'pod_name'       => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            'namespace_name' => 'default',
+            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'labels' => {
+              'kubernetes.io/test' => 'somevalue'
             }
           }
         }
