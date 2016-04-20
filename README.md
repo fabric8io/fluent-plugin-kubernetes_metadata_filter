@@ -24,6 +24,7 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `cache_ttl` - TTL in seconds of each cached element. Set to negative value to disable TTL eviction (default: `3600` - 1 hour)
 * `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
 * `merge_json_log` - merge logs in JSON format as top level keys (default: `true`)
+* `preserve_json_log` - preserve JSON logs in raw form in the `log` key, only used if the previous option is true (default: `true`)
 * `de_dot` - replace dots in labels with configured `de_dot_separator`, required for ElasticSearch 2.x compatibility (default: `true`)
 * `de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
 
