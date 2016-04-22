@@ -303,6 +303,18 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
     end
 
+    test 'emit individual fields from json, throw out whole original string' do
+      json_log = {
+        'hello' => 'world',
+        'more' => 'data'
+      }
+      msg = {
+        'log' => "#{json_log.to_json}"
+      }
+      es = emit_with_tag('non-kubernetes', msg, 'preserve_json_log false')
+      assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
+    end
+
     test 'with kubernetes dotted labels, de_dot enabled' do
       VCR.use_cassette('kubernetes_docker_metadata_dotted_labels') do
         es = emit()
