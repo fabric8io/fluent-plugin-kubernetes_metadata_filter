@@ -13,8 +13,8 @@ Rake::TestTask.new(:base_test) do |t|
   #  $ bundle exec rake base_test TEST=test/test_*.rb
   t.libs << 'test'
   t.test_files = Dir['test/**/test_*.rb'].sort
-  t.verbose = true
-  #t.warning = true
+  #t.verbose = true
+  t.warning = false
 end
 
 desc 'Add copyright headers'
