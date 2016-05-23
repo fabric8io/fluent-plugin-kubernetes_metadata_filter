@@ -303,6 +303,17 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
     end
 
+    test 'merges json log data in MESSAGE' do
+      json_log = {
+        'hello' => 'world'
+      }
+      msg = {
+        'MESSAGE' => "#{json_log.to_json}"
+      }
+      es = emit_with_tag('non-kubernetes', msg, 'use_journal true')
+      assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
+    end
+
     test 'merges json log data with message field' do
       json_log = {
         'timeMillis' => 1459853347608,
@@ -320,6 +331,23 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
     end
 
+    test 'merges json log data with message field in MESSAGE' do
+      json_log = {
+        'timeMillis' => 1459853347608,
+        'thread' => 'main',
+        'level' => 'INFO',
+        'loggerName' => 'org.apache.camel.spring.SpringCamelContext',
+        'message' => 'Total 1 routes, of which 1 is started.',
+        'endOfBatch' => false,
+        'loggerFqcn' => 'org.apache.logging.slf4j.Log4jLogger'
+      }
+      msg = {
+        'MESSAGE' => "#{json_log.to_json}"
+      }
+      es = emit_with_tag('non-kubernetes', msg, 'use_journal true')
+      assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
+    end
+
     test 'emit individual fields from json, throw out whole original string' do
       json_log = {
         'hello' => 'world',
@@ -329,6 +357,21 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'log' => "#{json_log.to_json}"
       }
       es = emit_with_tag('non-kubernetes', msg, 'preserve_json_log false')
+      assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
+    end
+
+    test 'emit individual fields from json, throw out whole original string in MESSAGE' do
+      json_log = {
+        'hello' => 'world',
+        'more' => 'data'
+      }
+      msg = {
+        'MESSAGE' => "#{json_log.to_json}"
+      }
+      es = emit_with_tag('non-kubernetes', msg, '
+preserve_json_log false
+use_journal true
+')
       assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
     end
 
@@ -388,5 +431,76 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         ')
       end
     end
+
+    test 'with records from journald and docker & kubernetes metadata' do
+      # with use_journal true should ignore tags and use CONTAINER_NAME and CONTAINER_ID_FULL
+      tag = 'var.log.containers.junk1_junk2_junk3-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed450.log'
+      msg = {
+        'CONTAINER_NAME' => 'k8s_fabric8-console-container.db89db89_fabric8-console-controller-98rqc_default_c76927af-f563-11e4-b32d-54ee7527188d_89db89db',
+        'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
+        'randomfield' => 'randomvalue'
+      }
+      VCR.use_cassette('kubernetes_docker_metadata') do
+        es = emit_with_tag(tag, msg, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          use_journal true
+        ')
+        expected_kube_metadata = {
+          'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          'kubernetes' => {
+            'host'           => 'jimmi-redhat.localnet',
+            'pod_name'       => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            'namespace_name' => 'default',
+            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'labels' => {
+              'component' => 'fabric8Console'
+            }
+          }
+        }.merge(msg)
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
+    test 'with records from journald and docker & kubernetes metadata & namespace_id enabled' do
+      # with use_journal true should ignore tags and use CONTAINER_NAME and CONTAINER_ID_FULL
+      tag = 'var.log.containers.junk1_junk2_junk3-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed450.log'
+      msg = {
+        'CONTAINER_NAME' => 'k8s_fabric8-console-container.db89db89_fabric8-console-controller-98rqc_default_c76927af-f563-11e4-b32d-54ee7527188d_89db89db',
+        'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
+        'randomfield' => 'randomvalue'
+      }
+      VCR.use_cassette('metadata_with_namespace_id') do
+        es = emit_with_tag(tag, msg, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          include_namespace_id true
+          use_journal true
+        ')
+        expected_kube_metadata = {
+          'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          'kubernetes' => {
+            'host'           => 'jimmi-redhat.localnet',
+            'pod_name'       => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            'namespace_name' => 'default',
+            'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
+            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'labels' => {
+              'component' => 'fabric8Console'
+            }
+          }
+        }.merge(msg)
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
   end
 end

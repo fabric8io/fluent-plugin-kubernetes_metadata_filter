@@ -42,6 +42,14 @@ module Fluent
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
     config_param :de_dot, :bool, default: true
     config_param :de_dot_separator, :string, default: '_'
+    # if reading from the journal, the record will contain the following fields in the following
+    # format:
+    # CONTAINER_NAME=k8s_$containername.$containerhash_$podname_$namespacename_$poduuid_$rand32bitashex
+    # CONTAINER_FULL_ID=dockeridassha256hexvalue
+    config_param :use_journal, :bool, default: false
+    config_param :container_name_to_kubernetes_regexp,
+                 :string,
+                 :default => '^k8s_(?<container_name>[^\.]+)\.(?<container_hash>[a-z0-9]{8})_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_(?<pod_id>[^_]+)_(?<pod_randhex>[a-z0-9]{8})$'
 
     def syms_to_strs(hsh)
       newhsh = {}
@@ -102,6 +110,7 @@ module Fluent
         @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
       end
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
+      @container_name_to_kubernetes_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_regexp)
 
       # Use Kubernetes default service account if we're in a pod.
       if @kubernetes_url.nil?
@@ -161,25 +170,30 @@ module Fluent
           end
         end
       end
+      if @use_journal
+        @merge_json_log_key = 'MESSAGE'
+        self.class.class_eval { alias_method :filter_stream, :filter_stream_from_journal }
+      else
+        @merge_json_log_key = 'log'
+        self.class.class_eval { alias_method :filter_stream, :filter_stream_from_files }
+      end
     end
 
-    # NOTE: fluentd requires that records/hashes have string keys, not symbol keys
-    # http://docs.fluentd.org/articles/plugin-development#record-format
-    def filter_stream(tag, es)
+    def filter_stream_from_files(tag, es)
       new_es = MultiEventStream.new
 
       match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
 
       if match_data
         metadata = {
-            'docker' => {
-                'container_id' => match_data['docker_id']
-            },
-            'kubernetes' => {
-                'namespace_name' => match_data['namespace'],
-                'pod_name'       => match_data['pod_name'],
-                'container_name' => match_data['container_name']
-            }
+          'docker' => {
+            'container_id' => match_data['docker_id']
+          },
+          'kubernetes' => {
+            'namespace_name' => match_data['namespace'],
+            'pod_name'       => match_data['pod_name'],
+            'container_name' => match_data['container_name']
+          }
         }
 
         if @kubernetes_url.present?
@@ -219,14 +233,79 @@ module Fluent
       new_es
     end
 
+    def filter_stream_from_journal(tag, es)
+      new_es = MultiEventStream.new
+
+      es.each { |time, record|
+        record = merge_json_log(record) if @merge_json_log
+
+        metadata = nil
+        if record.has_key?('CONTAINER_NAME') && record.has_key?('CONTAINER_ID_FULL')
+          metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
+            metadata = {
+              'docker' => {
+                'container_id' => record['CONTAINER_ID_FULL']
+              },
+              'kubernetes' => {
+                'namespace_name' => match_data['namespace'],
+                'pod_name'       => match_data['pod_name'],
+                'container_name' => match_data['container_name']
+              }
+            }
+            if @kubernetes_url.present?
+              cache_key = "#{metadata['kubernetes']['namespace_name']}_#{metadata['kubernetes']['pod_name']}_#{metadata['kubernetes']['container_name']}"
+
+              this     = self
+              metadata = @cache.getset(cache_key) {
+                if metadata
+                  kubernetes_metadata = this.get_metadata(
+                    metadata['kubernetes']['namespace_name'],
+                    metadata['kubernetes']['pod_name'],
+                    metadata['kubernetes']['container_name']
+                  )
+                  metadata['kubernetes'] = kubernetes_metadata if kubernetes_metadata
+                  metadata
+                end
+              }
+              if match_data['pod_id'] && (match_data['pod_id'] != metadata['kubernetes']['pod_id'])
+                log.debug("pod_id #{match_data['pod_id']} from log not equal to pod_id #{metadata['kubernetes']['pod_id']} from kubernetes for #{cache_key}")
+              end
+              if @include_namespace_id
+                namespace_name = metadata['kubernetes']['namespace_name']
+                namespace_id = @namespace_cache.getset(namespace_name) {
+                  namespace = @client.get_namespace(namespace_name)
+                  namespace['metadata']['uid'] if namespace
+                }
+                metadata['kubernetes']['namespace_id'] = namespace_id if namespace_id
+              end
+            end
+            metadata
+          end
+          unless metadata
+            log.debug "Error: could not match CONTAINER_NAME from record #{record}"
+          end
+        elsif record.has_key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
+          log.debug "Error: no container name and id in record #{record}"
+        end
+
+        if metadata
+          record = record.merge(metadata)
+        end
+
+        new_es.add(time, record)
+      }
+
+      new_es
+    end
+
     def merge_json_log(record)
-      if record.has_key?('log')
-        log = record['log'].strip
+      if record.has_key?(@merge_json_log_key)
+        log = record[@merge_json_log_key].strip
         if log[0].eql?('{') && log[-1].eql?('}')
           begin
             record = JSON.parse(log).merge(record)
             unless @preserve_json_log
-              record.delete('log')
+              record.delete(@merge_json_log_key)
             end
           rescue JSON::ParserError
           end
