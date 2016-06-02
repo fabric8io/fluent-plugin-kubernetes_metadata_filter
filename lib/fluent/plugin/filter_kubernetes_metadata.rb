@@ -47,9 +47,12 @@ module Fluent
     # CONTAINER_NAME=k8s_$containername.$containerhash_$podname_$namespacename_$poduuid_$rand32bitashex
     # CONTAINER_FULL_ID=dockeridassha256hexvalue
     config_param :use_journal, :bool, default: false
+    # Field 2 is the container_hash, field 5 is the pod_id, and field 6 is the pod_randhex
+    # I would have included them as named groups, but you can't have named groups that are
+    # non-capturing :P
     config_param :container_name_to_kubernetes_regexp,
                  :string,
-                 :default => '^k8s_(?<container_name>[^\.]+)\.(?<container_hash>[a-z0-9]{8})_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_(?<pod_id>[^_]+)_(?<pod_randhex>[a-z0-9]{8})$'
+                 :default => '^k8s_(?<container_name>[^\.]+)\.[^_]+_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[a-f0-9]{8}$'
 
     def syms_to_strs(hsh)
       newhsh = {}
@@ -267,9 +270,6 @@ module Fluent
                   metadata
                 end
               }
-              if match_data['pod_id'] && (match_data['pod_id'] != metadata['kubernetes']['pod_id'])
-                log.debug("pod_id #{match_data['pod_id']} from log not equal to pod_id #{metadata['kubernetes']['pod_id']} from kubernetes for #{cache_key}")
-              end
               if @include_namespace_id
                 namespace_name = metadata['kubernetes']['namespace_name']
                 namespace_id = @namespace_cache.getset(namespace_name) {
