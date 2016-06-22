@@ -508,7 +508,7 @@ use_journal true
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
-          annotation_match1 ^custom.+
+          annotation_match [ "^custom.+", "two"]
         ')
         expected_kube_metadata = {
             'docker' => {
@@ -524,7 +524,8 @@ use_journal true
                     'component' => 'fabric8Console'
                 },
                 'annotations'    => {
-                    'custom.field1' => 'hello_kitty'
+                    'custom.field1' => 'hello_kitty',
+                    'field.two' => 'value'
                 }
             }
         }

@@ -98,7 +98,8 @@ http_interactions:
               "kubernetes.io/config.mirror": "c171c44f5b9345c6dc17b0e95030318c",
               "kubernetes.io/config.seen": "2016-06-06T08:08:35.680437994Z",
               "kubernetes.io/config.source": "file",
-              "custom.field1": "hello_kitty"
+              "custom.field1": "hello_kitty",
+              "field.two": "value"
             }
           },
           "spec": {

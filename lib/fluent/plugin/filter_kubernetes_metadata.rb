@@ -54,8 +54,7 @@ module Fluent
                  :string,
                  :default => '^k8s_(?<container_name>[^\.]+)\.[^_]+_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[a-f0-9]{8}$'
 
-    ANNOTATIONS_MAX_NUM = 10
-    (1..ANNOTATIONS_MAX_NUM).each {|i| config_param :"annotation_match#{i}", :string, default: nil }
+    config_param :annotation_match, :array, default: []
 
     def syms_to_strs(hsh)
       newhsh = {}
@@ -188,10 +187,12 @@ module Fluent
       end
 
       @annotations_regexps = []
-      (1..ANNOTATIONS_MAX_NUM).each do |i|
-        next unless conf.key? "annotation_match#{i}"
-        regexp = conf["annotation_match#{i}"]
-        @annotations_regexps << Regexp.compile(regexp)
+      @annotation_match.each do |regexp|
+        begin
+          @annotations_regexps << Regexp.compile(regexp)
+        rescue RegexpError => e
+          log.error "Error: invalid regular expression in annotation_match: #{e}"
+        end
       end
 
     end
@@ -340,8 +341,8 @@ module Fluent
 
     def match_annotations(annotations)
       result = {}
-      annotations.each do |key, value|
-        @annotations_regexps.each do |regexp|
+      @annotations_regexps.each do |regexp|
+        annotations.each do |key, value|
           if ::Fluent::StringUtil.match_regexp(regexp, key.to_s)
             result[key] = value
           end
