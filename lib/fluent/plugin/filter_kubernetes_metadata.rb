@@ -54,6 +54,8 @@ module Fluent
                  :string,
                  :default => '^k8s_(?<container_name>[^\.]+)\.[^_]+_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[a-f0-9]{8}$'
 
+    config_param :annotation_match, :array, default: []
+
     def syms_to_strs(hsh)
       newhsh = {}
       hsh.each_pair do |kk,vv|
@@ -74,10 +76,11 @@ module Fluent
         metadata = @client.get_pod(pod_name, namespace_name)
         return if !metadata
         labels = syms_to_strs(metadata['metadata']['labels'].to_h)
+        annotations = match_annotations(syms_to_strs(metadata['metadata']['annotations'].to_h))
         if @de_dot
           self.de_dot!(labels)
         end
-        return {
+        kubernetes_metadata = {
             'namespace_name' => namespace_name,
             'pod_id'         => metadata['metadata']['uid'],
             'pod_name'       => pod_name,
@@ -85,6 +88,8 @@ module Fluent
             'labels'         => labels,
             'host'           => metadata['spec']['nodeName']
         }
+        kubernetes_metadata['annotations'] = annotations unless annotations.empty?
+        return kubernetes_metadata
       rescue KubeException
         nil
       end
@@ -180,6 +185,16 @@ module Fluent
         @merge_json_log_key = 'log'
         self.class.class_eval { alias_method :filter_stream, :filter_stream_from_files }
       end
+
+      @annotations_regexps = []
+      @annotation_match.each do |regexp|
+        begin
+          @annotations_regexps << Regexp.compile(regexp)
+        rescue RegexpError => e
+          log.error "Error: invalid regular expression in annotation_match: #{e}"
+        end
+      end
+
     end
 
     def filter_stream_from_files(tag, es)
@@ -324,6 +339,18 @@ module Fluent
       end
     end
 
+    def match_annotations(annotations)
+      result = {}
+      @annotations_regexps.each do |regexp|
+        annotations.each do |key, value|
+          if ::Fluent::StringUtil.match_regexp(regexp, key.to_s)
+            result[key] = value
+          end
+        end
+      end
+      result
+    end
+
     def start_watch
       begin
         resource_version = @client.get_pods.resourceVersion
@@ -341,13 +368,15 @@ module Fluent
                 cache_key = "#{pod_cache_key}_#{container_status['name']}"
                 cached    = @cache[cache_key]
                 if cached
-                  # Only thing that can be modified is labels
+                  # Only thing that can be modified is labels and (possibly) annotations
                   labels = syms_to_strs(notice.object.metadata.labels.to_h)
+                  annotations = match_annotations(syms_to_strs(notice.object.metadata.annotations.to_h))
                   if @de_dot
                     self.de_dot!(labels)
                   end
                   cached['kubernetes']['labels'] = labels
-                  @cache[cache_key]            = cached
+                  cached['kubernetes']['annotations'] = annotations unless annotations.empty?
+                  @cache[cache_key] = cached
                 end
               }
             end

@@ -29,6 +29,7 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
 * `use_journal` - If false (default), messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.
 * `container_name_to_kubernetes_regexp` - The regular expression used to extract the k8s metadata encoded in the journal `CONTAINER_NAME` field (default: `'^k8s_(?<container_name>[^\.]+)\.(?<container_hash>[a-z0-9]{8})_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_(?<pod_id>[^_]+)_(?<pod_randhex>[a-z0-9]{8})$'`)
+* `annotation_match` - Array of regular expressions matching annotation field names. Matched annotations are added to a log record.
 
 Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
 ```
