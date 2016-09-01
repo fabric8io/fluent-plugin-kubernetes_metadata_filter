@@ -196,6 +196,10 @@ module Fluent
       end
 
     end
+    
+    def filter(tag, time, record)
+      record
+    end
 
     def filter_stream_from_files(tag, es)
       new_es = MultiEventStream.new
