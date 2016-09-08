@@ -198,7 +198,7 @@ module Fluent
     end
 
     def filter_stream(tag, es)
-      record
+      es
     end
 
     def filter_stream_from_files(tag, es)
