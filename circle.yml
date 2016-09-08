@@ -4,10 +4,12 @@ machine:
 
 dependencies:
   override:
+    - 'rvm-exec 2.1.9 bundle install'
     - 'rvm-exec 2.2.5 bundle install'
     - 'rvm-exec 2.3.1 bundle install'
 
 test:
   override:
+    - 'rvm-exec 2.1.9 bundle exec rake test'
     - 'rvm-exec 2.2.5 bundle exec rake test'
     - 'rvm-exec 2.3.1 bundle exec rake test'
