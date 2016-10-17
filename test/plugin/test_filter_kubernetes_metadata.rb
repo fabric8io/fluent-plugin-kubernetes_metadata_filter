@@ -524,8 +524,8 @@ use_journal true
                     'component' => 'fabric8Console'
                 },
                 'annotations'    => {
-                    'custom.field1' => 'hello_kitty',
-                    'field.two' => 'value'
+                    'custom_field1' => 'hello_kitty',
+                    'field_two' => 'value'
                 }
             }
         }

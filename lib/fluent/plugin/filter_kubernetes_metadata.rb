@@ -79,6 +79,7 @@ module Fluent
         annotations = match_annotations(syms_to_strs(metadata['metadata']['annotations'].to_h))
         if @de_dot
           self.de_dot!(labels)
+          self.de_dot!(annotations)
         end
         kubernetes_metadata = {
             'namespace_name' => namespace_name,
@@ -372,6 +373,7 @@ module Fluent
               annotations = match_annotations(syms_to_strs(notice.object.metadata.annotations.to_h))
               if @de_dot
                 self.de_dot!(labels)
+                self.de_dot!(annotations)
               end
               cached['kubernetes']['labels'] = labels
               if annotations.empty?
