@@ -240,9 +240,9 @@ module Fluent
             metadata['kubernetes']['namespace_id'] = namespace_id if namespace_id
           end
         end
-      end
 
-      metadata['kubernetes']['container_name'] = match_data['container_name'] if match_data
+        metadata['kubernetes']['container_name'] = match_data['container_name']
+      end
 
       es.each { |time, record|
         record = merge_json_log(record) if @merge_json_log
