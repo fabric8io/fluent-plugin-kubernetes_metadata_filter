@@ -71,7 +71,7 @@ module Fluent
       newhsh
     end
 
-    def get_metadata(namespace_name, pod_name, container_name)
+    def get_metadata(namespace_name, pod_name)
       begin
         metadata = @client.get_pod(pod_name, namespace_name)
         return if !metadata
@@ -79,12 +79,12 @@ module Fluent
         annotations = match_annotations(syms_to_strs(metadata['metadata']['annotations'].to_h))
         if @de_dot
           self.de_dot!(labels)
+          self.de_dot!(annotations)
         end
         kubernetes_metadata = {
             'namespace_name' => namespace_name,
             'pod_id'         => metadata['metadata']['uid'],
             'pod_name'       => pod_name,
-            'container_name' => container_name,
             'labels'         => labels,
             'host'           => metadata['spec']['nodeName']
         }
@@ -214,20 +214,18 @@ module Fluent
           'kubernetes' => {
             'namespace_name' => match_data['namespace'],
             'pod_name'       => match_data['pod_name'],
-            'container_name' => match_data['container_name']
           }
         }
 
         if @kubernetes_url.present?
-          cache_key = "#{metadata['kubernetes']['namespace_name']}_#{metadata['kubernetes']['pod_name']}_#{metadata['kubernetes']['container_name']}"
+          cache_key = "#{metadata['kubernetes']['namespace_name']}_#{metadata['kubernetes']['pod_name']}"
 
           this     = self
           metadata = @cache.getset(cache_key) {
             if metadata
               kubernetes_metadata = this.get_metadata(
                 metadata['kubernetes']['namespace_name'],
-                metadata['kubernetes']['pod_name'],
-                metadata['kubernetes']['container_name']
+                metadata['kubernetes']['pod_name']
               )
               metadata['kubernetes'] = kubernetes_metadata if kubernetes_metadata
               metadata
@@ -243,6 +241,8 @@ module Fluent
           end
         end
       end
+
+      metadata['kubernetes']['container_name'] = match_data['container_name'] if match_data
 
       es.each { |time, record|
         record = merge_json_log(record) if @merge_json_log
@@ -270,20 +270,18 @@ module Fluent
               },
               'kubernetes' => {
                 'namespace_name' => match_data['namespace'],
-                'pod_name'       => match_data['pod_name'],
-                'container_name' => match_data['container_name']
+                'pod_name'       => match_data['pod_name']
               }
             }
             if @kubernetes_url.present?
-              cache_key = "#{metadata['kubernetes']['namespace_name']}_#{metadata['kubernetes']['pod_name']}_#{metadata['kubernetes']['container_name']}"
+              cache_key = "#{metadata['kubernetes']['namespace_name']}_#{metadata['kubernetes']['pod_name']}"
 
               this     = self
               metadata = @cache.getset(cache_key) {
                 if metadata
                   kubernetes_metadata = this.get_metadata(
                     metadata['kubernetes']['namespace_name'],
-                    metadata['kubernetes']['pod_name'],
-                    metadata['kubernetes']['container_name']
+                    metadata['kubernetes']['pod_name']
                   )
                   metadata['kubernetes'] = kubernetes_metadata if kubernetes_metadata
                   metadata
@@ -298,6 +296,7 @@ module Fluent
                 metadata['kubernetes']['namespace_id'] = namespace_id if namespace_id
               end
             end
+            metadata['kubernetes']['container_name'] = match_data['container_name']
             metadata
           end
           unless metadata
@@ -366,32 +365,27 @@ module Fluent
       watcher.each do |notice|
         case notice.type
           when 'MODIFIED'
-            if notice.object.status.containerStatuses
-              pod_cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
-              notice.object.status.containerStatuses.each { |container_status|
-                cache_key = "#{pod_cache_key}_#{container_status['name']}"
-                cached    = @cache[cache_key]
-                if cached
-                  # Only thing that can be modified is labels and (possibly) annotations
-                  labels = syms_to_strs(notice.object.metadata.labels.to_h)
-                  annotations = match_annotations(syms_to_strs(notice.object.metadata.annotations.to_h))
-                  if @de_dot
-                    self.de_dot!(labels)
-                  end
-                  cached['kubernetes']['labels'] = labels
-                  cached['kubernetes']['annotations'] = annotations unless annotations.empty?
-                  @cache[cache_key] = cached
-                end
-              }
+            cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
+            cached    = @cache[cache_key]
+            if cached
+              # Only thing that can be modified is labels and (possibly) annotations
+              labels = syms_to_strs(notice.object.metadata.labels.to_h)
+              annotations = match_annotations(syms_to_strs(notice.object.metadata.annotations.to_h))
+              if @de_dot
+                self.de_dot!(labels)
+                self.de_dot!(annotations)
+              end
+              cached['kubernetes']['labels'] = labels
+              if annotations.empty?
+                delete(cached['kubernetes']['annotations'])
+              else
+                cached['kubernetes']['annotations'] = annotations
+              end
+              @cache[cache_key] = cached
             end
           when 'DELETED'
-            if notice.object.status.containerStatuses
-              pod_cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
-              notice.object.status.containerStatuses.each { |container_status|
-                cache_key = "#{pod_cache_key}_#{container_status['name']}"
-                @cache.delete(cache_key)
-              }
-            end
+            cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
+            @cache.delete(cache_key)
           else
             # Don't pay attention to creations, since the created pod may not
             # end up on this node.
