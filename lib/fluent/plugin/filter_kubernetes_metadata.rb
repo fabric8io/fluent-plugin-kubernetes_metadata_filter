@@ -374,7 +374,11 @@ module Fluent
                 self.de_dot!(labels)
               end
               cached['kubernetes']['labels'] = labels
-              cached['kubernetes']['annotations'] = annotations unless annotations.empty?
+              if annotations.empty?
+                delete(cached['kubernetes']['annotations'])
+              else
+                cached['kubernetes']['annotations'] = annotations
+              end
               @cache[cache_key] = cached
             end
           when 'DELETED'
