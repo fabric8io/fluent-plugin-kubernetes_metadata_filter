@@ -43,7 +43,7 @@ Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
   read_from_head true
 </source>
 
-<filter kubernetes.var.lib.docker.containers.*.*.log>
+<filter kubernetes.var.log.containers.*.log>
   type kubernetes_metadata
 </filter>
 
