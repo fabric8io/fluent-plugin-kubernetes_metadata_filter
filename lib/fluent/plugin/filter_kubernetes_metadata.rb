@@ -221,16 +221,17 @@ module Fluent
           cache_key = "#{metadata['kubernetes']['namespace_name']}_#{metadata['kubernetes']['pod_name']}"
 
           this     = self
-          metadata = @cache.getset(cache_key) {
+          kubernetes_metadata = @cache.getset(cache_key) {
             if metadata
-              kubernetes_metadata = this.get_metadata(
+              md = this.get_metadata(
                 metadata['kubernetes']['namespace_name'],
                 metadata['kubernetes']['pod_name']
               )
-              metadata['kubernetes'] = kubernetes_metadata if kubernetes_metadata
-              metadata
+              md
             end
           }
+          metadata['kubernetes'].merge!(kubernetes_metadata) if kubernetes_metadata
+
           if @include_namespace_id
             namespace_name = metadata['kubernetes']['namespace_name']
             namespace_id = @namespace_cache.getset(namespace_name) {
@@ -277,16 +278,17 @@ module Fluent
               cache_key = "#{metadata['kubernetes']['namespace_name']}_#{metadata['kubernetes']['pod_name']}"
 
               this     = self
-              metadata = @cache.getset(cache_key) {
+              kubernetes_metadata = @cache.getset(cache_key) {
                 if metadata
-                  kubernetes_metadata = this.get_metadata(
+                  md = this.get_metadata(
                     metadata['kubernetes']['namespace_name'],
                     metadata['kubernetes']['pod_name']
                   )
-                  metadata['kubernetes'] = kubernetes_metadata if kubernetes_metadata
-                  metadata
+                  md
                 end
               }
+              metadata['kubernetes'].merge!(kubernetes_metadata) if kubernetes_metadata
+
               if @include_namespace_id
                 namespace_name = metadata['kubernetes']['namespace_name']
                 namespace_id = @namespace_cache.getset(namespace_name) {
@@ -375,8 +377,8 @@ module Fluent
                 self.de_dot!(labels)
                 self.de_dot!(annotations)
               end
-              cached['kubernetes']['labels'] = labels
-              cached['kubernetes']['annotations'] = annotations
+              cached['labels'] = labels
+              cached['annotations'] = annotations
               @cache[cache_key] = cached
             end
           when 'DELETED'
