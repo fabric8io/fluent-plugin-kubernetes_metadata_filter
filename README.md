@@ -11,7 +11,7 @@
 
 Configuration options for fluent.conf are:
 
-* `kubernetes_url` - URL to the API server. Set this to retrieve further kubernetes metadata for logs from kubernetes API server
+* `kubernetes_url` - URL to the API server. Set this to retrieve further kubernetes metadata for logs from kubernetes API server. If not specified, environment variables `KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT` will be used if both are present which is typically true when running fluentd in a pod.
 * `apiVersion` - API version to use (default: `v1`)
 * `ca_file` - path to CA file for Kubernetes server certificate validation
 * `verify_ssl` - validate SSL certificates (default: `true`)
