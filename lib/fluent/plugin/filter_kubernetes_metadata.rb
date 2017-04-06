@@ -214,6 +214,7 @@ module Fluent
           'kubernetes' => {
             'namespace_name' => match_data['namespace'],
             'pod_name'       => match_data['pod_name'],
+            'container_name' => match_data['container_name'],
           }
         }
 
@@ -241,8 +242,6 @@ module Fluent
             metadata['kubernetes']['namespace_id'] = namespace_id if namespace_id
           end
         end
-
-        metadata['kubernetes']['container_name'] = match_data['container_name']
       end
 
       es.each { |time, record|
