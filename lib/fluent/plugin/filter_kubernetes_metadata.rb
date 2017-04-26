@@ -71,7 +71,7 @@ module Fluent
       newhsh
     end
 
-    def get_metadata(namespace_name, pod_name)
+    def get_metadata(namespace_name, pod_name, master_url)
       begin
         metadata = @client.get_pod(pod_name, namespace_name)
         return if !metadata
@@ -86,7 +86,8 @@ module Fluent
             'pod_id'         => metadata['metadata']['uid'],
             'pod_name'       => pod_name,
             'labels'         => labels,
-            'host'           => metadata['spec']['nodeName']
+            'host'           => metadata['spec']['nodeName'],
+            'master_url'     => master_url
         }
         kubernetes_metadata['annotations'] = annotations unless annotations.empty?
         return kubernetes_metadata
@@ -225,7 +226,8 @@ module Fluent
             if metadata
               md = this.get_metadata(
                 metadata['kubernetes']['namespace_name'],
-                metadata['kubernetes']['pod_name']
+                metadata['kubernetes']['pod_name'],
+                @kubernetes_url
               )
               md
             end
@@ -282,7 +284,8 @@ module Fluent
                 if metadata
                   md = this.get_metadata(
                     metadata['kubernetes']['namespace_name'],
-                    metadata['kubernetes']['pod_name']
+                    metadata['kubernetes']['pod_name'],
+                    @kubernetes_url
                   )
                   md
                 end
