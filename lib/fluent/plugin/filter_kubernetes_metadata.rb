@@ -361,7 +361,12 @@ module Fluent
         resource_version = @client.get_pods.resourceVersion
         watcher          = @client.watch_pods(resource_version)
       rescue Exception => e
-        raise Fluent::ConfigError, "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
+        message = "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
+        if e.respond_to?(:response)
+          message += " (#{e.response})"
+        end
+
+        raise Fluent::ConfigError, message
       end
 
       watcher.each do |notice|
