@@ -166,6 +166,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'container_name' => 'fabric8-console-container',
             'namespace_name' => 'default',
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'     => 'https://localhost:8443',
             'labels' => {
               'component' => 'fabric8Console'
             }
@@ -194,6 +195,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'namespace_name' => 'default',
             'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'     => 'https://localhost:8443',
             'labels' => {
               'component' => 'fabric8Console'
             }
@@ -221,6 +223,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'container_name' => 'fabric8-console-container',
             'namespace_name' => 'default',
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'     => 'https://localhost:8443',
             'labels' => {
               'component' => 'fabric8Console'
             }
@@ -388,6 +391,7 @@ use_journal true
             'container_name' => 'fabric8-console-container',
             'namespace_name' => 'default',
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'     => 'https://localhost:8443',
             'labels' => {
               'kubernetes_io/test' => 'somevalue'
             }
@@ -415,6 +419,7 @@ use_journal true
             'container_name' => 'fabric8-console-container',
             'namespace_name' => 'default',
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'     => 'https://localhost:8443',
             'labels' => {
               'kubernetes.io/test' => 'somevalue'
             }
@@ -457,6 +462,7 @@ use_journal true
             'container_name' => 'fabric8-console-container',
             'namespace_name' => 'default',
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'     => 'https://localhost:8443',
             'labels' => {
               'component' => 'fabric8Console'
             }
@@ -493,6 +499,7 @@ use_journal true
             'namespace_name' => 'default',
             'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'     => 'https://localhost:8443',
             'labels' => {
               'component' => 'fabric8Console'
             }
@@ -520,6 +527,7 @@ use_journal true
                 'container_name' => 'fabric8-console-container',
                 'namespace_name' => 'default',
                 'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+                'master_url'     => 'https://localhost:8443',
                 'labels'         => {
                     'component' => 'fabric8Console'
                 },
