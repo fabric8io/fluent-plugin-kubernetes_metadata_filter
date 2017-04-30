@@ -541,5 +541,40 @@ use_journal true
       end
     end
 
+    test 'with records from journald and docker & kubernetes metadata, alternate form' do
+      # with use_journal true should ignore tags and use CONTAINER_NAME and CONTAINER_ID_FULL
+      tag = 'var.log.containers.junk1_junk2_junk3-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed450.log'
+      msg = {
+        'CONTAINER_NAME' => 'alt_fabric8-console-container_fabric8-console-controller-98rqc_default_c76927af-f563-11e4-b32d-54ee7527188d_0',
+        'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
+        'randomfield' => 'randomvalue'
+      }
+      VCR.use_cassette('kubernetes_docker_metadata') do
+        es = emit_with_tag(tag, msg, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          use_journal true
+        ')
+        expected_kube_metadata = {
+          'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          'kubernetes' => {
+            'host'           => 'jimmi-redhat.localnet',
+            'pod_name'       => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            'namespace_name' => 'default',
+            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'     => 'https://localhost:8443',
+            'labels' => {
+              'component' => 'fabric8Console'
+            }
+          }
+        }.merge(msg)
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
   end
 end
