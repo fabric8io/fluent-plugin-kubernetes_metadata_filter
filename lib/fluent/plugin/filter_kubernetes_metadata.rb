@@ -199,6 +199,33 @@ module Fluent
 
     end
 
+    def get_metadata_for_record(namespace_name, pod_name)
+      metadata = {}
+      if @kubernetes_url.present?
+        cache_key = "#{namespace_name}_#{pod_name}"
+
+        this = self
+        pod_metadata = @cache.getset(cache_key) {
+          md = this.get_metadata(
+            namespace_name,
+            pod_name,
+            @kubernetes_url
+          )
+          md
+        }
+        metadata.merge!(pod_metadata) if pod_metadata
+
+        if @include_namespace_id
+          namespace_id = @namespace_cache.getset(namespace_name) {
+            namespace = @client.get_namespace(namespace_name)
+            namespace['metadata']['uid'] if namespace
+          }
+          metadata['namespace_id'] = namespace_id if namespace_id
+        end
+      end
+      metadata
+    end
+
     def filter_stream(tag, es)
       es
     end
@@ -219,31 +246,12 @@ module Fluent
           }
         }
 
-        if @kubernetes_url.present?
-          cache_key = "#{metadata['kubernetes']['namespace_name']}_#{metadata['kubernetes']['pod_name']}"
-
-          this     = self
-          kubernetes_metadata = @cache.getset(cache_key) {
-            if metadata
-              md = this.get_metadata(
-                metadata['kubernetes']['namespace_name'],
-                metadata['kubernetes']['pod_name'],
-                @kubernetes_url
-              )
-              md
-            end
-          }
-          metadata['kubernetes'].merge!(kubernetes_metadata) if kubernetes_metadata
-
-          if @include_namespace_id
-            namespace_name = metadata['kubernetes']['namespace_name']
-            namespace_id = @namespace_cache.getset(namespace_name) {
-              namespace = @client.get_namespace(namespace_name)
-              namespace['metadata']['uid'] if namespace
-            }
-            metadata['kubernetes']['namespace_id'] = namespace_id if namespace_id
-          end
-        end
+        metadata['kubernetes'] = metadata['kubernetes'].merge(
+          get_metadata_for_record(
+            metadata['kubernetes']['namespace_name'],
+            metadata['kubernetes']['pod_name'],
+          )
+        )
 
         metadata['kubernetes']['container_name'] = match_data['container_name']
       end
@@ -277,31 +285,14 @@ module Fluent
                 'pod_name'       => match_data['pod_name']
               }
             }
-            if @kubernetes_url.present?
-              cache_key = "#{metadata['kubernetes']['namespace_name']}_#{metadata['kubernetes']['pod_name']}"
 
-              this     = self
-              kubernetes_metadata = @cache.getset(cache_key) {
-                if metadata
-                  md = this.get_metadata(
-                    metadata['kubernetes']['namespace_name'],
-                    metadata['kubernetes']['pod_name'],
-                    @kubernetes_url
-                  )
-                  md
-                end
-              }
-              metadata['kubernetes'].merge!(kubernetes_metadata) if kubernetes_metadata
+            metadata['kubernetes'] = metadata['kubernetes'].merge(
+              get_metadata_for_record(
+                metadata['kubernetes']['namespace_name'],
+                metadata['kubernetes']['pod_name'],
+              )
+            )
 
-              if @include_namespace_id
-                namespace_name = metadata['kubernetes']['namespace_name']
-                namespace_id = @namespace_cache.getset(namespace_name) {
-                  namespace = @client.get_namespace(namespace_name)
-                  namespace['metadata']['uid'] if namespace
-                }
-                metadata['kubernetes']['namespace_id'] = namespace_id if namespace_id
-              end
-            end
             metadata['kubernetes']['container_name'] = match_data['container_name']
             metadata
           end
