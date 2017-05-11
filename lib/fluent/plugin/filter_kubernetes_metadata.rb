@@ -39,6 +39,7 @@ module Fluent
     config_param :merge_json_log, :bool, default: true
     config_param :preserve_json_log, :bool, default: true
     config_param :include_namespace_id, :bool, default: false
+    config_param :include_namespace_metadata, :bool, default: false
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
     config_param :de_dot, :bool, default: true
     config_param :de_dot_separator, :string, default: '_'
@@ -95,6 +96,18 @@ module Fluent
       return kubernetes_metadata
     end
 
+    def parse_namespace_metadata(namespace_object)
+      labels = syms_to_strs(namespace_object['metadata']['labels'].to_h)
+      if @de_dot
+        self.de_dot!(labels)
+      end
+      kubernetes_metadata = {
+        'namespace_id' => namespace_object['metadata']['uid']
+      }
+      kubernetes_metadata['namespace_labels'] = labels unless labels.empty?
+      return kubernetes_metadata
+    end
+
     def get_pod_metadata(namespace_name, pod_name)
       begin
         metadata = @client.get_pod(pod_name, namespace_name)
@@ -120,11 +133,16 @@ module Fluent
         raise Fluent::ConfigError, "Invalid de_dot_separator: cannot be or contain '.'"
       end
 
+      if @include_namespace_id
+        # For compatibility, use include_namespace_metadata instead
+        @include_namespace_metadata = true
+      end
+
       if @cache_ttl < 0
         @cache_ttl = :none
       end
       @cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
-      if @include_namespace_id
+      if @include_namespace_metadata
         @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
       end
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
@@ -182,7 +200,7 @@ module Fluent
         if @watch
           thread = Thread.new(self) { |this| this.start_watch }
           thread.abort_on_exception = true
-          if @include_namespace_id
+          if @include_namespace_metadata
             namespace_thread = Thread.new(self) { |this| this.start_namespace_watch }
             namespace_thread.abort_on_exception = true
           end
@@ -226,12 +244,18 @@ module Fluent
         }
         metadata.merge!(pod_metadata) if pod_metadata
 
-        if @include_namespace_id
-          namespace_id = @namespace_cache.getset(namespace_name) {
-            namespace = @client.get_namespace(namespace_name)
-            namespace['metadata']['uid'] if namespace
+        if @include_namespace_metadata
+          namespace_metadata = @namespace_cache.getset(namespace_name) {
+            begin
+              namespace = @client.get_namespace(namespace_name)
+              if namespace
+                parse_namespace_metadata(namespace)
+              end
+            rescue KubeException
+              nil
+            end
           }
-          metadata['namespace_id'] = namespace_id if namespace_id
+          metadata.merge!(namespace_metadata) if namespace_metadata
         end
       end
       metadata
@@ -384,11 +408,17 @@ module Fluent
       watcher.each do |notice|
         puts notice
         case notice.type
+          when 'MODIFIED'
+            cache_key = notice.object['metadata']['name']
+            cached    = @namespace_cache[cache_key]
+            if cached
+              @namespace_cache[cache_key] = parse_namespace_metadata(notice.object)
+            end
           when 'DELETED'
             @namespace_cache.delete(notice.object['metadata']['name'])
           else
-            # We only care about each namespace's name and UID, neither of which
-            # is modifiable, so we only have to care about deletions.
+            # Don't pay attention to creations, since the created namespace may not
+            # be used by any pod on this node.
         end
       end
     end
