@@ -199,8 +199,12 @@ module Fluent
 
     end
 
-    def get_metadata_for_record(namespace_name, pod_name)
-      metadata = {}
+    def get_metadata_for_record(namespace_name, pod_name, container_name)
+      metadata = {
+        'container_name' => container_name,
+        'namespace_name' => namespace_name,
+        'pod_name'       => pod_name,
+      }
       if @kubernetes_url.present?
         cache_key = "#{namespace_name}_#{pod_name}"
 
@@ -240,20 +244,12 @@ module Fluent
           'docker' => {
             'container_id' => match_data['docker_id']
           },
-          'kubernetes' => {
-            'namespace_name' => match_data['namespace'],
-            'pod_name'       => match_data['pod_name'],
-          }
+          'kubernetes' => get_metadata_for_record(
+            match_data['namespace'],
+            match_data['pod_name'],
+            match_data['container_name'],
+          ),
         }
-
-        metadata['kubernetes'] = metadata['kubernetes'].merge(
-          get_metadata_for_record(
-            metadata['kubernetes']['namespace_name'],
-            metadata['kubernetes']['pod_name'],
-          )
-        )
-
-        metadata['kubernetes']['container_name'] = match_data['container_name']
       end
 
       es.each { |time, record|
@@ -280,20 +276,13 @@ module Fluent
               'docker' => {
                 'container_id' => record['CONTAINER_ID_FULL']
               },
-              'kubernetes' => {
-                'namespace_name' => match_data['namespace'],
-                'pod_name'       => match_data['pod_name']
-              }
+              'kubernetes' => get_metadata_for_record(
+                match_data['namespace'],
+                match_data['pod_name'],
+                match_data['container_name'],
+              )
             }
 
-            metadata['kubernetes'] = metadata['kubernetes'].merge(
-              get_metadata_for_record(
-                metadata['kubernetes']['namespace_name'],
-                metadata['kubernetes']['pod_name'],
-              )
-            )
-
-            metadata['kubernetes']['container_name'] = match_data['container_name']
             metadata
           end
           unless metadata
