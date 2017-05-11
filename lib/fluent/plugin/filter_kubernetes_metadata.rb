@@ -72,7 +72,7 @@ module Fluent
       newhsh
     end
 
-    def get_metadata(namespace_name, pod_name, master_url)
+    def get_pod_metadata(namespace_name, pod_name, master_url)
       begin
         metadata = @client.get_pod(pod_name, namespace_name)
         return if !metadata
@@ -210,7 +210,7 @@ module Fluent
 
         this = self
         pod_metadata = @cache.getset(cache_key) {
-          md = this.get_metadata(
+          md = this.get_pod_metadata(
             namespace_name,
             pod_name,
             @kubernetes_url
