@@ -50,9 +50,10 @@ module Fluent
     # Field 2 is the container_hash, field 5 is the pod_id, and field 6 is the pod_randhex
     # I would have included them as named groups, but you can't have named groups that are
     # non-capturing :P
+    # parse format is defined here: https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/dockertools/docker.go#L317
     config_param :container_name_to_kubernetes_regexp,
                  :string,
-                 :default => '^k8s_(?<container_name>[^\.]+)\.[^_]+_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[a-f0-9]{8}$'
+                 :default => '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'
 
     config_param :annotation_match, :array, default: []
 
