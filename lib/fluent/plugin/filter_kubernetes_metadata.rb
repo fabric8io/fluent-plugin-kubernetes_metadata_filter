@@ -75,9 +75,11 @@ module Fluent
     def get_metadata(namespace_name, pod_name, master_url)
       begin
         metadata = @client.get_pod(pod_name, namespace_name)
+        namespace_metadata = @client.get_namespace(namespace_name)
         return if !metadata
         labels = syms_to_strs(metadata['metadata']['labels'].to_h)
         annotations = match_annotations(syms_to_strs(metadata['metadata']['annotations'].to_h))
+        namespace_annotations = match_annotations(syms_to_strs(namespace_metadata['metadata']['annotations'].to_h))
         if @de_dot
           self.de_dot!(labels)
           self.de_dot!(annotations)
@@ -91,6 +93,7 @@ module Fluent
             'master_url'     => master_url
         }
         kubernetes_metadata['annotations'] = annotations unless annotations.empty?
+        kubernetes_metadata['namespace_annotations'] = namespace_annotations unless namespace_annotations.empty?
         return kubernetes_metadata
       rescue KubeException
         nil
@@ -382,12 +385,14 @@ module Fluent
               # Only thing that can be modified is labels and (possibly) annotations
               labels = syms_to_strs(notice.object.metadata.labels.to_h)
               annotations = match_annotations(syms_to_strs(notice.object.metadata.annotations.to_h))
+              namespace_annotations = match_annotations(syms_to_strs(notice.object.namespace_metadata.annotations.to_h))
               if @de_dot
                 self.de_dot!(labels)
                 self.de_dot!(annotations)
               end
               cached['labels'] = labels
               cached['annotations'] = annotations
+              cached['namespace_annotations'] = namespace_annotations
               @cache[cache_key] = cached
             end
           when 'DELETED'
