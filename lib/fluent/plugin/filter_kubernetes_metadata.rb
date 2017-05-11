@@ -72,29 +72,34 @@ module Fluent
       newhsh
     end
 
-    def get_pod_metadata(namespace_name, pod_name, master_url)
+    def parse_pod_metadata(pod_object)
+      namespace_metadata = @client.get_namespace(pod_object['metadata']['namespace'])
+
+      labels = syms_to_strs(pod_object['metadata']['labels'].to_h)
+      annotations = match_annotations(syms_to_strs(pod_object['metadata']['annotations'].to_h))
+      namespace_annotations = match_annotations(syms_to_strs(namespace_metadata['metadata']['annotations'].to_h))
+      if @de_dot
+        self.de_dot!(labels)
+        self.de_dot!(annotations)
+      end
+      kubernetes_metadata = {
+          'namespace_name' => pod_object['metadata']['namespace'],
+          'pod_id'         => pod_object['metadata']['uid'],
+          'pod_name'       => pod_object['metadata']['name'],
+          'labels'         => labels,
+          'host'           => pod_object['spec']['nodeName'],
+          'master_url'     => @kubernetes_url
+      }
+      kubernetes_metadata['annotations'] = annotations unless annotations.empty?
+      kubernetes_metadata['namespace_annotations'] = namespace_annotations unless namespace_annotations.empty?
+      return kubernetes_metadata
+    end
+
+    def get_pod_metadata(namespace_name, pod_name)
       begin
         metadata = @client.get_pod(pod_name, namespace_name)
-        namespace_metadata = @client.get_namespace(namespace_name)
         return if !metadata
-        labels = syms_to_strs(metadata['metadata']['labels'].to_h)
-        annotations = match_annotations(syms_to_strs(metadata['metadata']['annotations'].to_h))
-        namespace_annotations = match_annotations(syms_to_strs(namespace_metadata['metadata']['annotations'].to_h))
-        if @de_dot
-          self.de_dot!(labels)
-          self.de_dot!(annotations)
-        end
-        kubernetes_metadata = {
-            'namespace_name' => namespace_name,
-            'pod_id'         => metadata['metadata']['uid'],
-            'pod_name'       => pod_name,
-            'labels'         => labels,
-            'host'           => metadata['spec']['nodeName'],
-            'master_url'     => master_url
-        }
-        kubernetes_metadata['annotations'] = annotations unless annotations.empty?
-        kubernetes_metadata['namespace_annotations'] = namespace_annotations unless namespace_annotations.empty?
-        return kubernetes_metadata
+        return parse_pod_metadata(metadata)
       rescue KubeException
         nil
       end
@@ -216,7 +221,6 @@ module Fluent
           md = this.get_pod_metadata(
             namespace_name,
             pod_name,
-            @kubernetes_url
           )
           md
         }
@@ -362,18 +366,7 @@ module Fluent
             cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
             cached    = @cache[cache_key]
             if cached
-              # Only thing that can be modified is labels and (possibly) annotations
-              labels = syms_to_strs(notice.object.metadata.labels.to_h)
-              annotations = match_annotations(syms_to_strs(notice.object.metadata.annotations.to_h))
-              namespace_annotations = match_annotations(syms_to_strs(notice.object.namespace_metadata.annotations.to_h))
-              if @de_dot
-                self.de_dot!(labels)
-                self.de_dot!(annotations)
-              end
-              cached['labels'] = labels
-              cached['annotations'] = annotations
-              cached['namespace_annotations'] = namespace_annotations
-              @cache[cache_key] = cached
+              @cache[cache_key] = parse_pod_metadata(notice.object)
             end
           when 'DELETED'
             cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
