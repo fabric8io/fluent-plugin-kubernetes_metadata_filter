@@ -582,6 +582,7 @@ use_journal true
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
+          include_namespace_metadata true
           annotation_match [ "^custom.+", "two", "workspace*"]
         ')
         expected_kube_metadata = {
@@ -592,6 +593,7 @@ use_journal true
                 'host'           => 'jimmi-redhat.localnet',
                 'pod_name'       => 'fabric8-console-controller-98rqc',
                 'container_name' => 'fabric8-console-container',
+                'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
                 'namespace_name' => 'default',
                 'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
                 'master_url'     => 'https://localhost:8443',
@@ -617,6 +619,7 @@ use_journal true
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
+          include_namespace_metadata true
           annotation_match [ "noMatch*"]
         ')
         expected_kube_metadata = {
@@ -627,6 +630,7 @@ use_journal true
                 'host'           => 'jimmi-redhat.localnet',
                 'pod_name'       => 'fabric8-console-controller-98rqc',
                 'container_name' => 'fabric8-console-container',
+                'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
                 'namespace_name' => 'default',
                 'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
                 'master_url'     => 'https://localhost:8443',

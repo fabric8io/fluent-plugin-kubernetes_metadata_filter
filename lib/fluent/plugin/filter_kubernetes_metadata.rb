@@ -74,11 +74,8 @@ module Fluent
     end
 
     def parse_pod_metadata(pod_object)
-      namespace_metadata = @client.get_namespace(pod_object['metadata']['namespace'])
-
       labels = syms_to_strs(pod_object['metadata']['labels'].to_h)
       annotations = match_annotations(syms_to_strs(pod_object['metadata']['annotations'].to_h))
-      namespace_annotations = match_annotations(syms_to_strs(namespace_metadata['metadata']['annotations'].to_h))
       if @de_dot
         self.de_dot!(labels)
         self.de_dot!(annotations)
@@ -92,19 +89,21 @@ module Fluent
           'master_url'     => @kubernetes_url
       }
       kubernetes_metadata['annotations'] = annotations unless annotations.empty?
-      kubernetes_metadata['namespace_annotations'] = namespace_annotations unless namespace_annotations.empty?
       return kubernetes_metadata
     end
 
     def parse_namespace_metadata(namespace_object)
       labels = syms_to_strs(namespace_object['metadata']['labels'].to_h)
+      annotations = match_annotations(syms_to_strs(namespace_object['metadata']['annotations'].to_h))
       if @de_dot
         self.de_dot!(labels)
+        self.de_dot!(annotations)
       end
       kubernetes_metadata = {
         'namespace_id' => namespace_object['metadata']['uid']
       }
       kubernetes_metadata['namespace_labels'] = labels unless labels.empty?
+      kubernetes_metadata['namespace_annotations'] = annotations unless annotations.empty?
       return kubernetes_metadata
     end
 
