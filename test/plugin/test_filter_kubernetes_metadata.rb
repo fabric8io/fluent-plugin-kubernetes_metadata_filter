@@ -380,18 +380,27 @@ use_journal true
 
     test 'with kubernetes dotted labels, de_dot enabled' do
       VCR.use_cassette('kubernetes_docker_metadata_dotted_labels') do
-        es = emit()
+        es = emit({}, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          include_namespace_metadata true
+        ')
         expected_kube_metadata = {
           'docker' => {
               'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
           'kubernetes' => {
-            'host'           => 'jimmi-redhat.localnet',
-            'pod_name'       => 'fabric8-console-controller-98rqc',
-            'container_name' => 'fabric8-console-container',
-            'namespace_name' => 'default',
-            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
-            'master_url'     => 'https://localhost:8443',
+            'host'             => 'jimmi-redhat.localnet',
+            'pod_name'         => 'fabric8-console-controller-98rqc',
+            'container_name'   => 'fabric8-console-container',
+            'namespace_id'     => '898268c8-4a36-11e5-9d81-42010af0194c',
+            'namespace_labels' => {
+              'kubernetes_io/namespacetest' => 'somevalue'
+            },
+            'namespace_name'   => 'default',
+            'pod_id'           => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'       => 'https://localhost:8443',
             'labels' => {
               'kubernetes_io/test' => 'somevalue'
             }
@@ -408,18 +417,23 @@ use_journal true
           watch false
           cache_size 1
           de_dot false
+          include_namespace_metadata true
         ')
         expected_kube_metadata = {
           'docker' => {
               'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
           'kubernetes' => {
-            'host'           => 'jimmi-redhat.localnet',
-            'pod_name'       => 'fabric8-console-controller-98rqc',
-            'container_name' => 'fabric8-console-container',
-            'namespace_name' => 'default',
-            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
-            'master_url'     => 'https://localhost:8443',
+            'host'             => 'jimmi-redhat.localnet',
+            'pod_name'         => 'fabric8-console-controller-98rqc',
+            'container_name'   => 'fabric8-console-container',
+            'namespace_id'     => '898268c8-4a36-11e5-9d81-42010af0194c',
+            'namespace_labels' => {
+              'kubernetes.io/namespacetest' => 'somevalue'
+            },
+            'namespace_name'   => 'default',
+            'pod_id'           => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'       => 'https://localhost:8443',
             'labels' => {
               'kubernetes.io/test' => 'somevalue'
             }
@@ -572,6 +586,73 @@ use_journal true
             }
           }
         }.merge(msg)
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
+    test 'with kubernetes namespace annotations' do
+      VCR.use_cassette('kubernetes_docker_metadata_annotations') do
+        es = emit({},'
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          include_namespace_metadata true
+          annotation_match [ "^custom.+", "two", "workspace*"]
+        ')
+        expected_kube_metadata = {
+            'docker' => {
+                'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+            },
+            'kubernetes' => {
+                'host'           => 'jimmi-redhat.localnet',
+                'pod_name'       => 'fabric8-console-controller-98rqc',
+                'container_name' => 'fabric8-console-container',
+                'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
+                'namespace_name' => 'default',
+                'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+                'master_url'     => 'https://localhost:8443',
+                'labels'         => {
+                    'component' => 'fabric8Console'
+                },
+                'annotations'    => {
+                    'custom_field1' => 'hello_kitty',
+                    'field_two' => 'value'
+                },
+                'namespace_annotations'    => {
+                    'workspaceId' => 'myWorkspaceName'
+                }
+            }
+        }
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
+    test 'with kubernetes namespace annotations no match' do
+      VCR.use_cassette('kubernetes_docker_metadata_annotations') do
+        es = emit({},'
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          include_namespace_metadata true
+          annotation_match [ "noMatch*"]
+        ')
+        expected_kube_metadata = {
+            'docker' => {
+                'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+            },
+            'kubernetes' => {
+                'host'           => 'jimmi-redhat.localnet',
+                'pod_name'       => 'fabric8-console-controller-98rqc',
+                'container_name' => 'fabric8-console-container',
+                'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
+                'namespace_name' => 'default',
+                'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+                'master_url'     => 'https://localhost:8443',
+                'labels'         => {
+                    'component' => 'fabric8Console'
+                }
+            }
+        }
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
