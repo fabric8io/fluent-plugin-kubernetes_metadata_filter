@@ -334,7 +334,10 @@ module Fluent
 
     def merge_json_log(record)
       if record.has_key?(@merge_json_log_key)
-        log = record[@merge_json_log_key].strip
+        log = record[@merge_json_log_key]
+        if log.respond_to?(:strip)
+          log = log.strip
+        end
         if log[0].eql?('{') && log[-1].eql?('}')
           begin
             record = JSON.parse(log).merge(record)
