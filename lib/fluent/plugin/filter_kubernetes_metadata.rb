@@ -405,7 +405,6 @@ module Fluent
       resource_version = @client.get_namespaces.resourceVersion
       watcher          = @client.watch_namespaces(resource_version)
       watcher.each do |notice|
-        puts notice
         case notice.type
           when 'MODIFIED'
             cache_key = notice.object['metadata']['name']
