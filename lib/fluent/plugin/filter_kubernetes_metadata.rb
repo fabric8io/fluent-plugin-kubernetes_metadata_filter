@@ -285,7 +285,7 @@ module Fluent
       es.each { |time, record|
         record = merge_json_log(record) if @merge_json_log
 
-        record = record.merge(metadata) if metadata
+        record = record.merge(Marshal.load(Marshal.dump(metadata))) if metadata
 
         new_es.add(time, record)
       }
