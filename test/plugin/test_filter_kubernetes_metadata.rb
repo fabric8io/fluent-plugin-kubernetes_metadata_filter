@@ -254,6 +254,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           'versions' => ['v1beta3', 'v1']
         }.to_json
       )
+      file = File.open(File.join(File.dirname(__FILE__),"../stubs/v1.json"), "r")
+      v1 = file.read
+      stub_request(:any, 'https://localhost:8443/api/v1').to_return('body' => v1)
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc').to_timeout
       es = emit()
       expected_kube_metadata = {
