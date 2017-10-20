@@ -55,8 +55,8 @@ module Fluent
     config_param :container_name_to_kubernetes_regexp,
                  :string,
                  :default => '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'
-
     config_param :annotation_match, :array, default: []
+    config_param :stats_interval, :integer, default: 10
 
     def syms_to_strs(hsh)
       newhsh = {}
@@ -110,9 +110,39 @@ module Fluent
     def get_pod_metadata(namespace_name, pod_name)
       begin
         metadata = @client.get_pod(pod_name, namespace_name)
-        return if !metadata
-        return parse_pod_metadata(metadata)
-      rescue KubeException
+        if !metadata
+          @pod_cache_api_nil_not_found += 1
+        else
+          begin
+            parse_pod_metadata(metadata)
+            @pod_cache_api_updates += 1
+          rescue Exception => e
+            @pod_cache_api_nil_bad_resp_payload += 1
+            nil
+          end
+      rescue KubeException => kube_error
+        @pod_cache_api_nil_error += 1
+        log.debug "Exception encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{kube_error.message}"
+        nil
+      end
+    end
+
+    def get_namespace_metadata(namespace_name)
+      begin
+        metadata = @client.get_namespace(namespace_name)
+        if !metadata
+          @namespace_cache_api_nil_not_found += 1
+        else
+          begin
+            parse_namespace_metadata(metadata)
+            @namespace_cache_api_updates += 1
+          rescue Exception => e
+            @namespace_cache_api_nil_bad_resp_payload += 1
+            nil
+          end
+      rescue KubeException => kube_error
+        @namespace_cache_api_nil_error += 1
+        log.debug "Exception encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{kube_error.message}"
         nil
       end
     end
@@ -128,6 +158,8 @@ module Fluent
       require 'active_support/core_ext/object/blank'
       require 'lru_redux'
 
+      log.debug "k8smd: configure() start"
+
       if @de_dot && (@de_dot_separator =~ /\./).present?
         raise Fluent::ConfigError, "Invalid de_dot_separator: cannot be or contain '.'"
       end
@@ -140,12 +172,34 @@ module Fluent
       if @cache_ttl < 0
         @cache_ttl = :none
       end
-      @cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+      @pod_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+      @pod_cache_watch_updates = 0
+      @pod_cache_watch_misses = 0
+      @pod_cache_watch_deletes = 0
+      @pod_cache_watch_ignored = 0
+      @pod_cache_api_updates = 0
+      @pod_cache_api_nil_not_found = 0
+      @pod_cache_api_nil_bad_resp_payload = 0
+      @pod_cache_api_nil_error = 0
       if @include_namespace_metadata
         @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+        @namespace_cache_watch_updates = 0
+        @namespace_cache_watch_misses = 0
+        @namespace_cache_watch_deletes = 0
+        @namespace_cache_watch_ignored = 0
+        @namespace_cache_api_updates = 0
+        @namespace_cache_api_nil_not_found = 0
+        @namespace_cache_api_nil_bad_resp_payload = 0
+        @namespace_cache_api_nil_error = 0
       end
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
       @container_name_to_kubernetes_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_regexp)
+
+      @container_name_match_failed = 0
+      @container_name_id_missing = 0
+      @merge_json_parse_errors = 0
+      @curr_time = Time.now
+      @prev_time = @curr_time
 
       # Use Kubernetes default service account if we're in a pod.
       if @kubernetes_url.nil?
@@ -189,7 +243,6 @@ module Fluent
         @client = Kubeclient::Client.new @kubernetes_url, @apiVersion,
                                          ssl_options: ssl_options,
                                          auth_options: auth_options
-
         begin
           @client.api_valid?
         rescue KubeException => kube_error
@@ -197,7 +250,7 @@ module Fluent
         end
 
         if @watch
-          thread = Thread.new(self) { |this| this.start_watch }
+          thread = Thread.new(self) { |this| this.start_pod_watch }
           thread.abort_on_exception = true
           if @include_namespace_metadata
             namespace_thread = Thread.new(self) { |this| this.start_namespace_watch }
@@ -218,10 +271,11 @@ module Fluent
         begin
           @annotations_regexps << Regexp.compile(regexp)
         rescue RegexpError => e
-          log.error "Error: invalid regular expression in annotation_match: #{e}"
+          log.warn "Error: invalid regular expression in annotation_match: #{e}"
         end
       end
 
+      log.debug "k8smd: configure() end"
     end
 
     def get_metadata_for_record(namespace_name, pod_name, container_name)
@@ -234,7 +288,8 @@ module Fluent
         cache_key = "#{namespace_name}_#{pod_name}"
 
         this = self
-        pod_metadata = @cache.getset(cache_key) {
+        pod_metadata = @pod_cache.getset(cache_key) {
+          @pod_cache_miss += 1
           md = this.get_pod_metadata(
             namespace_name,
             pod_name,
@@ -245,14 +300,9 @@ module Fluent
 
         if @include_namespace_metadata
           namespace_metadata = @namespace_cache.getset(namespace_name) {
-            begin
-              namespace = @client.get_namespace(namespace_name)
-              if namespace
-                parse_namespace_metadata(namespace)
-              end
-            rescue KubeException
-              nil
-            end
+            @namespace_cache_miss += 1
+            md = this.get_pod_metadata(namespace_name)
+            md
           }
           metadata.merge!(namespace_metadata) if namespace_metadata
         end
@@ -290,6 +340,7 @@ module Fluent
         new_es.add(time, record)
       }
 
+      dump_stats
       new_es
     end
 
@@ -317,9 +368,11 @@ module Fluent
           end
           unless metadata
             log.debug "Error: could not match CONTAINER_NAME from record #{record}"
+            @container_name_match_failed += 1
           end
         elsif record.has_key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
           log.debug "Error: no container name and id in record #{record}"
+          @container_name_id_missing += 1
         end
 
         if metadata
@@ -329,6 +382,7 @@ module Fluent
         new_es.add(time, record)
       }
 
+      dump_stats
       new_es
     end
 
@@ -342,6 +396,7 @@ module Fluent
               record.delete(@merge_json_log_key)
             end
           rescue JSON::ParserError
+            @merge_json_parse_errors += 1
           end
         end
       end
@@ -370,16 +425,16 @@ module Fluent
       result
     end
 
-    def start_watch
+    def start_pod_watch
       begin
         resource_version = @client.get_pods.resourceVersion
         watcher          = @client.watch_pods(resource_version)
       rescue Exception => e
-        message = "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
+        message = "start_pod_watch: Exception encountered setting up pod watch from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{e.message}"
         if e.respond_to?(:response)
           message += " (#{e.response})"
         end
-
+        log.debug message
         raise Fluent::ConfigError, message
       end
 
@@ -387,23 +442,38 @@ module Fluent
         case notice.type
           when 'MODIFIED'
             cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
-            cached    = @cache[cache_key]
+            cached    = @pod_cache[cache_key]
             if cached
-              @cache[cache_key] = parse_pod_metadata(notice.object)
+              @pod_cache[cache_key] = parse_pod_metadata(notice.object)
+              @pod_cache_watch_updates += 1
+            else
+              @pod_cache_watch_misses += 1
             end
           when 'DELETED'
             cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
-            @cache.delete(cache_key)
+            @pod_cache.delete(cache_key)
+            @pod_cache_watch_deletes += 1
           else
             # Don't pay attention to creations, since the created pod may not
             # end up on this node.
+            @pod_cache_watch_ignored += 1
         end
       end
     end
 
     def start_namespace_watch
-      resource_version = @client.get_namespaces.resourceVersion
-      watcher          = @client.watch_namespaces(resource_version)
+      begin
+        resource_version = @client.get_namespaces.resourceVersion
+        watcher          = @client.watch_namespaces(resource_version)
+      rescue Exception => e
+        message = "start_namespace_watch: Exception encountered setting up namespace watch from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{e.message}"
+        if e.respond_to?(:response)
+          message += " (#{e.response})"
+        end
+        log.debug message
+        raise Fluent::ConfigError, message
+      end
+
       watcher.each do |notice|
         case notice.type
           when 'MODIFIED'
@@ -411,12 +481,41 @@ module Fluent
             cached    = @namespace_cache[cache_key]
             if cached
               @namespace_cache[cache_key] = parse_namespace_metadata(notice.object)
+              @namespace_cache_watch_updates += 1
+            else
+              @namespace_cache_watch_misses += 1
             end
           when 'DELETED'
             @namespace_cache.delete(notice.object['metadata']['name'])
+            @namespace_cache_watch_deletes += 1
           else
             # Don't pay attention to creations, since the created namespace may not
             # be used by any pod on this node.
+            @namespace_cache_watch_ignored += 1
+        end
+      end
+    end
+
+    def dump_stats
+      @curr_time = Time.now
+      return if @curr_time - @prev_time < @stats_interval
+      @prev_time = @curr_time
+      if @use_journal
+        log.info "container name match failed: #{@container_name_match_failed}, container name id missing: #{@container_name_id_missing}"
+      end
+      if @merge_json_log
+        log.info "merge json parse errors: #{@merge_json_parse_errors}"
+      end
+      if @kubernetes_url.present?
+        log.info "pod cache stats api: updates: #{@pod_cache_api_updates}, nil_not_found: #{@pod_cache_api_nil_not_found}, nil_bad_resp_payload: #{@pod_cache_api_nil_bad_resp_payload}, nil_error: #{@pod_cache_api_nil_error}"
+        if @watch
+          log.info "pod cache stats watch: updates: #{@pod_cache_watch_updates}, watch_misses: #{@pod_cache_watch_misses}, deletes: #{@pod_cache_watch_deletes}, ignored: #{@pod_cache_watch_ignored}"
+        end
+        if @include_namespace_metadata
+          log.info "namespace cache stats api: updates: #{@namespace_cache_api_updates}, nil_not_found: #{@namespace_cache_api_nil_not_found}, nil_bad_resp_payload: #{@namespace_cache_api_nil_bad_resp_payload}, nil_error: #{@namespace_cache_api_nil_error}"
+          if @watch
+            log.info "namespace cache stats watch: updates: #{@namespace_cache_watch_updates}, watch_misses: #{@namespace_cache_watch_misses}, deletes: #{@namespace_cache_watch_deletes}, ignored: #{@namespace_cache_watch_ignored}"
+          end
         end
       end
     end
