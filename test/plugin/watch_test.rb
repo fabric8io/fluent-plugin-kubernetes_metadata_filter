@@ -16,31 +16,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-require 'lru_redux'
-module KubernetesMetadata
-  class Stats
+require_relative '../helper'
+require 'ostruct'
 
-    def initialize
-      @stats = ::LruRedux::TTL::ThreadSafeCache.new(1000, 3600)
+class WatchTest < Test::Unit::TestCase
+   
+    setup do
+      @annotations_regexps = []
+      @namespace_cache = {}
+      @cache = {}
+      @stats = KubernetesMetadata::Stats.new
+      @client = OpenStruct.new
+      def @client.resourceVersion
+        '12345'
+      end
+      def @client.watch_pods(value)
+         []
+      end
+      def @client.watch_namespaces(value)
+         []
+      end
+      def @client.get_namespaces 
+          self
+      end
+      def @client.get_pods
+          self
+      end
     end
 
-    def bump(key)
-        @stats[key] = @stats.getset(key) { 0 } + 1
+    def watcher=(value)
     end
 
-    def set(key, value)
-       @stats[key] = value
+    def log
+        logger = {}
+        def logger.debug(message)
+        end
+        logger
     end
 
-    def [](key)
-      @stats[key]
-    end
-
-    def to_s
-      "stats - " + [].tap do |a|
-          @stats.each {|k,v| a << "#{k.to_s}: #{v}"}
-      end.join(', ')
-    end
-
-  end
 end

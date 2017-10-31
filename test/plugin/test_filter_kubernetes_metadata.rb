@@ -135,8 +135,15 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
+          include_namespace_metadata true
         ')
       d = create_driver(config)
+      if ENV['LOGLEVEL'] 
+        logger = Logger.new(STDOUT)
+        logger.level = eval("Logger::#{ENV['LOGLEVEL'].upcase}")
+        instance = d.instance
+        instance.instance_variable_set(:@log,logger)
+      end
       d.run {
         d.emit(msg, @time)
       }.filtered
@@ -165,6 +172,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'pod_name'       => 'fabric8-console-controller-98rqc',
             'container_name' => 'fabric8-console-container',
             'namespace_name' => 'default',
+            "namespace_id"=>"898268c8-4a36-11e5-9d81-42010af0194c",
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'master_url'     => 'https://localhost:8443',
             'labels' => {
@@ -222,6 +230,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'pod_name'       => 'fabric8-console-controller-98rqc',
             'container_name' => 'fabric8-console-container',
             'namespace_name' => 'default',
+            'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'master_url'     => 'https://localhost:8443',
             'labels' => {
@@ -255,6 +264,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         }.to_json
       )
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc').to_timeout
+      stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default').to_timeout
       es = emit()
       expected_kube_metadata = {
         'docker' => {
@@ -263,7 +273,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'kubernetes' => {
           'pod_name'       => 'fabric8-console-controller-98rqc',
           'container_name' => 'fabric8-console-container',
-          'namespace_name' => 'default'
+          'namespace_name' => '.orphaned',
+          'orphaned_namespace' => 'default',
+          'namespace_id' => 'orphaned'
         }
       }
       assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
@@ -475,6 +487,7 @@ use_journal true
             'pod_name'       => 'fabric8-console-controller-98rqc',
             'container_name' => 'fabric8-console-container',
             'namespace_name' => 'default',
+            'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'master_url'     => 'https://localhost:8443',
             'labels' => {
@@ -540,6 +553,7 @@ use_journal true
                 'pod_name'       => 'fabric8-console-controller-98rqc',
                 'container_name' => 'fabric8-console-container',
                 'namespace_name' => 'default',
+                'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
                 'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
                 'master_url'     => 'https://localhost:8443',
                 'labels'         => {
@@ -579,6 +593,7 @@ use_journal true
             'pod_name'       => 'fabric8-console-controller-98rqc',
             'container_name' => 'fabric8-console-container',
             'namespace_name' => 'default',
+            'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'master_url'     => 'https://localhost:8443',
             'labels' => {
