@@ -136,22 +136,25 @@ module Fluent
       require 'active_support/core_ext/object/blank'
       require 'lru_redux'
 
-      @cache_mutex = Mutex.new
-      if @cache_ttl <= 0
-        log.info "Setting the cache TTL to :none because it was <= 0"
-        @cache_ttl = :none
-      end
-
       if @de_dot && (@de_dot_separator =~ /\./).present?
         raise Fluent::ConfigError, "Invalid de_dot_separator: cannot be or contain '.'"
       end
 
+      @cache_mutex = Mutex.new
       if @cache_ttl < 0
+        log.info "Setting the cache TTL to :none because it was <= 0"
         @cache_ttl = :none
       end
+
+      # Caches pod/namespace UID tuples for a given container UID.
       @id_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+
+      # Use the container UID as the key to fetch a hash containing pod metadata
       @cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+
+      # Use the namespace UID as the key to fetch a hash containing namespace metadata
       @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
       @container_name_to_kubernetes_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_regexp)
 
