@@ -61,7 +61,7 @@ module Fluent
     # parse format is defined here: https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/dockertools/docker.go#L317
     config_param :container_name_to_kubernetes_regexp,
                  :string,
-                 :default => '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_(?<pod_uid>[^_])+_[^_]+$'
+                 :default => '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'
 
     config_param :annotation_match, :array, default: []
     config_param :stats_interval, :integer, default: 30
