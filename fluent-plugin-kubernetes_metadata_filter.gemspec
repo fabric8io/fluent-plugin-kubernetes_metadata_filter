@@ -8,9 +8,9 @@ Gem::Specification.new do |gem|
   gem.authors       = ["Jimmi Dyson"]
   gem.email         = ["jimmidyson@gmail.com"]
   gem.description   = %q{Filter plugin to add Kubernetes metadata}
-  gem.summary       = %q{Filter plugin to add Kubernetes metadata}
+  gem.summary       = %q{Fluentd filter plugin to add Kubernetes metadata}
   gem.homepage      = "https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter"
-  gem.license       = "ASL2"
+  gem.license       = "Apache-2.0"
 
   gem.files         = `git ls-files`.split($/)
   gem.executables   = gem.files.grep(%r{^bin/}) { |f| File.basename(f) }
