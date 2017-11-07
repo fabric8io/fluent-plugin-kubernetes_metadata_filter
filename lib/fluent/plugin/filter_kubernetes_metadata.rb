@@ -16,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+require_relative 'kubernetes_metadata_stats'
 module Fluent
   class KubernetesMetadataFilter < Fluent::Filter
     K8_POD_CA_CERT = 'ca.crt'
@@ -57,6 +58,7 @@ module Fluent
                  :default => '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'
 
     config_param :annotation_match, :array, default: []
+    config_param :stats_interval, :integer, default: 30
 
     def syms_to_strs(hsh)
       newhsh = {}
@@ -110,15 +112,63 @@ module Fluent
     def get_pod_metadata(namespace_name, pod_name)
       begin
         metadata = @client.get_pod(pod_name, namespace_name)
-        return if !metadata
-        return parse_pod_metadata(metadata)
-      rescue KubeException
+        unless metadata
+          @stats.bump(:pod_cache_api_nil_not_found)
+        else
+          begin
+            metadata = parse_pod_metadata(metadata)
+            @stats.bump(:pod_cache_api_updates)
+            return metadata
+          rescue Exception=>e
+            log.debug(e)
+            @stats.bump(:pod_cache_api_nil_bad_resp_payload)
+            nil
+          end
+        end
+      rescue KubeException=>e
+        @stats.bump(:pod_cache_api_nil_error)
+        log.debug "Exception encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{e.message}"
+        nil
+      end
+    end
+
+    def dump_stats
+      @curr_time = Time.now
+      return if @curr_time.to_i - @prev_time.to_i < @stats_interval
+      @prev_time = @curr_time
+      @stats.set(:pod_cache_size, @cache.count)
+      @stats.set(:namespace_cache_size, @namespace_cache.count)
+      log.info(@stats)
+    end
+
+    def get_namespace_metadata(namespace_name)
+      begin
+        metadata = @client.get_namespace(namespace_name)
+        unless metadata
+            @stats.bump(:namespace_cache_api_nil_not_found)
+        else
+          begin
+            metadata = parse_namespace_metadata(metadata)
+            @stats.bump(:namespace_cache_api_updates)
+            return metadata
+          rescue Exception => e
+            log.debug(e)
+            @stats.bump(:namespace_cache_api_nil_bad_resp_payload)
+            nil
+          end
+        end
+      rescue KubeException => kube_error
+        @stats.bump(:namespace_cache_api_nil_error)
+        log.debug "Exception encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{kube_error.message}"
         nil
       end
     end
 
     def initialize
       super
+      @stats = KubernetesMetadata::Stats.new
+      @prev_time = Time.now
+
     end
 
     def configure(conf)
@@ -235,6 +285,7 @@ module Fluent
 
         this = self
         pod_metadata = @cache.getset(cache_key) {
+          @stats.bump(:pod_cache_miss)
           md = this.get_pod_metadata(
             namespace_name,
             pod_name,
@@ -245,14 +296,8 @@ module Fluent
 
         if @include_namespace_metadata
           namespace_metadata = @namespace_cache.getset(namespace_name) {
-            begin
-              namespace = @client.get_namespace(namespace_name)
-              if namespace
-                parse_namespace_metadata(namespace)
-              end
-            rescue KubeException
-              nil
-            end
+            @stats.bump(:namespace_cache_miss)
+            get_namespace_metadata(namespace_name)
           }
           metadata.merge!(namespace_metadata) if namespace_metadata
         end
@@ -289,7 +334,7 @@ module Fluent
 
         new_es.add(time, record)
       }
-
+      dump_stats
       new_es
     end
 
@@ -317,9 +362,11 @@ module Fluent
           end
           unless metadata
             log.debug "Error: could not match CONTAINER_NAME from record #{record}"
+            @stats.dump(:container_name_match_failed)
           end
         elsif record.has_key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
           log.debug "Error: no container name and id in record #{record}"
+          @stats.dump(:container_name_id_missing)
         end
 
         if metadata
@@ -329,6 +376,7 @@ module Fluent
         new_es.add(time, record)
       }
 
+      dump_stats
       new_es
     end
 
@@ -341,7 +389,9 @@ module Fluent
             unless @preserve_json_log
               record.delete(@merge_json_log_key)
             end
-          rescue JSON::ParserError
+          rescue JSON::ParserError=>e
+            @stats.bump(:merge_json_parse_errors)
+            log.debug(e)
           end
         end
       end
@@ -376,9 +426,7 @@ module Fluent
         watcher          = @client.watch_pods(resource_version)
       rescue Exception => e
         message = "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
-        if e.respond_to?(:response)
-          message += " (#{e.response})"
-        end
+        message += " (#{e.response})" if e.respond_to?(:response)
 
         raise Fluent::ConfigError, message
       end
@@ -390,20 +438,32 @@ module Fluent
             cached    = @cache[cache_key]
             if cached
               @cache[cache_key] = parse_pod_metadata(notice.object)
+              @stats.bump(:pod_cache_watch_updates)
+            else
+              @stats.bump(:pod_cache_watch_misses)
             end
           when 'DELETED'
             cache_key = "#{notice.object['metadata']['namespace']}_#{notice.object['metadata']['name']}"
             @cache.delete(cache_key)
+            @stats.bump(:pod_cache_watch_deletes)
           else
             # Don't pay attention to creations, since the created pod may not
             # end up on this node.
+            @stats.bump(:pod_cache_watch_ignored)
         end
       end
     end
 
     def start_namespace_watch
-      resource_version = @client.get_namespaces.resourceVersion
-      watcher          = @client.watch_namespaces(resource_version)
+      begin
+        resource_version = @client.get_namespaces.resourceVersion
+        watcher          = @client.watch_namespaces(resource_version)
+      rescue Exception=>e
+        message = "start_namespace_watch: Exception encountered setting up namespace watch from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{e.message}"
+        message += " (#{e.response})" if e.respond_to?(:response)
+        log.debug(message)
+        raise Fluent::ConfigError, message
+      end
       watcher.each do |notice|
         case notice.type
           when 'MODIFIED'
@@ -411,12 +471,17 @@ module Fluent
             cached    = @namespace_cache[cache_key]
             if cached
               @namespace_cache[cache_key] = parse_namespace_metadata(notice.object)
+              @stats.bump(:namespace_cache_watch_updates)
+            else
+              @stats.bump(:namespace_cache_watch_misses)
             end
           when 'DELETED'
             @namespace_cache.delete(notice.object['metadata']['name'])
+            @stats.bump(:namespace_cache_watch_deletes)
           else
             # Don't pay attention to creations, since the created namespace may not
             # be used by any pod on this node.
+            @stats.bump(:namespace_cache_watch_ignored)
         end
       end
     end
