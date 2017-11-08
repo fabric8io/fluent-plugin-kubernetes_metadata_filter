@@ -25,11 +25,13 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
 * `merge_json_log` - merge logs in JSON format as top level keys (default: `true`)
 * `preserve_json_log` - preserve JSON logs in raw form in the `log` key, only used if the previous option is true (default: `true`)
-* `de_dot` - replace dots in labels with configured `de_dot_separator`, required for ElasticSearch 2.x compatibility (default: `true`)
+* `de_dot` - replace dots in labels and annotations with configured `de_dot_separator`, required for ElasticSearch 2.x compatibility (default: `true`)
 * `de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
 * `use_journal` - If false (default), messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.
 * `container_name_to_kubernetes_regexp` - The regular expression used to extract the k8s metadata encoded in the journal `CONTAINER_NAME` field (default: `'^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'`
   * This corresponds to the definition [in the source](https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/dockertools/docker.go#L317)
+* `include_namespace_metadata` - Collect metadata about namespace such as uid, labels and annotations (default: `false`).  
+  Note that when this option is enabled, all label from namespace are collected, but annotations are collected according to `annotation_match` value. If `annotation_match` is not presented, no annotations will be collected from the namespace.
 * `annotation_match` - Array of regular expressions matching annotation field names. Matched annotations are added to a log record.
 
 Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
@@ -110,6 +112,12 @@ Then output becomes as belows
     "container_name": "fabric8-console-container",
     "namespace_name": "default",
     "namespace_id": "23437884-8e08-4d95-850b-e94378c9b2fd",
+    "namespace_annotations": {
+      "fabric8.io/git-commit": "5e1116f63df0bac2a80bdae2ebdc563577bbdf3c"
+    },
+    "namespace_labels": {
+      "product_version": "v1.0.0"
+    },
     "labels": {
       "component": "fabric8Console"
     }
