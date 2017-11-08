@@ -20,7 +20,7 @@
 http_interactions:
 - request:
     method: get
-    uri: https://localhost:8443/api
+    uri: https://localhost:8443/api/v1
     body:
       encoding: US-ASCII
       string: ''
