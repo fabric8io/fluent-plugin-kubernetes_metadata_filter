@@ -34,6 +34,22 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     Test::FilterTestDriver.new(KubernetesMetadataFilter, 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log').configure(conf, true)
   end
 
+  sub_test_case 'dump_stats' do
+
+    test 'dump stats with indclude_namespace_metadata' do
+      VCR.use_cassette('kubernetes_docker_metadata') do
+        d = create_driver('
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          include_namespace_metadata false
+          stats_interval 0
+        ')
+        d.instance.dump_stats
+      end
+    end
+
+  end
   sub_test_case 'configure' do
     test 'check default' do
       d = create_driver

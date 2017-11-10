@@ -137,7 +137,7 @@ module Fluent
       return if @curr_time.to_i - @prev_time.to_i < @stats_interval
       @prev_time = @curr_time
       @stats.set(:pod_cache_size, @cache.count)
-      @stats.set(:namespace_cache_size, @namespace_cache.count)
+      @stats.set(:namespace_cache_size, @namespace_cache.count) if @namespace_cache
       log.info(@stats)
     end
 
