@@ -17,8 +17,10 @@
 # limitations under the License.
 #
 require_relative 'kubernetes_metadata_stats'
-module Fluent
-  class KubernetesMetadataFilter < Fluent::Filter
+require 'fluent/plugin/filter'
+
+module Fluent::Plugin
+  class KubernetesMetadataFilter < Fluent::Plugin::Filter
     K8_POD_CA_CERT = 'ca.crt'
     K8_POD_TOKEN = 'token'
 
@@ -310,7 +312,7 @@ module Fluent
     end
 
     def filter_stream_from_files(tag, es)
-      new_es = MultiEventStream.new
+      new_es = Fluent::MultiEventStream.new
 
       match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
 
@@ -339,7 +341,7 @@ module Fluent
     end
 
     def filter_stream_from_journal(tag, es)
-      new_es = MultiEventStream.new
+      new_es = Fluent::MultiEventStream.new
 
       es.each { |time, record|
         record = merge_json_log(record) if @merge_json_log
