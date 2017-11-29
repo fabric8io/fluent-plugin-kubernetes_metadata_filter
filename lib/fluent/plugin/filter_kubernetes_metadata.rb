@@ -381,10 +381,10 @@ module Fluent
 
     def merge_json_log(record)
       if record.has_key?(@merge_json_log_key)
-        log = record[@merge_json_log_key].strip
-        if log[0].eql?('{') && log[-1].eql?('}')
+        value = record[@merge_json_log_key].strip
+        if value[0].eql?('{') && value[-1].eql?('}')
           begin
-            record = JSON.parse(log).merge(record)
+            record = JSON.parse(value).merge(record)
             unless @preserve_json_log
               record.delete(@merge_json_log_key)
             end
