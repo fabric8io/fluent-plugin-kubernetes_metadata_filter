@@ -36,7 +36,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
 
   sub_test_case 'dump_stats' do
 
-    test 'dump stats with indclude_namespace_metadata' do
+    test 'dump stats with include_namespace_metadata' do
       VCR.use_cassette('kubernetes_docker_metadata') do
         d = create_driver('
           kubernetes_url https://localhost:8443
@@ -672,6 +672,49 @@ use_journal true
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
-
+    test 'with CONTAINER_NAME that does not match' do
+      tag = 'var.log.containers.junk4_junk5_junk6-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed450.log'
+      msg = {
+        'CONTAINER_NAME' => 'does_not_match',
+        'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
+        'randomfield' => 'randomvalue'
+      }
+      VCR.use_cassette('kubernetes_docker_metadata_annotations') do
+        es = emit_with_tag(tag, msg, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          use_journal true
+        ')
+        expected_kube_metadata = {
+          'CONTAINER_NAME' => 'does_not_match',
+          'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
+          'randomfield' => 'randomvalue'
+        }
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+    test 'with CONTAINER_NAME starts with k8s_ that does not match' do
+      tag = 'var.log.containers.junk4_junk5_junk6-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed450.log'
+      msg = {
+        'CONTAINER_NAME' => 'k8s_doesnotmatch',
+        'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
+        'randomfield' => 'randomvalue'
+      }
+      VCR.use_cassette('kubernetes_docker_metadata_annotations') do
+        es = emit_with_tag(tag, msg, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          use_journal true
+        ')
+        expected_kube_metadata = {
+          'CONTAINER_NAME' => 'k8s_doesnotmatch',
+          'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
+          'randomfield' => 'randomvalue'
+        }
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
   end
 end

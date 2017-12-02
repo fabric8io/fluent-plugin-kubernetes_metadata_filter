@@ -343,7 +343,6 @@ module Fluent
 
       es.each { |time, record|
         record = merge_json_log(record) if @merge_json_log
-
         metadata = nil
         if record.has_key?('CONTAINER_NAME') && record.has_key?('CONTAINER_ID_FULL')
           metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
@@ -362,11 +361,11 @@ module Fluent
           end
           unless metadata
             log.debug "Error: could not match CONTAINER_NAME from record #{record}"
-            @stats.dump(:container_name_match_failed)
+            @stats.bump(:container_name_match_failed)
           end
         elsif record.has_key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
           log.debug "Error: no container name and id in record #{record}"
-          @stats.dump(:container_name_id_missing)
+          @stats.bump(:container_name_id_missing)
         end
 
         if metadata
