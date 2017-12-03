@@ -350,6 +350,15 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
     end
 
+    test 'ignores invalid json in log field' do
+      json_log = "{'foo':123}"
+      msg = {
+          'log' => json_log
+      }
+      es = emit_with_tag('non-kubernetes', msg, '')
+      assert_equal(msg, es.instance_variable_get(:@record_array)[0])
+    end
+
     test 'merges json log data with message field in MESSAGE' do
       json_log = {
         'timeMillis' => 1459853347608,
