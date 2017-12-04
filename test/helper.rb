@@ -30,6 +30,7 @@ require 'test/unit/rr'
 require 'fileutils'
 require 'fluent/log'
 require 'fluent/test'
+require 'minitest/autorun'
 require 'webmock/test_unit'
 require 'vcr'
 

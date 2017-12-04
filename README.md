@@ -3,6 +3,14 @@
 [![Code Climate](https://codeclimate.com/github/fabric8io/fluent-plugin-kubernetes_metadata_filter/badges/gpa.svg)](https://codeclimate.com/github/fabric8io/fluent-plugin-kubernetes_metadata_filter)
 [![Test Coverage](https://codeclimate.com/github/fabric8io/fluent-plugin-kubernetes_metadata_filter/badges/coverage.svg)](https://codeclimate.com/github/fabric8io/fluent-plugin-kubernetes_metadata_filter)
 
+The Kubernetes metadata plugin filter enriches container log records with pod and namespace metadata.
+
+This plugin derives basic metadata about the container that emitted a given log record using the source of the log record. Records from journald provide metadata about the
+container environment as named fields. Records from JSON files encode metadata about the container in the file name.  The initial metadata derived from the source is used
+to lookup additional metadata about the container's associated pod and namespace (e.g. UUIDs, labels, annotations) when the kubernetes_url is configured.  If the plugin cannot
+authoritatively determine the namespace of the container emitting a log record, it will use an 'orphan' namespace ID in the metadata. This behaviors supports multi-tenant systems
+that rely on the authenticity of the namespace for proper log isolation.
+
 ## Installation
 
     gem install fluent-plugin-kubernetes_metadata_filter
@@ -33,6 +41,10 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `include_namespace_metadata` - Collect metadata about namespace such as uid, labels and annotations (default: `false`).  
   Note that when this option is enabled, all label from namespace are collected, but annotations are collected according to `annotation_match` value. If `annotation_match` is not presented, no annotations will be collected from the namespace.
 * `annotation_match` - Array of regular expressions matching annotation field names. Matched annotations are added to a log record.
+* `allow_orphans` - Modify the namespace and namespace id to the values of `orphaned_namespace_name` and `orphaned_namespace_id`
+when true (default: `true`)
+* `orphaned_namespace_name` - The namespace to associate with records where the namespace can not be determined (default: `.orphaned`)
+* `orphaned_namespace_id` - The namespace id to associate with records where the namespace can not be determined (default: `orphaned`)
 
 Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
 ```

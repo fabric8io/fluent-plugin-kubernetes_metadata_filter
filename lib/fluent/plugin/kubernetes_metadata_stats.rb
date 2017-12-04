@@ -2,7 +2,7 @@
 # Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
 # Kubernetes metadata
 #
-# Copyright 2015 Red Hat, Inc.
+# Copyright 2017 Red Hat, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ module KubernetesMetadata
   class Stats
 
     def initialize
-      @stats = LruRedux::TTL::ThreadSafeCache.new(1000, 3600)
+      @stats = ::LruRedux::TTL::ThreadSafeCache.new(1000, 3600)
     end
 
     def bump(key)
@@ -30,6 +30,10 @@ module KubernetesMetadata
 
     def set(key, value)
        @stats[key] = value
+    end
+
+    def [](key)
+      @stats[key]
     end
 
     def to_s
