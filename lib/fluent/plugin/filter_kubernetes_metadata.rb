@@ -17,6 +17,8 @@
 # limitations under the License.
 #
 
+require_relative 'kubernetes_metadata_cache_strategy'
+require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
@@ -26,6 +28,7 @@ module Fluent
     K8_POD_CA_CERT = 'ca.crt'
     K8_POD_TOKEN = 'token'
 
+    include KubernetesMetadata::CacheStrategy
     include KubernetesMetadata::Common
     include KubernetesMetadata::WatchNamespaces
     include KubernetesMetadata::WatchPods
@@ -265,52 +268,6 @@ module Fluent
         metadata.merge!(pod_metadata) if pod_metadata
       end
       metadata
-    end
-
-    def get_pod_metadata(key, namespace_name, pod_name, record_create_time)
-        ids = @id_cache.fetch(key) do
-          #no metadata found
-          @stats.bump(:id_cache_miss)
-          pod_metadata = fetch_pod_metadata(namespace_name, pod_name)
-          namespace_metadata = fetch_namespace_metadata(namespace_name)
-          ids = {:pod_id=> pod_metadata['pod_id'], :namespace_id => namespace_metadata['namespace_id'] }
-          # pod not found or namespace not found
-          if ids[:pod_id].nil? || ids[:namespace_id].nil?
-             # pod notfound & namespace found
-             if ids[:pod_id].nil? && !ids[:namespace_id].nil?
-               ns_time = Time.parse(namespace_metadata['creation_timestamp'])
-               ids[:pod_id] = key if ns_time <= record_create_time #ns is older then record
-               ids
-             else
-               # nothing found
-               @stats.bump(:pod_cache_orphaned_record)
-               ids = :orphaned
-             end
-          end
-          ids
-        end
-
-        if ids == :orphaned
-          return {} unless @allow_orphans
-          log.trace("orphaning message for: #{namespace_name}/#{pod_name} ") if log.trace?
-          return {
-            'orphaned_namespace' => namespace_name,
-            'namespace_name' => @orphaned_namespace_name,
-            'namespace_id' => @orphaned_namespace_id
-          }
-        end
-        metadata =  @cache.fetch(ids[:pod_id]) do
-            @stats.bump(:pod_cache_miss)
-            m = fetch_pod_metadata(namespace_name, pod_name)
-            (m.nil? || m.empty?) ? {'pod_id'=>ids[:pod_id]} : m
-        end
-        metadata.merge!(@namespace_cache.fetch(ids[:namespace_id]) do
-           @stats.bump(:namespace_cache_miss)
-           m = fetch_namespace_metadata(namespace_name)
-           (m.nil? || m.empty?) ?  {'namespace_id'=>ids[:namespace_id]} : m
-        end)
-        metadata.delete('creation_timestamp') #remove namespace info thats only used for comparison
-        metadata
     end
 
     def create_time_from_record(record)
