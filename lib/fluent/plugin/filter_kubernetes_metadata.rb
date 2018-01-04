@@ -352,9 +352,13 @@ module Fluent
         value = record[@merge_json_log_key].strip
         if value[0].eql?('{') && value[-1].eql?('}')
           begin
-            record = JSON.parse(value).merge(record)
+            unpacked = JSON.parse(value)
+            record = unpacked.merge(record)
             unless @preserve_json_log
               record.delete(@merge_json_log_key)
+              if unpacked.has_key?(@merge_json_log_key)
+                record[@merge_json_log_key] = unpacked[@merge_json_log_key]
+              end
             end
           rescue JSON::ParserError=>e
             @stats.bump(:merge_json_parse_errors)

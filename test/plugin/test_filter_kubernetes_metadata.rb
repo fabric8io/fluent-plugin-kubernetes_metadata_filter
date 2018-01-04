@@ -154,7 +154,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           include_namespace_metadata true
         ', d: nil)
       d = create_driver(config) if d.nil?
-      if ENV['LOGLEVEL'] 
+      if ENV['LOGLEVEL']
         logger = Logger.new(STDOUT)
         logger.level = eval("Logger::#{ENV['LOGLEVEL'].upcase}")
         instance = d.instance
@@ -205,7 +205,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
           }
         }
-        
+
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
@@ -242,7 +242,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        
+
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
@@ -268,7 +268,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        
+
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
@@ -485,6 +485,19 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
 preserve_json_log false
 use_journal true
 ')
+      assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
+    end
+
+    test 'emit individual fields from json, throw out whole original string, keep inner field' do
+      json_log = {
+        'hello' => 'world',
+        'more' => 'data',
+        'log' => 'keep me'
+      }
+      msg = {
+        'log' => "#{json_log.to_json}"
+      }
+      es = emit_with_tag('non-kubernetes', msg, 'preserve_json_log false')
       assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
     end
 
