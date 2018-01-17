@@ -255,7 +255,7 @@ module Fluent
 
     end
 
-    def get_metadata_for_record(match_data, cache_key, create_time)
+    def get_metadata_for_record(match_data, cache_key, create_time, batch_miss_cache)
       namespace_name = match_data['namespace']
       pod_name = match_data['pod_name']
       metadata = {
@@ -264,7 +264,7 @@ module Fluent
         'pod_name'       => pod_name
       }
       if @kubernetes_url.present?
-        pod_metadata = get_pod_metadata(cache_key, namespace_name, pod_name, create_time)
+        pod_metadata = get_pod_metadata(cache_key, namespace_name, pod_name, create_time, batch_miss_cache)
         metadata.merge!(pod_metadata) if pod_metadata
       end
       metadata
@@ -287,14 +287,14 @@ module Fluent
       new_es = MultiEventStream.new
 
       match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
-
+      batch_miss_cache = {}
       if match_data
         container_id = match_data['docker_id']
         metadata = {
           'docker' => {
             'container_id' => container_id
           },
-          'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(es.first[1]))
+          'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(es.first[1]), batch_miss_cache)
         }
       end
 
@@ -311,7 +311,7 @@ module Fluent
 
     def filter_stream_from_journal(tag, es)
       new_es = MultiEventStream.new
-
+      batch_miss_cache = {}
       es.each { |time, record|
         record = merge_json_log(record) if @merge_json_log
         metadata = nil
@@ -322,7 +322,7 @@ module Fluent
               'docker' => {
                 'container_id' => container_id
               },
-              'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(record))
+              'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(record), batch_miss_cache)
             }
 
             metadata

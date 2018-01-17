@@ -78,7 +78,7 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         }
         @strategy.cache[@pod_uuid] = @pod_meta
         @strategy.namespace_cache[@namespace_uuid] = @namespace_meta
-        assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time))
+        assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, {}))
     end
 
     test 'when previously processed record for pod but metadata is not cached and can not be fetched' do
@@ -92,7 +92,7 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         }
         @strategy.stub :fetch_pod_metadata, {} do
             @strategy.stub :fetch_namespace_metadata, nil do
-                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time))
+                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, {}))
             end
         end
     end
@@ -102,7 +102,7 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         exp.delete('creation_timestamp')
         @strategy.stub :fetch_pod_metadata, @pod_meta do
             @strategy.stub :fetch_namespace_metadata, @namespace_meta do
-                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time))
+                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, {}))
                 assert_true(@strategy.id_cache.key?(@cache_key))
             end
         end
@@ -119,7 +119,7 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         }
         @strategy.stub :fetch_pod_metadata, {} do
             @strategy.stub :fetch_namespace_metadata, @namespace_meta do
-                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time))
+                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, {}))
                 assert_true(@strategy.id_cache.key?(@cache_key))
             end
         end
@@ -133,7 +133,7 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         }
         @strategy.stub :fetch_pod_metadata, {} do
             @strategy.stub :fetch_namespace_metadata, @namespace_meta do
-                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time - 1*86400))
+                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time - 1*86400, {}))
                 assert_true(@strategy.id_cache.key?(@cache_key))
             end
         end
@@ -144,8 +144,7 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         # unless the namespace exists
         @strategy.stub :fetch_pod_metadata, @pod_meta do
             @strategy.stub :fetch_namespace_metadata, {} do
-                assert_equal({}, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time - 1*86400))
-                assert_true(@strategy.id_cache.key?(@cache_key))
+                assert_equal({}, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time - 1*86400, {}))
             end
         end
     end
@@ -161,9 +160,37 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         }
         @strategy.stub :fetch_pod_metadata, @pod_meta do
             @strategy.stub :fetch_namespace_metadata, {} do
-                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time - 1*86400))
-                assert_true(@strategy.id_cache.key?(@cache_key))
+                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time - 1*86400, {}))
             end
         end
+    end
+
+    test 'when metadata is not cached and no metadata can be fetched and not allowing orphans for multiple records' do
+        # processing a batch of records with no meta. ideally we only hit the api server once
+        batch_miss_cache = {}
+        @strategy.stub :fetch_pod_metadata, {} do
+            @strategy.stub :fetch_namespace_metadata, {} do
+                assert_equal({}, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, batch_miss_cache))
+            end
+        end
+        assert_equal({}, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, batch_miss_cache))
+    end
+    
+    test 'when metadata is not cached and no metadata can be fetched and allowing orphans for multiple records' do
+        # we should never see this since pod meta should not be retrievable
+        # unless the namespace exists
+        @strategy.allow_orphans = true
+        exp = {
+            'orphaned_namespace' => 'namespace',
+            'namespace_name' => '.orphaned',
+            'namespace_id' => 'orphaned'
+        }
+        batch_miss_cache = {}
+        @strategy.stub :fetch_pod_metadata, {}  do
+            @strategy.stub :fetch_namespace_metadata, {} do
+                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, batch_miss_cache))
+            end
+        end
+        assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, batch_miss_cache))
     end
 end
