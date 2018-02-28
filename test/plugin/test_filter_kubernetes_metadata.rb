@@ -17,6 +17,7 @@
 # limitations under the License.
 #
 require_relative '../helper'
+require 'fluent/test/driver/filter'
 require 'fluent/plugin/filter_kubernetes_metadata'
 
 require 'webmock/test_unit'
@@ -30,8 +31,10 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     @time = Fluent::Engine.now
   end
 
+  DEFAULT_TAG = 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log'
+
   def create_driver(conf = '')
-    Test::FilterTestDriver.new(KubernetesMetadataFilter, 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log').configure(conf, true)
+    Test::Driver::Filter.new(Plugin::KubernetesMetadataFilter).configure(conf)
   end
 
   sub_test_case 'dump_stats' do
@@ -100,8 +103,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
 
           Dir.mktmpdir { |dir|
             # Fake token file and CA crt.
-            expected_cert_path = File.join(dir, KubernetesMetadataFilter::K8_POD_CA_CERT)
-            expected_token_path = File.join(dir, KubernetesMetadataFilter::K8_POD_TOKEN)
+            expected_cert_path = File.join(dir, Plugin::KubernetesMetadataFilter::K8_POD_CA_CERT)
+            expected_token_path = File.join(dir, Plugin::KubernetesMetadataFilter::K8_POD_TOKEN)
 
             File.open(expected_cert_path, "w") {}
             File.open(expected_token_path, "w") {}
@@ -160,9 +163,10 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         instance = d.instance
         instance.instance_variable_set(:@log,logger)
       end
-      d.run {
-        d.emit(msg, @time)
-      }.filtered
+      d.run(default_tag: DEFAULT_TAG) {
+        d.feed(@time, msg)
+      }
+      d.filtered.map{|e| e.last}
     end
 
     def emit_with_tag(tag, msg={}, config='
@@ -171,9 +175,10 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           cache_size 1
         ')
       d = create_driver(config)
-      d.run {
-        d.emit_with_tag(tag, msg, @time)
-      }.filtered
+      d.run(default_tag: tag) {
+        d.feed(@time, msg)
+      }
+      d.filtered.map{|e| e.last}
     end
 
     test 'with docker & kubernetes metadata where id cache hit and metadata miss' do
@@ -191,7 +196,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         }
         stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc').to_timeout
         stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default').to_timeout
-        es = emit({'time'=>'2015-05-08T09:22:01Z'}, '', d:driver)
+        filtered = emit({'time'=>'2015-05-08T09:22:01Z'}, '', d:driver)
         expected_kube_metadata = {
           'time'=>'2015-05-08T09:22:01Z',
           'docker' => {
@@ -205,8 +210,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
           }
         }
-        
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
@@ -223,7 +228,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             :pod_id       =>'c76927af-f563-11e4-b32d-54ee7527188d',
             :namespace_id =>'898268c8-4a36-11e5-9d81-42010af0194c'
         }
-        es = emit({'time'=>'2015-05-08T09:22:01Z'}, '', d:driver)
+        filtered = emit({'time'=>'2015-05-08T09:22:01Z'}, '', d:driver)
         expected_kube_metadata = {
           'time'=>'2015-05-08T09:22:01Z',
           'docker' => {
@@ -242,14 +247,14 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
     test 'with docker & kubernetes metadata' do
       VCR.use_cassette('kubernetes_docker_metadata') do
-        es = emit({'time'=>'2015-05-08T09:22:01Z'})
+        filtered = emit({'time'=>'2015-05-08T09:22:01Z'})
         expected_kube_metadata = {
           'time'=>'2015-05-08T09:22:01Z',
           'docker' => {
@@ -268,14 +273,14 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
     test 'with docker & kubernetes metadata & namespace_id enabled' do
       VCR.use_cassette('metadata_with_namespace_id') do
-        es = emit({}, '
+        filtered = emit({}, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -298,13 +303,13 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
     test 'with docker & kubernetes metadata using bearer token' do
       VCR.use_cassette('kubernetes_docker_metadata_using_bearer_token') do
-        es = emit({}, '
+        filtered = emit({}, '
           kubernetes_url https://localhost:8443
           verify_ssl false
           watch false
@@ -327,12 +332,12 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
     test 'with docker & kubernetes metadata but no configured api server' do
-      es = emit({}, '')
+      filtered = emit({}, '')
       expected_kube_metadata = {
           'docker' => {
               'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
@@ -343,7 +348,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
               'namespace_name' => 'default',
           }
       }
-      assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      assert_equal(expected_kube_metadata, filtered[0])
     end
 
     test 'with docker & inaccessible kubernetes metadata' do
@@ -354,7 +359,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       )
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc').to_timeout
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default').to_timeout
-      es = emit()
+      filtered = emit()
       expected_kube_metadata = {
         'docker' => {
           'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
@@ -367,7 +372,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           'namespace_id' => 'orphaned'
         }
       }
-      assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      assert_equal(expected_kube_metadata, filtered[0])
     end
 
     test 'with dot in pod name' do
@@ -377,7 +382,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         }.to_json
       )
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller.98rqc').to_timeout
-      es = emit_with_tag('var.log.containers.fabric8-console-controller.98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log', {}, '')
+      filtered = emit_with_tag('var.log.containers.fabric8-console-controller.98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log', {}, '')
       expected_kube_metadata = {
         'docker' => {
           'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
@@ -388,12 +393,12 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           'namespace_name' => 'default'
         }
       }
-      assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      assert_equal(expected_kube_metadata, filtered[0])
     end
 
     test 'with docker metadata, non-kubernetes' do
-      es = emit_with_tag('non-kubernetes', {}, '')
-      assert_false(es.instance_variable_get(:@record_array)[0].has_key?(:kubernetes))
+      filtered = emit_with_tag('non-kubernetes', {}, '')
+      assert_false(filtered[0].has_key?(:kubernetes))
     end
 
     test 'merges json log data' do
@@ -403,8 +408,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       msg = {
         'log' => "#{json_log.to_json}"
       }
-      es = emit_with_tag('non-kubernetes', msg, '')
-      assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
+      filtered = emit_with_tag('non-kubernetes', msg, '')
+      assert_equal(msg.merge(json_log), filtered[0])
     end
 
     test 'merges json log data in MESSAGE' do
@@ -414,8 +419,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       msg = {
         'MESSAGE' => "#{json_log.to_json}"
       }
-      es = emit_with_tag('non-kubernetes', msg, 'use_journal true')
-      assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
+      filtered = emit_with_tag('non-kubernetes', msg, 'use_journal true')
+      assert_equal(msg.merge(json_log), filtered[0])
     end
 
     test 'merges json log data with message field' do
@@ -431,8 +436,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       msg = {
         'log' => "#{json_log.to_json}"
       }
-      es = emit_with_tag('non-kubernetes', msg, '')
-      assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
+      filtered = emit_with_tag('non-kubernetes', msg, '')
+      assert_equal(msg.merge(json_log), filtered[0])
     end
 
     test 'ignores invalid json in log field' do
@@ -440,8 +445,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       msg = {
           'log' => json_log
       }
-      es = emit_with_tag('non-kubernetes', msg, '')
-      assert_equal(msg, es.instance_variable_get(:@record_array)[0])
+      filtered = emit_with_tag('non-kubernetes', msg, '')
+      assert_equal(msg, filtered[0])
     end
 
     test 'merges json log data with message field in MESSAGE' do
@@ -457,8 +462,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       msg = {
         'MESSAGE' => "#{json_log.to_json}"
       }
-      es = emit_with_tag('non-kubernetes', msg, 'use_journal true')
-      assert_equal(msg.merge(json_log), es.instance_variable_get(:@record_array)[0])
+      filtered = emit_with_tag('non-kubernetes', msg, 'use_journal true')
+      assert_equal(msg.merge(json_log), filtered[0])
     end
 
     test 'emit individual fields from json, throw out whole original string' do
@@ -469,8 +474,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       msg = {
         'log' => "#{json_log.to_json}"
       }
-      es = emit_with_tag('non-kubernetes', msg, 'preserve_json_log false')
-      assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
+      filtered = emit_with_tag('non-kubernetes', msg, 'preserve_json_log false')
+      assert_equal(json_log, filtered[0])
     end
 
     test 'emit individual fields from json, throw out whole original string in MESSAGE' do
@@ -481,16 +486,16 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       msg = {
         'MESSAGE' => "#{json_log.to_json}"
       }
-      es = emit_with_tag('non-kubernetes', msg, '
+      filtered = emit_with_tag('non-kubernetes', msg, '
 preserve_json_log false
 use_journal true
 ')
-      assert_equal(json_log, es.instance_variable_get(:@record_array)[0])
+      assert_equal(json_log, filtered[0])
     end
 
     test 'with kubernetes dotted labels, de_dot enabled' do
       VCR.use_cassette('kubernetes_docker_metadata_dotted_labels') do
-        es = emit({}, '
+        filtered = emit({}, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -516,13 +521,13 @@ use_journal true
             }
           }
         }
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
     test 'with kubernetes dotted labels, de_dot disabled' do
       VCR.use_cassette('kubernetes_docker_metadata_dotted_labels') do
-        es = emit({}, '
+        filtered = emit({}, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -549,7 +554,7 @@ use_journal true
             }
           }
         }
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
@@ -570,7 +575,7 @@ use_journal true
         'randomfield' => 'randomvalue'
       }
       VCR.use_cassette('kubernetes_docker_metadata') do
-        es = emit_with_tag(tag, msg, '
+        filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -593,7 +598,7 @@ use_journal true
             }
           }
         }.merge(msg)
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
@@ -606,7 +611,7 @@ use_journal true
         'randomfield' => 'randomvalue'
       }
       VCR.use_cassette('metadata_with_namespace_id') do
-        es = emit_with_tag(tag, msg, '
+        filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -630,13 +635,13 @@ use_journal true
             }
           }
         }.merge(msg)
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
     test 'with kubernetes annotations' do
       VCR.use_cassette('kubernetes_docker_metadata_annotations') do
-        es = emit({},'
+        filtered = emit({},'
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -663,7 +668,7 @@ use_journal true
                 }
             }
         }
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
@@ -676,7 +681,7 @@ use_journal true
         'randomfield' => 'randomvalue'
       }
       VCR.use_cassette('kubernetes_docker_metadata') do
-        es = emit_with_tag(tag, msg, '
+        filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -699,13 +704,13 @@ use_journal true
             }
           }
         }.merge(msg)
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
     test 'with kubernetes namespace annotations' do
       VCR.use_cassette('kubernetes_docker_metadata_annotations') do
-        es = emit({},'
+        filtered = emit({},'
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -736,13 +741,13 @@ use_journal true
                 }
             }
         }
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
 
     test 'with kubernetes namespace annotations no match' do
       VCR.use_cassette('kubernetes_docker_metadata_annotations') do
-        es = emit({},'
+        filtered = emit({},'
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -766,7 +771,7 @@ use_journal true
                 }
             }
         }
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
     test 'with CONTAINER_NAME that does not match' do
@@ -777,7 +782,7 @@ use_journal true
         'randomfield' => 'randomvalue'
       }
       VCR.use_cassette('kubernetes_docker_metadata_annotations') do
-        es = emit_with_tag(tag, msg, '
+        filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -788,7 +793,7 @@ use_journal true
           'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
           'randomfield' => 'randomvalue'
         }
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
     test 'with CONTAINER_NAME starts with k8s_ that does not match' do
@@ -799,7 +804,7 @@ use_journal true
         'randomfield' => 'randomvalue'
       }
       VCR.use_cassette('kubernetes_docker_metadata_annotations') do
-        es = emit_with_tag(tag, msg, '
+        filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -810,7 +815,7 @@ use_journal true
           'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
           'randomfield' => 'randomvalue'
         }
-        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+        assert_equal(expected_kube_metadata, filtered[0])
       end
     end
   end
