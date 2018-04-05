@@ -38,8 +38,6 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `use_journal` - If false (default), messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.
 * `container_name_to_kubernetes_regexp` - The regular expression used to extract the k8s metadata encoded in the journal `CONTAINER_NAME` field (default: `'^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'`
   * This corresponds to the definition [in the source](https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/dockertools/docker.go#L317)
-* `include_namespace_metadata` - Collect metadata about namespace such as uid, labels and annotations (default: `false`).  
-  Note that when this option is enabled, all label from namespace are collected, but annotations are collected according to `annotation_match` value. If `annotation_match` is not presented, no annotations will be collected from the namespace.
 * `annotation_match` - Array of regular expressions matching annotation field names. Matched annotations are added to a log record.
 * `allow_orphans` - Modify the namespace and namespace id to the values of `orphaned_namespace_name` and `orphaned_namespace_id`
 when true (default: `true`)

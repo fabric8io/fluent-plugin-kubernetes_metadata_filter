@@ -34,22 +34,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     Test::FilterTestDriver.new(KubernetesMetadataFilter, 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log').configure(conf, true)
   end
 
-  sub_test_case 'dump_stats' do
-
-    test 'dump stats with include_namespace_metadata' do
-      VCR.use_cassette('kubernetes_docker_metadata') do
-        d = create_driver('
-          kubernetes_url https://localhost:8443
-          watch false
-          cache_size 1
-          include_namespace_metadata false
-          stats_interval 0
-        ')
-        d.instance.dump_stats
-      end
-    end
-
-  end
   sub_test_case 'configure' do
     test 'check default' do
       d = create_driver
@@ -151,7 +135,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
-          include_namespace_metadata true
         ', d: nil)
       d = create_driver(config) if d.nil?
       if ENV['LOGLEVEL'] 
@@ -182,7 +165,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
-          include_namespace_metadata true
         ')
         cache = driver.instance.instance_variable_get(:@id_cache)
         cache['49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'] = {
@@ -216,7 +198,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
-          include_namespace_metadata true
         ')
         cache = driver.instance.instance_variable_get(:@id_cache)
         cache['49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'] = {
@@ -279,7 +260,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
-          include_namespace_id true
         ')
         expected_kube_metadata = {
           'docker' => {
@@ -494,7 +474,6 @@ use_journal true
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
-          include_namespace_metadata true
         ')
         expected_kube_metadata = {
           'docker' => {
@@ -527,7 +506,6 @@ use_journal true
           watch false
           cache_size 1
           de_dot false
-          include_namespace_metadata true
         ')
         expected_kube_metadata = {
           'docker' => {
@@ -610,7 +588,6 @@ use_journal true
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
-          include_namespace_id true
           use_journal true
         ')
         expected_kube_metadata = {
@@ -709,7 +686,6 @@ use_journal true
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
-          include_namespace_metadata true
           annotation_match [ "^custom.+", "two", "workspace*"]
         ')
         expected_kube_metadata = {
@@ -746,7 +722,6 @@ use_journal true
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
-          include_namespace_metadata true
           annotation_match [ "noMatch*"]
         ')
         expected_kube_metadata = {
