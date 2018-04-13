@@ -358,6 +358,11 @@ module Fluent
             end
           rescue JSON::ParserError=>e
             @stats.bump(:merge_json_parse_errors)
+            if record.has_key?('tags') and record['tags'].is_a? Array
+              record['tags'].push(' _jsonparsefailure')
+            else
+              record['tags']=['_jsonparsefailure']
+            end
             log.debug(e)
           end
         end
