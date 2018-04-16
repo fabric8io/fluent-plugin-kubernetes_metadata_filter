@@ -284,67 +284,71 @@ module Fluent
     end
 
     def filter_stream_from_files(tag, es)
-      new_es = MultiEventStream.new
+      unless es.empty?
+        new_es = MultiEventStream.new
 
-      match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
-      batch_miss_cache = {}
-      if match_data
-        container_id = match_data['docker_id']
-        metadata = {
-          'docker' => {
-            'container_id' => container_id
-          },
-          'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(es.first[1]), batch_miss_cache)
+        match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
+        batch_miss_cache = {}
+        if match_data
+          container_id = match_data['docker_id']
+          metadata = {
+            'docker' => {
+              'container_id' => container_id
+            },
+            'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(es.first[1]), batch_miss_cache)
+          }
+        end
+
+        es.each { |time, record|
+          record = merge_json_log(record) if @merge_json_log
+
+          record = record.merge(Marshal.load(Marshal.dump(metadata))) if metadata
+
+          new_es.add(time, record)
         }
+        dump_stats
+        new_es
       end
-
-      es.each { |time, record|
-        record = merge_json_log(record) if @merge_json_log
-
-        record = record.merge(Marshal.load(Marshal.dump(metadata))) if metadata
-
-        new_es.add(time, record)
-      }
-      dump_stats
-      new_es
     end
 
     def filter_stream_from_journal(tag, es)
-      new_es = MultiEventStream.new
-      batch_miss_cache = {}
-      es.each { |time, record|
-        record = merge_json_log(record) if @merge_json_log
-        metadata = nil
-        if record.has_key?('CONTAINER_NAME') && record.has_key?('CONTAINER_ID_FULL')
-          metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
-           container_id = record['CONTAINER_ID_FULL']
-            metadata = {
-              'docker' => {
-                'container_id' => container_id
-              },
-              'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(record), batch_miss_cache)
-            }
+      unless es.empty?
+        new_es = MultiEventStream.new
+        batch_miss_cache = {}
+        es.each { |time, record|
+          record = merge_json_log(record) if @merge_json_log
+          metadata = nil
+          if record.has_key?('CONTAINER_NAME') && record.has_key?('CONTAINER_ID_FULL')
+            metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
+             container_id = record['CONTAINER_ID_FULL']
+              metadata = {
+                'docker' => {
+                  'container_id' => container_id
+                },
+                'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(record), batch_miss_cache)
+              }
 
-            metadata
+              metadata
+            end
+            unless metadata
+              log.debug "Error: could not match CONTAINER_NAME from record #{record}"
+              @stats.bump(:container_name_match_failed)
+            end
+          elsif record.has_key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
+            log.debug "Error: no container name and id in record #{record}"
+            @stats.bump(:container_name_id_missing)
           end
-          unless metadata
-            log.debug "Error: could not match CONTAINER_NAME from record #{record}"
-            @stats.bump(:container_name_match_failed)
+
+          if metadata
+            record = record.merge(metadata)
           end
-        elsif record.has_key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
-          log.debug "Error: no container name and id in record #{record}"
-          @stats.bump(:container_name_id_missing)
-        end
 
-        if metadata
-          record = record.merge(metadata)
-        end
+          new_es.add(time, record)
+        }
 
-        new_es.add(time, record)
-      }
-
-      dump_stats
-      new_es
+        dump_stats
+        new_es
+      end
     end
 
     def merge_json_log(record)
