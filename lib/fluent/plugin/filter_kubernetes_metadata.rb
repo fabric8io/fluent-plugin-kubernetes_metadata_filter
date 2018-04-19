@@ -23,8 +23,10 @@ require_relative 'kubernetes_metadata_stats'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
 
-module Fluent
-  class KubernetesMetadataFilter < Fluent::Filter
+require 'fluent/plugin/filter'
+
+module Fluent::Plugin
+  class KubernetesMetadataFilter < Fluent::Plugin::Filter
     K8_POD_CA_CERT = 'ca.crt'
     K8_POD_TOKEN = 'token'
 
@@ -182,23 +184,29 @@ module Fluent
 
       # Use Kubernetes default service account if we're in a pod.
       if @kubernetes_url.nil?
+        log.debug "Kubernetes URL is not set - inspecting environ"
+
         env_host = ENV['KUBERNETES_SERVICE_HOST']
         env_port = ENV['KUBERNETES_SERVICE_PORT']
         if env_host.present? && env_port.present?
           @kubernetes_url = "https://#{env_host}:#{env_port}/api"
+          log.debug "Kubernetes URL is now '#{@kubernetes_url}'"
         end
       end
 
       # Use SSL certificate and bearer token from Kubernetes service account.
       if Dir.exist?(@secret_dir)
+        log.debug "Found directory with secrets: #{@secret_dir}"
         ca_cert = File.join(@secret_dir, K8_POD_CA_CERT)
         pod_token = File.join(@secret_dir, K8_POD_TOKEN)
 
         if !@ca_file.present? and File.exist?(ca_cert)
+          log.debug "Found CA certificate: #{ca_cert}"
           @ca_file = ca_cert
         end
 
         if !@bearer_token_file.present? and File.exist?(pod_token)
+          log.debug "Found pod token: #{pod_token}"
           @bearer_token_file = pod_token
         end
       end
@@ -219,6 +227,7 @@ module Fluent
           auth_options[:bearer_token] = bearer_token
         end
 
+        log.debug "Creating K8S client"
         @client = Kubeclient::Client.new @kubernetes_url, @apiVersion,
                                          ssl_options: ssl_options,
                                          auth_options: auth_options
@@ -237,9 +246,11 @@ module Fluent
         end
       end
       if @use_journal
+        log.debug "Will stream from the journal"
         @merge_json_log_key = 'MESSAGE'
         self.class.class_eval { alias_method :filter_stream, :filter_stream_from_journal }
       else
+        log.debug "Will stream from the files"
         @merge_json_log_key = 'log'
         self.class.class_eval { alias_method :filter_stream, :filter_stream_from_files }
       end
@@ -284,7 +295,7 @@ module Fluent
     end
 
     def filter_stream_from_files(tag, es)
-      new_es = MultiEventStream.new
+      new_es = Fluent::MultiEventStream.new
 
       match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
       batch_miss_cache = {}
@@ -310,7 +321,7 @@ module Fluent
     end
 
     def filter_stream_from_journal(tag, es)
-      new_es = MultiEventStream.new
+      new_es = Fluent::MultiEventStream.new
       batch_miss_cache = {}
       es.each { |time, record|
         record = merge_json_log(record) if @merge_json_log
