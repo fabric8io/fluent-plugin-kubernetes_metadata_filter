@@ -284,6 +284,7 @@ module Fluent
     end
 
     def filter_stream_from_files(tag, es)
+      return es if es.empty?
       new_es = MultiEventStream.new
 
       match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
