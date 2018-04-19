@@ -11,6 +11,17 @@ to lookup additional metadata about the container's associated pod and namespace
 authoritatively determine the namespace of the container emitting a log record, it will use an 'orphan' namespace ID in the metadata. This behaviors supports multi-tenant systems
 that rely on the authenticity of the namespace for proper log isolation.
 
+## Requirements
+
+| fluent-plugin-kubernetes_metadata_filter  | fluentd | ruby |
+|-------------------|---------|------|
+| >= 2.0.0 | >= v0.14.20 | >= 2.1 |
+|  < 2.0.0 | >= v0.12.0 | >= 1.9 |
+
+NOTE: For v0.12 version, you should use 1.x.y version. Please send patch into v0.12 branch if you encountered 1.x version's bug.
+
+NOTE: This documentation is for fluent-plugin-kubernetes_metadata_filter-plugin-elasticsearch 2.x or later. For 1.x documentation, please see [v0.12 branch](https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter/tree/v0.12).
+
 ## Installation
 
     gem install fluent-plugin-kubernetes_metadata_filter
