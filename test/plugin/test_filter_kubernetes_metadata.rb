@@ -158,6 +158,24 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       d.filtered.map{|e| e.last}
     end
 
+    test 'nil event stream from journal' do
+     #not certain how this is possible but adding test to properly
+     #guard against this condition we have seen
+
+     plugin = create_driver.instance
+     plugin.filter_stream_from_journal('tag', nil)
+     plugin.filter_stream_from_journal('tag', Fluent::MultiEventStream.new)
+    end
+
+    test 'nil event stream from files' do
+     #not certain how this is possible but adding test to properly
+     #guard against this condition we have seen
+
+     plugin = create_driver.instance
+     plugin.filter_stream_from_files('tag', nil)
+     plugin.filter_stream_from_files('tag', Fluent::MultiEventStream.new)
+    end
+
     test 'inability to connect to the api server handles exception and doensnt block pipeline' do
       VCR.use_cassette('kubernetes_docker_metadata') do
         driver = create_driver('
