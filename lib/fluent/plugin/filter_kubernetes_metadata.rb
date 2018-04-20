@@ -50,7 +50,7 @@ module Fluent::Plugin
                  :string,
                  :default => 'var\.log\.containers\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
     config_param :bearer_token_file, :string, default: nil
-    config_param :merge_json_log, :bool, default: true
+    config_param :merge_json_log, :bool, default: false
     config_param :preserve_json_log, :bool, default: true
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
     config_param :de_dot, :bool, default: true

@@ -42,8 +42,10 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `cache_size` - size of the cache of Kubernetes metadata to reduce requests to the API server (default: `1000`)
 * `cache_ttl` - TTL in seconds of each cached element. Set to negative value to disable TTL eviction (default: `3600` - 1 hour)
 * `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
-* `merge_json_log` - merge logs in JSON format as top level keys (default: `true`)
-* `preserve_json_log` - preserve JSON logs in raw form in the `log` key, only used if the previous option is true (default: `true`)
+* `merge_json_log` - merge logs in JSON format as top level keys (default: `true`, DEPRECATED)
+  * WARNING: The configuration option, `merge_json_log` is deprecated and will be removed in a future release; please use fluent's [`filter_parser`](https://docs.fluentd.org/v0.12/articles/filter_parser) instead to parse arbitrary log message payloads as JSON strings
+* `preserve_json_log` - preserve JSON logs in raw form in the `log` key, only used if the previous option is true (default: `true`, DEPRECATED)
+  * WARNING: The configuration option, `preserve_json_log` is deprecated and will be removed in a future release; please use fluent's [`filter_parser`](https://docs.fluentd.org/v0.12/articles/filter_parser) instead to parse arbitrary log message payloads as JSON strings
 * `de_dot` - replace dots in labels and annotations with configured `de_dot_separator`, required for ElasticSearch 2.x compatibility (default: `true`)
 * `de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
 * `use_journal` - If false (default), messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.
