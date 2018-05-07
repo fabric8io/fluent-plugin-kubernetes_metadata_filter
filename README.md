@@ -104,6 +104,22 @@ Reading from the systemd journal (requires the fluentd `fluent-plugin-systemd` a
 </match>
 ```
 
+## Environment variables for Kubernetes
+
+If the name of the Kubernetes node the plugin is running on is set as
+an environment variable with the name `K8S_NODE_NAME`, it will reduce cache
+misses and needless calls to the Kubernetes API.
+
+In the Kubernetes container definition, this is easily accomplished by:
+
+```yaml
+env:
+- name: K8S_NODE_NAME
+  valueFrom:
+    fieldRef:
+      fieldPath: spec.nodeName
+```
+
 ## Example input/output
 
 Kubernetes creates symlinks to Docker log files in `/var/log/containers/*.log`. Docker logs in JSON format.
