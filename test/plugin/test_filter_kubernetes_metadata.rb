@@ -140,12 +140,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           cache_size 1
         ', d: nil)
       d = create_driver(config) if d.nil?
-      if ENV['LOGLEVEL'] 
-        logger = Logger.new(STDOUT)
-        logger.level = eval("Logger::#{ENV['LOGLEVEL'].upcase}")
-        instance = d.instance
-        instance.instance_variable_set(:@log,logger)
-      end
       d.run(default_tag: DEFAULT_TAG) {
         d.feed(@time, msg)
       }
@@ -162,6 +156,33 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         d.feed(@time, msg)
       }
       d.filtered.map{|e| e.last}
+    end
+
+    test 'inability to connect to the api server handles exception and doensnt block pipeline' do
+      VCR.use_cassette('kubernetes_docker_metadata') do
+        driver = create_driver('
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+        ')
+        stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc').to_raise(SocketError.new('error from pod fetch'))
+        stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default').to_raise(SocketError.new('socket error from namespace fetch'))
+        filtered = emit({'time'=>'2015-05-08T09:22:01Z'}, '', :d => driver)
+        expected_kube_metadata = {
+          'time'=>'2015-05-08T09:22:01Z',
+          'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          'kubernetes' => {
+            'pod_name'       => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            "namespace_id"=>"orphaned",
+            'namespace_name' => '.orphaned',
+            "orphaned_namespace"=>"default"
+          }
+        }
+        assert_equal(expected_kube_metadata, filtered[0])
+      end
     end
 
     test 'with docker & kubernetes metadata where id cache hit and metadata miss' do
