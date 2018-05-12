@@ -48,8 +48,6 @@ module Fluent
                  :string,
                  :default => 'var\.log\.containers\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
     config_param :bearer_token_file, :string, default: nil
-    config_param :merge_json_log, :bool, default: true
-    config_param :preserve_json_log, :bool, default: true
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
     config_param :de_dot, :bool, default: true
     config_param :de_dot_separator, :string, default: '_'
@@ -237,10 +235,10 @@ module Fluent
         end
       end
       if @use_journal
-        @merge_json_log_key = 'MESSAGE'
+        log.debug "Will stream from the journal"
         self.class.class_eval { alias_method :filter_stream, :filter_stream_from_journal }
       else
-        @merge_json_log_key = 'log'
+        log.debug "Will stream from the files"
         self.class.class_eval { alias_method :filter_stream, :filter_stream_from_files }
       end
 
@@ -299,13 +297,10 @@ module Fluent
         }
       end
 
-      es.each { |time, record|
-        record = merge_json_log(record) if @merge_json_log
-
+      es.each do |time, record|
         record = record.merge(Marshal.load(Marshal.dump(metadata))) if metadata
-
         new_es.add(time, record)
-      }
+      end
       dump_stats
       new_es
     end
@@ -313,8 +308,7 @@ module Fluent
     def filter_stream_from_journal(tag, es)
       new_es = MultiEventStream.new
       batch_miss_cache = {}
-      es.each { |time, record|
-        record = merge_json_log(record) if @merge_json_log
+      es.each do |time, record|
         metadata = nil
         if record.has_key?('CONTAINER_NAME') && record.has_key?('CONTAINER_ID_FULL')
           metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
@@ -337,33 +331,13 @@ module Fluent
           @stats.bump(:container_name_id_missing)
         end
 
-        if metadata
-          record = record.merge(metadata)
-        end
+        record = record.merge(metadata) if metadata
 
         new_es.add(time, record)
-      }
+      end
 
       dump_stats
       new_es
-    end
-
-    def merge_json_log(record)
-      if record.has_key?(@merge_json_log_key)
-        value = record[@merge_json_log_key].strip
-        if value[0].eql?('{') && value[-1].eql?('}')
-          begin
-            record = JSON.parse(value).merge(record)
-            unless @preserve_json_log
-              record.delete(@merge_json_log_key)
-            end
-          rescue JSON::ParserError=>e
-            @stats.bump(:merge_json_parse_errors)
-            log.debug(e)
-          end
-        end
-      end
-      record
     end
 
     def de_dot!(h)

@@ -42,8 +42,6 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `cache_size` - size of the cache of Kubernetes metadata to reduce requests to the API server (default: `1000`)
 * `cache_ttl` - TTL in seconds of each cached element. Set to negative value to disable TTL eviction (default: `3600` - 1 hour)
 * `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
-* `merge_json_log` - merge logs in JSON format as top level keys (default: `true`)
-* `preserve_json_log` - preserve JSON logs in raw form in the `log` key, only used if the previous option is true (default: `true`)
 * `de_dot` - replace dots in labels and annotations with configured `de_dot_separator`, required for ElasticSearch 2.x compatibility (default: `true`)
 * `de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
 * `use_journal` - If false (default), messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.
@@ -54,6 +52,12 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 when true (default: `true`)
 * `orphaned_namespace_name` - The namespace to associate with records where the namespace can not be determined (default: `.orphaned`)
 * `orphaned_namespace_id` - The namespace id to associate with records where the namespace can not be determined (default: `orphaned`)
+
+**NOTE:** As of the release 1.1.x of this plugin, it no longer supports parsing the source message into JSON and attaching it to the
+payload.  The following configuration options are removed:
+
+* `merge_json_log`
+* `preserve_json_log`
 
 Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
 ```
