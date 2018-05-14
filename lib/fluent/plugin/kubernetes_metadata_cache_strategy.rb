@@ -18,7 +18,6 @@
 #
 module KubernetesMetadata
   module CacheStrategy
-
     def get_pod_metadata(key, namespace_name, pod_name, record_create_time, batch_miss_cache)
       metadata = {}
       ids = @id_cache[key]
