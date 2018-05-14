@@ -90,12 +90,12 @@ module Fluent
           rescue Exception=>e
             log.debug(e)
             @stats.bump(:pod_cache_api_nil_bad_resp_payload)
-            log.trace("returning empty metadata for #{namespace_name}/#{pod_name} due to error") if log.trace?
+            log.trace("returning empty metadata for #{namespace_name}/#{pod_name} due to error '#{e}'") if log.trace?
           end
         end
-      rescue KubeException=>e
+      rescue Exception=>e
         @stats.bump(:pod_cache_api_nil_error)
-        log.debug "Exception encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{e.message}"
+        log.debug "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
       end
       {}
     end
@@ -132,12 +132,12 @@ module Fluent
           rescue Exception => e
             log.debug(e)
             @stats.bump(:namespace_cache_api_nil_bad_resp_payload)
-            log.trace("returning empty metadata for #{namespace_name} due to error") if log.trace?
+            log.trace("returning empty metadata for #{namespace_name} due to error '#{e}'") if log.trace?
           end
         end
-      rescue KubeException => kube_error
+      rescue Exception => kube_error
         @stats.bump(:namespace_cache_api_nil_error)
-        log.debug "Exception encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{kube_error.message}"
+        log.debug "Exception '#{kube_error}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
       end
       {}
     end
