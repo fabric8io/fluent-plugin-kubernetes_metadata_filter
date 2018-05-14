@@ -53,7 +53,7 @@ when true (default: `true`)
 * `orphaned_namespace_name` - The namespace to associate with records where the namespace can not be determined (default: `.orphaned`)
 * `orphaned_namespace_id` - The namespace id to associate with records where the namespace can not be determined (default: `orphaned`)
 
-**NOTE:** As of the release 1.1.x of this plugin, it no longer supports parsing the source message into JSON and attaching it to the
+**NOTE:** As of the release 2.1.x of this plugin, it no longer supports parsing the source message into JSON and attaching it to the
 payload.  The following configuration options are removed:
 
 * `merge_json_log`
