@@ -35,7 +35,14 @@ class DefaultPodWatchStrategyTest < WatchTest
                 'labels' => {},
             },
             'spec' => {
-                'nodeName' => 'aNodeName'
+                'nodeName' => 'aNodeName',
+                'containers' => [{
+                     'name' => 'foo',
+                     'image' => 'bar',
+                 }, {
+                     'name' => 'bar',
+                     'image' => 'foo',
+                 }]
             }
          }
        )
@@ -49,8 +56,33 @@ class DefaultPodWatchStrategyTest < WatchTest
                 'labels' => {},
             },
             'spec' => {
-                'nodeName' => 'aNodeName'
-            }
+                'nodeName' => 'aNodeName',
+                'containers' => [{
+                    'name' => 'foo',
+                    'image' => 'bar',
+                 }, {
+                    'name' => 'bar',
+                    'image' => 'foo',
+                 }]
+            },
+           'status' => {
+               'containerStatuses' => [
+                   {
+                       'name' => 'fabric8-console-container',
+                       'state' => {
+                           'running' => {
+                               'startedAt' => '2015-05-08T09:22:44Z'
+                           }
+                       },
+                       'lastState' => {},
+                       'ready' => true,
+                       'restartCount' => 0,
+                       'image' => 'fabric8/hawtio-kubernetes:latest',
+                       'imageID' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
+                       'containerID' => 'docker://49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+                   }
+               ]
+           }
          }
        )
        @deleted = OpenStruct.new(
