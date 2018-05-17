@@ -83,6 +83,7 @@ module KubernetesMetadata
         end
         @id_cache[key] = ids unless batch_miss_cache.key?("#{namespace_name}_#{pod_name}")
       end
+
       # remove namespace info that is only used for comparison
       metadata.delete('creation_timestamp')
       metadata.delete_if{|k,v| v.nil?}

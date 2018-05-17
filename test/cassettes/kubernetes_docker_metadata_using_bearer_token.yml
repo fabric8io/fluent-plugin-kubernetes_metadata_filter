@@ -174,7 +174,7 @@ http_interactions:
                 "restartCount": 2,
                 "image": "fabric8/hawtio-kubernetes:latest",
                 "imageID": "docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303",
-                "containerID": "docker://1b1d1f61c1205fe73328c75b2945e2ce05acfba2fde16299a8103fb22e9ec58a"
+                "containerID": "docker://49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459"
               },
               {
                 "name": "POD",

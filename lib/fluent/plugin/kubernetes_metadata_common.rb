@@ -54,10 +54,28 @@ module KubernetesMetadata
         self.de_dot!(labels)
         self.de_dot!(annotations)
       end
+
+      # collect container informations
+      container_meta = {}
+      begin
+        pod_object['status']['containerStatuses'].each do|container_status|
+          # get plain container id (eg. docker://hash -> hash)
+          container_id = container_status['containerID'].sub /^[-_a-zA-Z0-9]+:\/\//, ''
+          container_meta[container_id] = {
+              'name' => container_status['name'],
+              'image' => container_status['image'],
+              'image_id' => container_status['imageID']
+          }
+        end
+      rescue
+        log.debug("parsing container meta information failed for: #{pod_object['metadata']['namespace']}/#{pod_object['metadata']['name']} ")
+      end
+
       kubernetes_metadata = {
           'namespace_name' => pod_object['metadata']['namespace'],
           'pod_id'         => pod_object['metadata']['uid'],
           'pod_name'       => pod_object['metadata']['name'],
+          'containers'     => syms_to_strs(container_meta),
           'labels'         => labels,
           'host'           => pod_object['spec']['nodeName'],
           'master_url'     => @kubernetes_url
