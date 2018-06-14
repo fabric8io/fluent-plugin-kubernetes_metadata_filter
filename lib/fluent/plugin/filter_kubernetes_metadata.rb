@@ -20,7 +20,9 @@
 require_relative 'kubernetes_metadata_cache_strategy'
 require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
+require_relative 'kubernetes_metadata_watch_namespace'
 require_relative 'kubernetes_metadata_watch_namespaces'
+require_relative 'kubernetes_metadata_watch_pod'
 require_relative 'kubernetes_metadata_watch_pods'
 
 require 'fluent/plugin/filter'
@@ -32,8 +34,6 @@ module Fluent::Plugin
 
     include KubernetesMetadata::CacheStrategy
     include KubernetesMetadata::Common
-    include KubernetesMetadata::WatchNamespaces
-    include KubernetesMetadata::WatchPods
 
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
 
@@ -71,6 +71,12 @@ module Fluent::Plugin
     config_param :allow_orphans, :bool, default: true
     config_param :orphaned_namespace_name, :string, default: '.orphaned'
     config_param :orphaned_namespace_id, :string, default: 'orphaned'
+
+    config_section :metadata_source, multi: false do
+      config_param :namespace_name, :string
+      config_param :pod_name, :string
+      config_param :container_name, :string, default: nil
+    end
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
@@ -171,7 +177,7 @@ module Fluent::Plugin
       # Caches pod/namespace UID tuples for a given container UID.
       @id_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
 
-      # Use the container UID as the key to fetch a hash containing pod metadata
+      # Use the pod UID as the key to fetch a hash containing pod metadata
       @cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
 
       # Use the namespace UID as the key to fetch a hash containing namespace metadata
@@ -237,13 +243,25 @@ module Fluent::Plugin
         end
 
         if @watch
+          if @metadata_source
+            self.class.include KubernetesMetadata::WatchNamespace
+            self.class.include KubernetesMetadata::WatchPod
+          else
+            self.class.include KubernetesMetadata::WatchNamespaces
+            self.class.include KubernetesMetadata::WatchPods
+          end
+
           thread = Thread.new(self) { |this| this.start_pod_watch }
           thread.abort_on_exception = true
           namespace_thread = Thread.new(self) { |this| this.start_namespace_watch }
           namespace_thread.abort_on_exception = true
         end
       end
-      if @use_journal
+
+      if @metadata_source
+        log.debug "Will stream given metadata source #{metadata_source}"
+        self.class.class_eval { alias_method :filter_stream, :filter_stream_given_metadata_source }
+      elsif @use_journal
         log.debug "Will stream from the journal"
         self.class.class_eval { alias_method :filter_stream, :filter_stream_from_journal }
       else
@@ -273,16 +291,62 @@ module Fluent::Plugin
       }
       if @kubernetes_url.present?
         pod_metadata = get_pod_metadata(container_id, namespace_name, pod_name, create_time, batch_miss_cache)
-
-        if (pod_metadata.include? 'containers') && (pod_metadata['containers'].include? container_id)
-          metadata['container_image'] = pod_metadata['containers'][container_id]['image']
-          metadata['container_image_id'] = pod_metadata['containers'][container_id]['image_id']
-        end
-
         metadata.merge!(pod_metadata) if pod_metadata
+        extract_container_metadata(metadata, container_id)
         metadata.delete('containers')
       end
       metadata
+    end
+
+    def get_metadata_for_record_given_metadata_source()
+      namespace_name = @metadata_source.namespace_name
+      pod_name = @metadata_source.pod_name
+      container_name = @metadata_source.container_name
+
+      metadata = {
+        'kubernetes' => {
+          'namespace_name' => namespace_name,
+          'pod_name' => pod_name
+        }
+      }
+      kubernetes_metadata = metadata['kubernetes']
+      kubernetes_metadata['container_name'] = container_name if container_name
+
+      if @kubernetes_url.present?
+        if @pod_metadata.nil?
+          @pod_metadata = fetch_pod_metadata(namespace_name, pod_name)
+          log.info "Failed to fetch metadata of pod '#{pod_name}' given metadata source: #{metadata_source}" if @pod_metadata.empty?
+        end
+
+        if @namespace_metadata.nil?
+          @namespace_metadata = fetch_namespace_metadata(namespace_name)
+          log.info "Failed to fetch metadata of namespace '#{namespace_name}' given metadata source: #{metadata_source}" if @namespace_metadata.empty?
+        end
+
+        kubernetes_metadata.merge!(@pod_metadata)
+        kubernetes_metadata.merge!(@namespace_metadata)
+
+        if container_name && kubernetes_metadata.include?('containers')
+          kubernetes_metadata['containers'].each do |container_id, container_metadata|
+            if container_metadata['name'] == container_name
+              metadata['docker'] = {'container_id' => container_id}
+              extract_container_metadata(kubernetes_metadata, container_id)
+              break
+            end
+          end
+        end
+
+        kubernetes_metadata.delete('containers')
+        kubernetes_metadata.delete('creation_timestamp')
+      end
+      metadata
+    end
+
+    def extract_container_metadata(metadata, container_id)
+      if (metadata.include? 'containers') && (metadata['containers'].include? container_id)
+        metadata['container_image'] = metadata['containers'][container_id]['image']
+        metadata['container_image_id'] = metadata['containers'][container_id]['image_id']
+      end
     end
 
     def create_time_from_record(record)
@@ -296,6 +360,19 @@ module Fluent::Plugin
 
     def filter_stream(tag, es)
       es
+    end
+
+    def filter_stream_given_metadata_source(tag, es)
+      return es if es.nil? || es.empty?
+      new_es = Fluent::MultiEventStream.new
+
+      metadata = get_metadata_for_record_given_metadata_source
+      es.each do |time, record|
+        record = record.merge(Marshal.load(Marshal.dump(metadata))) if metadata
+        new_es.add(time, record)
+      end
+      dump_stats
+      new_es
     end
 
     def filter_stream_from_files(tag, es)
