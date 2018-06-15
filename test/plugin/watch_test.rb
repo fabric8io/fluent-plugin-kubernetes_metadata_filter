@@ -27,6 +27,11 @@ class WatchTest < Test::Unit::TestCase
       @cache = {}
       @stats = KubernetesMetadata::Stats.new
       @client = OpenStruct.new
+      @metadata_source = OpenStruct.new(
+        'namespace_name' => 'default',
+        'pod_name' => 'pod_name',
+        'container_name' => 'container_name'
+      )
       def @client.resourceVersion
         '12345'
       end
