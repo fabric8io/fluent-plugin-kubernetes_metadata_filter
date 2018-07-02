@@ -259,7 +259,7 @@ module Fluent::Plugin
       end
 
       if @metadata_source
-        log.debug "Will stream given metadata source #{metadata_source}"
+        log.on_debug { log.debug "Will stream given metadata source #{metadata_source}" }
         self.class.class_eval { alias_method :filter_stream, :filter_stream_given_metadata_source }
       elsif @use_journal
         log.debug "Will stream from the journal"
@@ -315,12 +315,12 @@ module Fluent::Plugin
       if @kubernetes_url.present?
         if @pod_metadata.nil?
           @pod_metadata = fetch_pod_metadata(namespace_name, pod_name)
-          log.info "Failed to fetch metadata of pod '#{pod_name}' given metadata source: #{metadata_source}" if @pod_metadata.empty?
+          log.on_info { log.info "Failed to fetch metadata of pod '#{pod_name}' given metadata source: #{metadata_source}" } if @pod_metadata.empty?
         end
 
         if @namespace_metadata.nil?
           @namespace_metadata = fetch_namespace_metadata(namespace_name)
-          log.info "Failed to fetch metadata of namespace '#{namespace_name}' given metadata source: #{metadata_source}" if @namespace_metadata.empty?
+          log.on_info { "Failed to fetch metadata of namespace '#{namespace_name}' given metadata source: #{metadata_source}" } if @namespace_metadata.empty?
         end
 
         kubernetes_metadata.merge!(@pod_metadata)
