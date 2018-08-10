@@ -304,17 +304,19 @@ module Fluent::Plugin
 
       match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
       batch_miss_cache = {}
-      if match_data
-        container_id = match_data['docker_id']
-        metadata = {
-          'docker' => {
-            'container_id' => container_id
-          },
-          'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(es.first[1]), batch_miss_cache)
-        }
-      end
+      metadata = nil
 
       es.each do |time, record|
+        if match_data && metadata.nil?
+          container_id = match_data['docker_id']
+          metadata = {
+              'docker' => {
+                  'container_id' => container_id
+              },
+              'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(record), batch_miss_cache)
+          }
+        end
+
         record = record.merge(Marshal.load(Marshal.dump(metadata))) if metadata
         new_es.add(time, record)
       end

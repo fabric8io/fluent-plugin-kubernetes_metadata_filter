@@ -773,5 +773,47 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         assert_equal(expected_kube_metadata, filtered[0])
       end
     end
+
+    test 'processes all events when reading from MessagePackEventStream' do
+      VCR.use_cassette('kubernetes_docker_metadata') do
+        entries = [[@time, {'time'=>'2015-05-08T09:22:01Z'}], [@time, {'time'=>'2015-05-08T09:22:01Z'}]]
+        array_stream = Fluent::ArrayEventStream.new(entries)
+        msgpack_stream = Fluent::MessagePackEventStream.new(array_stream.to_msgpack_stream)
+
+        d = create_driver('
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+        ')
+        d.run {
+          d.feed(DEFAULT_TAG, msgpack_stream)
+        }
+        filtered = d.filtered.map{|e| e.last}
+
+        expected_kube_metadata = {
+            'time'=>'2015-05-08T09:22:01Z',
+            'docker' => {
+                'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+            },
+            'kubernetes' => {
+                'host'               => 'jimmi-redhat.localnet',
+                'pod_name'           => 'fabric8-console-controller-98rqc',
+                'container_name'     => 'fabric8-console-container',
+                'container_image'    => 'fabric8/hawtio-kubernetes:latest',
+                'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
+                'namespace_name'     => 'default',
+                'namespace_id'       => '898268c8-4a36-11e5-9d81-42010af0194c',
+                'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+                'master_url'         => 'https://localhost:8443',
+                'labels' => {
+                    'component' => 'fabric8Console'
+                }
+            }
+        }
+
+        assert_equal(expected_kube_metadata, filtered[0])
+        assert_equal(expected_kube_metadata, filtered[1])
+      end
+    end
   end
 end
