@@ -153,6 +153,44 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       }.filtered
     end
 
+    test 'nil event stream from journal' do
+     #not certain how this is possible but adding test to properly
+     #guard against this condition we have seen - test for nil,
+     #empty, no empty method, not an event stream
+     plugin = create_driver.instance
+     [nil, Fluent::MultiEventStream.new, 1, [1]].each do |es|
+       assert_equal es, plugin.filter_stream_from_journal('tag', es)
+     end
+     # and make sure OneEventStream works
+     ts = Time.now()
+     rec = {"message"=>"hello"}
+     es = Fluent::OneEventStream.new(ts, rec)
+     newes = plugin.filter_stream_from_journal('tag', es)
+     newes.each do |newts, newrec|
+      assert_equal ts, newts
+      assert_equal rec, newrec
+     end
+    end
+
+    test 'nil event stream from files' do
+     #not certain how this is possible but adding test to properly
+     #guard against this condition we have seen
+
+     plugin = create_driver.instance
+     [nil, Fluent::MultiEventStream.new, 1, [1]].each do |es|
+       assert_equal es, plugin.filter_stream_from_files('tag', es)
+     end
+     # and make sure OneEventStream works
+     ts = Time.now()
+     rec = {"message"=>"hello"}
+     es = Fluent::OneEventStream.new(ts, rec)
+     newes = plugin.filter_stream_from_journal('tag', es)
+     newes.each do |newts, newrec|
+      assert_equal ts, newts
+      assert_equal rec, newrec
+     end
+    end
+
     test 'inability to connect to the api server handles exception and doensnt block pipeline' do
       VCR.use_cassette('kubernetes_docker_metadata') do
         driver = create_driver('
