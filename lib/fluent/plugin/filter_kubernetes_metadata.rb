@@ -299,7 +299,7 @@ module Fluent::Plugin
     end
 
     def filter_stream_from_files(tag, es)
-      return es if es.nil? || es.empty?
+      return es if (es.respond_to?(:empty?) && es.empty?) || !es.is_a?(Fluent::EventStream)
       new_es = Fluent::MultiEventStream.new
 
       match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
@@ -325,7 +325,7 @@ module Fluent::Plugin
     end
 
     def filter_stream_from_journal(tag, es)
-      return es if es.nil? || es.empty?
+      return es if (es.respond_to?(:empty?) && es.empty?) || !es.is_a?(Fluent::EventStream)
       new_es = Fluent::MultiEventStream.new
       batch_miss_cache = {}
       es.each do |time, record|
