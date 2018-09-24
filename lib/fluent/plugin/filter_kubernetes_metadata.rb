@@ -22,6 +22,9 @@ require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
+require_relative 'checkpoint_metadata_cache'
+
+require "json"
 
 module Fluent
   class KubernetesMetadataFilter < Fluent::Filter
@@ -32,6 +35,7 @@ module Fluent
     include KubernetesMetadata::Common
     include KubernetesMetadata::WatchNamespaces
     include KubernetesMetadata::WatchPods
+    include KubernetesMetadata::CheckPointCache
 
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
 
@@ -65,10 +69,13 @@ module Fluent
                  :default => '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'
 
     config_param :annotation_match, :array, default: []
-    config_param :stats_interval, :integer, default: 30
+    config_param :stats_interval, :integer, default: 10
     config_param :allow_orphans, :bool, default: true
     config_param :orphaned_namespace_name, :string, default: '.orphaned'
     config_param :orphaned_namespace_id, :string, default: 'orphaned'
+    config_param :checkpoint_enabled, :bool, default: true
+    config_param :checkpoint_interval, :integer, default: 30
+    config_param :checkpoint_db_path, :string, default: '/var/log/k8s-metadata-checkpoint.db'
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
@@ -85,13 +92,13 @@ module Fluent
             log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}") if log.trace?
             @cache[metadata['pod_id']] = metadata
             return metadata
-          rescue Exception=>e
+          rescue Exception => e
             log.debug(e)
             @stats.bump(:pod_cache_api_nil_bad_resp_payload)
             log.trace("returning empty metadata for #{namespace_name}/#{pod_name} due to error '#{e}'") if log.trace?
           end
         end
-      rescue Exception=>e
+      rescue Exception => e
         @stats.bump(:pod_cache_api_nil_error)
         log.debug "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
       end
@@ -117,15 +124,15 @@ module Fluent
       begin
         metadata = @client.get_namespace(namespace_name)
         unless metadata
-            log.trace("no metadata returned for: #{namespace_name}") if log.trace?
-            @stats.bump(:namespace_cache_api_nil_not_found)
+          log.trace("no metadata returned for: #{namespace_name}") if log.trace?
+          @stats.bump(:namespace_cache_api_nil_not_found)
         else
           begin
             log.trace("raw metadata for #{namespace_name}: #{metadata}") if log.trace?
             metadata = parse_namespace_metadata(metadata)
             @stats.bump(:namespace_cache_api_updates)
             log.trace("parsed metadata for #{namespace_name}: #{metadata}") if log.trace?
-             @namespace_cache[metadata['namespace_id']] = metadata
+            @namespace_cache[metadata['namespace_id']] = metadata
             return metadata
           rescue Exception => e
             log.debug(e)
@@ -165,6 +172,7 @@ module Fluent
         log.info "Setting the cache TTL to :none because it was <= 0"
         @cache_ttl = :none
       end
+      initialize_db if @checkpoint_enabled
 
       # Caches pod/namespace UID tuples for a given container UID.
       @id_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
@@ -205,9 +213,9 @@ module Fluent
 
         ssl_options = {
             client_cert: @client_cert.present? ? OpenSSL::X509::Certificate.new(File.read(@client_cert)) : nil,
-            client_key:  @client_key.present? ? OpenSSL::PKey::RSA.new(File.read(@client_key)) : nil,
-            ca_file:     @ca_file,
-            verify_ssl:  @verify_ssl ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
+            client_key: @client_key.present? ? OpenSSL::PKey::RSA.new(File.read(@client_key)) : nil,
+            ca_file: @ca_file,
+            verify_ssl: @verify_ssl ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
         }
 
         auth_options = {}
@@ -226,20 +234,24 @@ module Fluent
         rescue KubeException => kube_error
           raise Fluent::ConfigError, "Invalid Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{kube_error.message}"
         end
+        if @checkpoint_enabled
+          @checkpoint_thread = Thread.new(self) {|this| this.start_checkpoint}
+          @checkpoint_thread.abort_on_exception = true
+        end
 
         if @watch
-          thread = Thread.new(self) { |this| this.start_pod_watch }
+          thread = Thread.new(self) {|this| this.start_pod_watch}
           thread.abort_on_exception = true
-          namespace_thread = Thread.new(self) { |this| this.start_namespace_watch }
+          namespace_thread = Thread.new(self) {|this| this.start_namespace_watch}
           namespace_thread.abort_on_exception = true
         end
       end
       if @use_journal
         log.debug "Will stream from the journal"
-        self.class.class_eval { alias_method :filter_stream, :filter_stream_from_journal }
+        self.class.class_eval {alias_method :filter_stream, :filter_stream_from_journal}
       else
         log.debug "Will stream from the files"
-        self.class.class_eval { alias_method :filter_stream, :filter_stream_from_files }
+        self.class.class_eval {alias_method :filter_stream, :filter_stream_from_files}
       end
 
       @annotations_regexps = []
@@ -253,13 +265,26 @@ module Fluent
 
     end
 
+    def shutdown
+      super
+      if @checkpoint_enabled
+        write_cache_to_file
+        @checkpoint_thread.exit
+      end
+    end
+
+    def start
+      super
+      read_cache_from_file if @checkpoint_enabled
+    end
+
     def get_metadata_for_record(match_data, cache_key, create_time, batch_miss_cache)
       namespace_name = match_data['namespace']
       pod_name = match_data['pod_name']
       metadata = {
-        'container_name' => match_data['container_name'],
-        'namespace_name' => namespace_name,
-        'pod_name'       => pod_name
+          'container_name' => match_data['container_name'],
+          'namespace_name' => namespace_name,
+          'pod_name' => pod_name
       }
       if @kubernetes_url.present?
         pod_metadata = get_pod_metadata(cache_key, namespace_name, pod_name, create_time, batch_miss_cache)
@@ -269,12 +294,12 @@ module Fluent
     end
 
     def create_time_from_record(record)
-        time = if @use_journal
-           record['_SOURCE_REALTIME_TIMESTAMP'].nil? ? record['_SOURCE_REALTIME_TIMESTAMP'] : record['__REALTIME_TIMESTAMP']
-        else
-          record['time']
-        end
-        (time.nil? || time.chop.empty?) ? Time.now : Time.parse(time)
+      time = if @use_journal
+               record['_SOURCE_REALTIME_TIMESTAMP'].nil? ? record['_SOURCE_REALTIME_TIMESTAMP'] : record['__REALTIME_TIMESTAMP']
+             else
+               record['time']
+             end
+      (time.nil? || time.chop.empty?) ? Time.now : Time.parse(time)
     end
 
     def filter_stream(tag, es)
@@ -290,10 +315,10 @@ module Fluent
       if match_data
         container_id = match_data['docker_id']
         metadata = {
-          'docker' => {
-            'container_id' => container_id
-          },
-          'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(es.first[1]), batch_miss_cache)
+            'docker' => {
+                'container_id' => container_id
+            },
+            'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(es.first[1]), batch_miss_cache)
         }
       end
 
@@ -312,12 +337,12 @@ module Fluent
         metadata = nil
         if record.has_key?('CONTAINER_NAME') && record.has_key?('CONTAINER_ID_FULL')
           metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
-           container_id = record['CONTAINER_ID_FULL']
+            container_id = record['CONTAINER_ID_FULL']
             metadata = {
-              'docker' => {
-                'container_id' => container_id
-              },
-              'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(record), batch_miss_cache)
+                'docker' => {
+                    'container_id' => container_id
+                },
+                'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(record), batch_miss_cache)
             }
 
             metadata

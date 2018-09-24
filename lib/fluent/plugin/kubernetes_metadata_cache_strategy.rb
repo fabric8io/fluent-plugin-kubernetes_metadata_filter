@@ -24,12 +24,12 @@ module KubernetesMetadata
       if !ids.nil?
         # FAST PATH
         # Cache hit, fetch metadata from the cache
-        metadata = @cache.fetch(ids[:pod_id]) do
+        metadata = @cache.fetch(ids['pod_id']) do
           @stats.bump(:pod_cache_miss)
           m = fetch_pod_metadata(namespace_name, pod_name)
           (m.nil? || m.empty?) ? {'pod_id'=>ids[:pod_id]} : m
         end
-        metadata.merge!(@namespace_cache.fetch(ids[:namespace_id]) do
+        metadata.merge!(@namespace_cache.fetch(ids['namespace_id']) do
           @stats.bump(:namespace_cache_miss)
           m = fetch_namespace_metadata(namespace_name)
           (m.nil? || m.empty?) ?  {'namespace_id'=>ids[:namespace_id]} : m
