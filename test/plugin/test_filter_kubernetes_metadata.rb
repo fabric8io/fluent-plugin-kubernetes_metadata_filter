@@ -153,42 +153,13 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       }.filtered
     end
 
-    test 'nil event stream from journal' do
+    test 'nil event stream' do
      #not certain how this is possible but adding test to properly
      #guard against this condition we have seen - test for nil,
      #empty, no empty method, not an event stream
      plugin = create_driver.instance
-     [nil, Fluent::MultiEventStream.new, 1, [1]].each do |es|
-       assert_equal es, plugin.filter_stream_from_journal('tag', es)
-     end
-     # and make sure OneEventStream works
-     ts = Time.now()
-     rec = {"message"=>"hello"}
-     es = Fluent::OneEventStream.new(ts, rec)
-     newes = plugin.filter_stream_from_journal('tag', es)
-     newes.each do |newts, newrec|
-      assert_equal ts, newts
-      assert_equal rec, newrec
-     end
-    end
-
-    test 'nil event stream from files' do
-     #not certain how this is possible but adding test to properly
-     #guard against this condition we have seen
-
-     plugin = create_driver.instance
-     [nil, Fluent::MultiEventStream.new, 1, [1]].each do |es|
-       assert_equal es, plugin.filter_stream_from_files('tag', es)
-     end
-     # and make sure OneEventStream works
-     ts = Time.now()
-     rec = {"message"=>"hello"}
-     es = Fluent::OneEventStream.new(ts, rec)
-     newes = plugin.filter_stream_from_journal('tag', es)
-     newes.each do |newts, newrec|
-      assert_equal ts, newts
-      assert_equal rec, newrec
-     end
+     plugin.filter_stream('tag', nil)
+     plugin.filter_stream('tag', Fluent::MultiEventStream.new)
     end
 
     test 'inability to connect to the api server handles exception and doensnt block pipeline' do
@@ -246,7 +217,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'pod_id'          => 'c76927af-f563-11e4-b32d-54ee7527188d',
           }
         }
-        
+
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
@@ -284,7 +255,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        
+
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
@@ -312,7 +283,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        
+
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
@@ -599,6 +570,138 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }.merge(msg)
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
+    test 'with records from journald and docker & kubernetes metadata with use_journal unset' do
+      # with use_journal unset, should still use the journal fields instead of tag fields
+      tag = 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log'
+      msg = {
+        'CONTAINER_NAME' => 'k8s_journald-container-name.db89db89_journald-pod-name_journald-namespace-name_c76927af-f563-11e4-b32d-54ee7527188d_89db89db',
+        'CONTAINER_ID_FULL' => '838350c64bacba968d39a30a50789b2795291fceca6ccbff55298671d46b0e3b',
+        'kubernetes' => {
+          'namespace_name' => 'k8s-namespace-name',
+          'pod_name' => 'k8s-pod-name',
+          'container_name' => 'k8s-container-name'
+        },
+        'docker' => {'container_id' => 'e463bc0d3ae38f5c89d92dca49b30e049e899799920b79d4d5f705acbe82ba95'},
+        'randomfield' => 'randomvalue'
+      }
+      VCR.use_cassette('metadata_from_tag_journald_and_kubernetes_fields') do
+        es = emit_with_tag(tag, msg, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+        ')
+        expected_kube_metadata = {
+          'docker' => {
+              'container_id' => 'e463bc0d3ae38f5c89d92dca49b30e049e899799920b79d4d5f705acbe82ba95'
+          },
+          'kubernetes' => {
+            'host'               => 'jimmi-redhat.localnet',
+            'pod_name'           => 'k8s-pod-name',
+            'container_name'     => 'k8s-container-name',
+            'container_image'    => 'k8s-container-image:latest',
+            'container_image_id' => 'docker://d78c5217c41e9af08d37d9ae2cb070afa1fe3da6bc77bfb18879a8b4bfdf8a34',
+            'namespace_name'     => 'k8s-namespace-name',
+            'namespace_id'       => '8e0dc8fc-59f2-49f7-a3e2-ed0913e19d9f',
+            'pod_id'             => 'ebabf749-5fcd-4750-a3f0-aedd89476da8',
+            'master_url'         => 'https://localhost:8443',
+            'labels' => {
+              'component' => 'k8s-test'
+            }
+          }
+        }.merge(msg) {|key,oldval,newval| ((key == 'kubernetes') || (key == 'docker')) ? oldval : newval}
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
+    test 'with records from journald and docker & kubernetes metadata with lookup_from_k8s_field false' do
+      # with use_journal unset, should still use the journal fields instead of tag fields
+      tag = 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log'
+      msg = {
+        'CONTAINER_NAME' => 'k8s_journald-container-name.db89db89_journald-pod-name_journald-namespace-name_c76927af-f563-11e4-b32d-54ee7527188d_89db89db',
+        'CONTAINER_ID_FULL' => '838350c64bacba968d39a30a50789b2795291fceca6ccbff55298671d46b0e3b',
+        'kubernetes' => {
+          'namespace_name' => 'k8s-namespace-name',
+          'pod_name' => 'k8s-pod-name',
+          'container_name' => 'k8s-container-name'
+        },
+        'docker' => {'container_id' => 'e463bc0d3ae38f5c89d92dca49b30e049e899799920b79d4d5f705acbe82ba95'},
+        'randomfield' => 'randomvalue'
+      }
+      VCR.use_cassette('metadata_from_tag_and_journald_fields') do
+        es = emit_with_tag(tag, msg, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          lookup_from_k8s_field false
+        ')
+        expected_kube_metadata = {
+          'docker' => {
+              'container_id' => '838350c64bacba968d39a30a50789b2795291fceca6ccbff55298671d46b0e3b'
+          },
+          'kubernetes' => {
+            'host'               => 'jimmi-redhat.localnet',
+            'pod_name'           => 'journald-pod-name',
+            'container_name'     => 'journald-container-name',
+            'container_image'    => 'journald-container-image:latest',
+            'container_image_id' => 'docker://dda4c95705fb7050b701b10a7fe928ca5bc971a1dcb521ae3c339194cbf36b47',
+            'namespace_name'     => 'journald-namespace-name',
+            'namespace_id'       => '8282888f-733f-4f23-a3d3-1fdfa3bdacf2',
+            'pod_id'             => '5e1c1e27-b637-4e81-80b6-6d8a8c404d3b',
+            'master_url'         => 'https://localhost:8443',
+            'labels' => {
+              'component' => 'journald-test'
+            }
+          }
+        }.merge(msg) {|key,oldval,newval| ((key == 'kubernetes') || (key == 'docker')) ? oldval : newval}
+        assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
+      end
+    end
+
+    test 'uses metadata from tag if use_journal false and lookup_from_k8s_field false' do
+      # with use_journal unset, should still use the journal fields instead of tag fields
+      tag = 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log'
+      msg = {
+        'CONTAINER_NAME' => 'k8s_journald-container-name.db89db89_journald-pod-name_journald-namespace-name_c76927af-f563-11e4-b32d-54ee7527188d_89db89db',
+        'CONTAINER_ID_FULL' => '838350c64bacba968d39a30a50789b2795291fceca6ccbff55298671d46b0e3b',
+        'kubernetes' => {
+          'namespace_name' => 'k8s-namespace-name',
+          'pod_name' => 'k8s-pod-name',
+          'container_name' => 'k8s-container-name'
+        },
+        'docker' => {'container_id' => 'e463bc0d3ae38f5c89d92dca49b30e049e899799920b79d4d5f705acbe82ba95'},
+        'randomfield' => 'randomvalue'
+      }
+      VCR.use_cassette('metadata_from_tag_and_journald_fields') do
+        es = emit_with_tag(tag, msg, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          lookup_from_k8s_field false
+          use_journal false
+        ')
+        expected_kube_metadata = {
+          'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          'kubernetes' => {
+            'host'               => 'jimmi-redhat.localnet',
+            'pod_name'           => 'fabric8-console-controller-98rqc',
+            'container_name'     => 'fabric8-console-container',
+            'container_image'    => 'fabric8/hawtio-kubernetes:latest',
+            'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
+            'namespace_name'     => 'default',
+            'namespace_id'       => '898268c8-4a36-11e5-9d81-42010af0194c',
+            'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'master_url'         => 'https://localhost:8443',
+            'labels' => {
+              'component' => 'fabric8Console'
+            }
+          }
+        }.merge(msg) {|key,oldval,newval| ((key == 'kubernetes') || (key == 'docker')) ? oldval : newval}
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
