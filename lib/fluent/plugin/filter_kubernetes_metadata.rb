@@ -57,7 +57,7 @@ module Fluent::Plugin
     # format:
     # CONTAINER_NAME=k8s_$containername.$containerhash_$podname_$namespacename_$poduuid_$rand32bitashex
     # CONTAINER_FULL_ID=dockeridassha256hexvalue
-    config_param :use_journal, :bool, default: false
+    config_param :use_journal, :bool, default: nil
     # Field 2 is the container_hash, field 5 is the pod_id, and field 6 is the pod_randhex
     # I would have included them as named groups, but you can't have named groups that are
     # non-capturing :P
@@ -71,6 +71,7 @@ module Fluent::Plugin
     config_param :allow_orphans, :bool, default: true
     config_param :orphaned_namespace_name, :string, default: '.orphaned'
     config_param :orphaned_namespace_id, :string, default: 'orphaned'
+    config_param :lookup_from_k8s_field, :bool, default: true
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
@@ -243,13 +244,10 @@ module Fluent::Plugin
           namespace_thread.abort_on_exception = true
         end
       end
-      if @use_journal
-        log.debug "Will stream from the journal"
-        self.class.class_eval { alias_method :filter_stream, :filter_stream_from_journal }
-      else
-        log.debug "Will stream from the files"
-        self.class.class_eval { alias_method :filter_stream, :filter_stream_from_files }
-      end
+      @time_fields = []
+      @time_fields.push('_SOURCE_REALTIME_TIMESTAMP', '__REALTIME_TIMESTAMP') if @use_journal || @use_journal.nil?
+      @time_fields.push('time') unless @use_journal
+      @time_fields.push('@timestamp') if @lookup_from_k8s_field
 
       @annotations_regexps = []
       @annotation_match.each do |regexp|
@@ -262,102 +260,93 @@ module Fluent::Plugin
 
     end
 
-    def get_metadata_for_record(match_data, container_id, create_time, batch_miss_cache)
-      namespace_name = match_data['namespace']
-      pod_name = match_data['pod_name']
-      container_name = match_data['container_name']
+    def get_metadata_for_record(namespace_name, pod_name, container_name, container_id, create_time, batch_miss_cache)
       metadata = {
-        'container_name'  => container_name,
-        'namespace_name'  => namespace_name,
-        'pod_name'        => pod_name
+        'docker' => {'container_id' => container_id},
+        'kubernetes' => {
+          'container_name'  => container_name,
+          'namespace_name'  => namespace_name,
+          'pod_name'        => pod_name
+        }
       }
       if @kubernetes_url.present?
         pod_metadata = get_pod_metadata(container_id, namespace_name, pod_name, create_time, batch_miss_cache)
 
         if (pod_metadata.include? 'containers') && (pod_metadata['containers'].include? container_id)
-          metadata['container_image'] = pod_metadata['containers'][container_id]['image']
-          metadata['container_image_id'] = pod_metadata['containers'][container_id]['image_id']
+          metadata['kubernetes']['container_image'] = pod_metadata['containers'][container_id]['image']
+          metadata['kubernetes']['container_image_id'] = pod_metadata['containers'][container_id]['image_id']
         end
 
-        metadata.merge!(pod_metadata) if pod_metadata
-        metadata.delete('containers')
+        metadata['kubernetes'].merge!(pod_metadata) if pod_metadata
+        metadata['kubernetes'].delete('containers')
       end
       metadata
     end
 
-    def create_time_from_record(record)
-        time = if @use_journal
-           record['_SOURCE_REALTIME_TIMESTAMP'].nil? ? record['_SOURCE_REALTIME_TIMESTAMP'] : record['__REALTIME_TIMESTAMP']
-        else
-          record['time']
-        end
-        (time.nil? || time.chop.empty?) ? Time.now : Time.parse(time)
+    def create_time_from_record(record, internal_time)
+      time_key = @time_fields.detect{ |ii| record.has_key?(ii) }
+      time = record[time_key]
+      if time.nil? || time.chop.empty?
+        return internal_time
+      end
+      if ['_SOURCE_REALTIME_TIMESTAMP', '__REALTIME_TIMESTAMP'].include?(time_key)
+        timei= time.to_i
+        return Time.at(timei / 1000000, timei % 1000000)
+      end
+      return Time.parse(time)
     end
 
     def filter_stream(tag, es)
-      es
-    end
-
-    def filter_stream_from_files(tag, es)
       return es if (es.respond_to?(:empty?) && es.empty?) || !es.is_a?(Fluent::EventStream)
       new_es = Fluent::MultiEventStream.new
-
-      match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
+      tag_match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled) unless @use_journal
+      tag_metadata = nil
       batch_miss_cache = {}
-      metadata = nil
-
       es.each do |time, record|
-        if match_data && metadata.nil?
-          container_id = match_data['docker_id']
-          metadata = {
-              'docker' => {
-                  'container_id' => container_id
-              },
-              'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(record), batch_miss_cache)
-          }
+        if tag_match_data && tag_metadata.nil?
+          tag_metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
+            tag_match_data['docker_id'], create_time_from_record(record, time), batch_miss_cache)
         end
-
-        record = record.merge(Marshal.load(Marshal.dump(metadata))) if metadata
-        new_es.add(time, record)
-      end
-      dump_stats
-      new_es
-    end
-
-    def filter_stream_from_journal(tag, es)
-      return es if (es.respond_to?(:empty?) && es.empty?) || !es.is_a?(Fluent::EventStream)
-      new_es = Fluent::MultiEventStream.new
-      batch_miss_cache = {}
-      es.each do |time, record|
-        metadata = nil
-        if record.has_key?('CONTAINER_NAME') && record.has_key?('CONTAINER_ID_FULL')
-          metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
-           container_id = record['CONTAINER_ID_FULL']
-            metadata = {
-              'docker' => {
-                'container_id' => container_id
-              },
-              'kubernetes' => get_metadata_for_record(match_data, container_id, create_time_from_record(record), batch_miss_cache)
-            }
-
-            metadata
-          end
-          unless metadata
-            log.debug "Error: could not match CONTAINER_NAME from record #{record}"
-            @stats.bump(:container_name_match_failed)
-          end
-        elsif record.has_key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
-          log.debug "Error: no container name and id in record #{record}"
-          @stats.bump(:container_name_id_missing)
+        metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
+        if (@use_journal || @use_journal.nil?) &&
+          (j_metadata = get_metadata_for_journal_record(record, time, batch_miss_cache))
+          metadata = j_metadata
+        end
+        if @lookup_from_k8s_field && record.has_key?('kubernetes') && record.has_key?('docker') &&
+          record['kubernetes'].respond_to?(:has_key?) && record['docker'].respond_to?(:has_key?) &&
+          record['kubernetes'].has_key?('namespace_name') &&
+          record['kubernetes'].has_key?('pod_name') &&
+          record['kubernetes'].has_key?('container_name') &&
+          record['docker'].has_key?('container_id') &&
+          (k_metadata = get_metadata_for_record(record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
+            record['kubernetes']['container_name'], record['docker']['container_id'],
+            create_time_from_record(record, time), batch_miss_cache))
+            metadata = k_metadata
         end
 
         record = record.merge(metadata) if metadata
-
         new_es.add(time, record)
       end
-
       dump_stats
       new_es
+    end
+
+    def get_metadata_for_journal_record(record, time, batch_miss_cache)
+      metadata = nil
+      if record.has_key?('CONTAINER_NAME') && record.has_key?('CONTAINER_ID_FULL')
+        metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
+          get_metadata_for_record(match_data['namespace'], match_data['pod_name'], match_data['container_name'],
+            record['CONTAINER_ID_FULL'], create_time_from_record(record, time), batch_miss_cache)
+        end
+        unless metadata
+          log.debug "Error: could not match CONTAINER_NAME from record #{record}"
+          @stats.bump(:container_name_match_failed)
+        end
+      elsif record.has_key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
+        log.debug "Error: no container name and id in record #{record}"
+        @stats.bump(:container_name_id_missing)
+      end
+      metadata
     end
 
     def de_dot!(h)

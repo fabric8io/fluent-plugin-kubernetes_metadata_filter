@@ -44,7 +44,8 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
 * `de_dot` - replace dots in labels and annotations with configured `de_dot_separator`, required for ElasticSearch 2.x compatibility (default: `true`)
 * `de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
-* `use_journal` - If false (default), messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.
+* *DEPRECATED* `use_journal` - If false, messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.  If unset (the default), the plugin will use the `CONTAINER_NAME` and `CONTAINER_ID_FULL` fields
+if available, otherwise, will use the tag in the `tag_to_kubernetes_name_regexp` format.
 * `container_name_to_kubernetes_regexp` - The regular expression used to extract the k8s metadata encoded in the journal `CONTAINER_NAME` field (default: `'^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'`
   * This corresponds to the definition [in the source](https://github.com/kubernetes/kubernetes/blob/master/pkg/kubelet/dockertools/docker.go#L317)
 * `annotation_match` - Array of regular expressions matching annotation field names. Matched annotations are added to a log record.
@@ -52,12 +53,23 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 when true (default: `true`)
 * `orphaned_namespace_name` - The namespace to associate with records where the namespace can not be determined (default: `.orphaned`)
 * `orphaned_namespace_id` - The namespace id to associate with records where the namespace can not be determined (default: `orphaned`)
+* `lookup_from_k8s_field` - If the field `kubernetes` is present, lookup the metadata from the given subfields such as `kubernetes.namespace_name`, `kubernetes.pod_name`, etc.  This allows you to avoid having to pass in metadata to lookup in an explicitly formatted tag name or in an explicitly formatted `CONTAINER_NAME` value.  For example, set `kubernetes.namespace_name`, `kubernetes.pod_name`, `kubernetes.container_name`, and `docker.id` in the record, and the filter will fill in the rest. (default: `true`)
 
 **NOTE:** As of the release 2.1.x of this plugin, it no longer supports parsing the source message into JSON and attaching it to the
 payload.  The following configuration options are removed:
 
 * `merge_json_log`
 * `preserve_json_log`
+
+**NOTE** As of this release, the use of `use_journal` is **DEPRECATED**.  If this setting is not present, the plugin will
+attempt to figure out the source of the metadata fields from the following:
+- If `lookup_from_k8s_field true` (the default) and the following fields are present in the record:
+`docker.container_id`, `kubernetes.namespace_name`, `kubernetes.pod_name`, `kubernetes.container_name`,
+then the plugin will use those values as the source to use to lookup the metadata
+- If `use_journal true`, or `use_journal` is unset, and the fields `CONTAINER_NAME` and `CONTAINER_ID_FULL` are present in the record,
+then the plugin will parse those values using `container_name_to_kubernetes_regexp` and use those as the source to lookup the metadata
+- Otherwise, if the tag matches `tag_to_kubernetes_name_regexp`, the plugin will parse the tag and use those values to
+lookup the metdata
 
 Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
 ```
