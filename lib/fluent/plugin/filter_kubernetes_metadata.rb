@@ -69,7 +69,7 @@ module Fluent
                  :default => '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'
 
     config_param :annotation_match, :array, default: []
-    config_param :stats_interval, :integer, default: 10
+    config_param :stats_interval, :integer, default: 30
     config_param :allow_orphans, :bool, default: true
     config_param :orphaned_namespace_name, :string, default: '.orphaned'
     config_param :orphaned_namespace_id, :string, default: 'orphaned'
@@ -235,6 +235,7 @@ module Fluent
           raise Fluent::ConfigError, "Invalid Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{kube_error.message}"
         end
         if @checkpoint_enabled
+          @checkpoint_thread_running = true
           @checkpoint_thread = Thread.new(self) {|this| this.start_checkpoint}
           @checkpoint_thread.abort_on_exception = true
         end
@@ -269,7 +270,18 @@ module Fluent
       super
       if @checkpoint_enabled
         write_cache_to_file
-        @checkpoint_thread.exit
+        @checkpoint_thread_running = false
+        @checkpoint_thread.run if @checkpoint_thread.alive?
+        log.trace "Waiting for the thread to complete"
+        @checkpoint_thread.join
+      end
+    end
+
+    def terminate
+      super
+      if @checkpoint_enabled
+        log.warn "Checkpoint thread killed"
+        @checkpoint_thread.terminate
       end
     end
 

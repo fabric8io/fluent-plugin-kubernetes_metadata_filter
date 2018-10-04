@@ -21,7 +21,7 @@ require "sqlite3"
 module KubernetesMetadata
   module CheckPointCache
     def start_checkpoint
-      while true
+      while @checkpoint_thread_running
         log.trace "check pointing cache to disk" if log.trace?
         write_cache_to_file
         prune_old_entries
@@ -62,19 +62,21 @@ module KubernetesMetadata
     end
 
     def write_cache_to_file
-      timestamp = Time.now.to_i
+      current_timestamp = Time.now
       @cache.each do |k, v|
-        @db.execute "insert or ignore into cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), timestamp]
+        @db.execute "insert or ignore into cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
       end
       @id_cache.each do |k, v|
-        @db.execute "insert or ignore into id_cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), timestamp]
+        @db.execute "insert or ignore into id_cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
       end
       @namespace_cache.each do |k, v|
-        @db.execute "insert or ignore into namespace_cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), timestamp]
+        @db.execute "insert or ignore into namespace_cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
       end
+      log.trace "db write took " + (Time.now - current_timestamp ).to_s if log.trace?
     end
 
     def read_cache_from_file
+      current_timestamp = Time.now
       @db.execute("select * from cache") do |row|
         @cache[row[0]] = JSON.parse(row[1])
       end
@@ -84,6 +86,7 @@ module KubernetesMetadata
       @db.execute("select * from namespace_cache") do |row|
         @namespace_cache[row[0]] = JSON.parse(row[1])
       end
+      log.trace "db load took " + (Time.now - current_timestamp ).to_s if log.trace?
     end
   end
 end
