@@ -23,8 +23,8 @@ module KubernetesMetadata
     def start_checkpoint
       while @checkpoint_thread_running
         log.trace "check pointing cache to disk" if log.trace?
-        write_cache_to_file
         prune_old_entries
+        write_cache_to_file
         sleep @checkpoint_interval
       end
     end
@@ -55,7 +55,7 @@ module KubernetesMetadata
     end
 
     def prune_old_entries
-      timestamp = Time.now - @cache_ttl
+      timestamp = Time.now - @checkpoint_ttl
       @db.execute "delete from cache where created_at <= ?", timestamp.to_i
       @db.execute "delete from id_cache where created_at <= ?", timestamp.to_i
       @db.execute "delete from namespace_cache where created_at <= ?", timestamp.to_i
