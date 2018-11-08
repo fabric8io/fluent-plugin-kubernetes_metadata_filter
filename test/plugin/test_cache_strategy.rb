@@ -81,22 +81,6 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, {}))
     end
 
-    test 'when previously processed record for pod but metadata is not cached and can not be fetched' do
-        exp = {
-            'pod_id'=> @pod_uuid,
-            'namespace_id'=> @namespace_uuid
-        }
-        @strategy.id_cache[@cache_key] = {
-            pod_id: @pod_uuid,
-            namespace_id: @namespace_uuid
-        }
-        @strategy.stub :fetch_pod_metadata, {} do
-            @strategy.stub :fetch_namespace_metadata, nil do
-                assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, {}))
-            end
-        end
-    end
-
     test 'when metadata is not cached and is fetched' do
         exp = @pod_meta.merge(@namespace_meta)
         exp.delete('creation_timestamp')

@@ -63,16 +63,34 @@ module KubernetesMetadata
 
     def write_cache_to_file
       current_timestamp = Time.now
-      @cache.each do |k, v|
-        @db.execute "insert or ignore into cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
+      begin
+        @db.transaction
+        @cache.each do |k, v|
+          @db.execute "insert or ignore into cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
+        end
+        @db.commit
+      rescue SQLite3::Exception => e
+        log.trace "unable to write into cache due to to error '#{e}'"
       end
-      @id_cache.each do |k, v|
-        @db.execute "insert or ignore into id_cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
+      begin
+        @db.transaction
+        @id_cache.each do |k, v|
+          @db.execute "insert or ignore into id_cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
+        end
+        @db.commit
+      rescue SQLite3::Exception => e
+        log.trace "unable to write into cache due to to error '#{e}'"
       end
-      @namespace_cache.each do |k, v|
-        @db.execute "insert or ignore into namespace_cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
+      begin
+        @db.transaction
+        @namespace_cache.each do |k, v|
+          @db.execute "insert or ignore into namespace_cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
+        end
+        @db.commit
+      rescue SQLite3::Exception => e
+        log.trace "unable to write into cache due to to error '#{e}'"
       end
-      log.trace "db write took " + (Time.now - current_timestamp ).to_s if log.trace?
+      log.trace "db write took " + (Time.now - current_timestamp).to_s if log.trace?
     end
 
     def read_cache_from_file
@@ -81,12 +99,13 @@ module KubernetesMetadata
         @cache[row[0]] = JSON.parse(row[1])
       end
       @db.execute("select * from id_cache") do |row|
-        @id_cache[row[0]] = JSON.parse(row[1])
+        rv = JSON.parse(row[1])
+        @id_cache[row[0]] = {:pod_id => rv['pod_id'], :namespace_id => rv['namespace_id']}
       end
       @db.execute("select * from namespace_cache") do |row|
         @namespace_cache[row[0]] = JSON.parse(row[1])
       end
-      log.trace "db load took " + (Time.now - current_timestamp ).to_s if log.trace?
+      log.trace "db load took " + (Time.now - current_timestamp).to_s if log.trace?
     end
   end
 end

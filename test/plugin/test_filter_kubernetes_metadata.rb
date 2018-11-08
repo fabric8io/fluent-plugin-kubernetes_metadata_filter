@@ -201,14 +201,14 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
               'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
           },
           'kubernetes' => {
-            'pod_name'       => 'fabric8-console-controller-98rqc',
-            'container_name' => 'fabric8-console-container',
-            'namespace_name' => 'default',
-            'namespace_id'   => '898268c8-4a36-11e5-9d81-42010af0194c',
-            'pod_id'         => 'c76927af-f563-11e4-b32d-54ee7527188d',
+              'container_name' => 'fabric8-console-container',
+              'namespace_id' => 'orphaned',
+              'namespace_name' => '.orphaned',
+              'orphaned_namespace' => 'default',
+              'pod_name' => 'fabric8-console-controller-98rqc',
           }
         }
-        
+
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
@@ -244,7 +244,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        
+
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end
@@ -270,7 +270,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             }
           }
         }
-        
+
         assert_equal(expected_kube_metadata, es.instance_variable_get(:@record_array)[0])
       end
     end

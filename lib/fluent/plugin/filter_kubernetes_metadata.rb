@@ -73,7 +73,7 @@ module Fluent
     config_param :allow_orphans, :bool, default: true
     config_param :orphaned_namespace_name, :string, default: '.orphaned'
     config_param :orphaned_namespace_id, :string, default: 'orphaned'
-    config_param :checkpoint_enabled, :bool, default: true
+    config_param :checkpoint_enabled, :bool, default: false
     config_param :checkpoint_interval, :integer, default: 30
     # This is used to prune older entries that will be written to the sqlite db, the most recent entries(aka the hot LRU cache) will always be in the db.
     config_param :checkpoint_ttl, :integer, default: 3000
@@ -238,6 +238,7 @@ module Fluent
         end
         if @checkpoint_enabled
           @checkpoint_thread_running = true
+          @checkpoint_thread_mutex = Mutex.new
           @checkpoint_thread = Thread.new(self) {|this| this.start_checkpoint}
           @checkpoint_thread.abort_on_exception = true
         end
@@ -272,7 +273,9 @@ module Fluent
       super
       if @checkpoint_enabled
         write_cache_to_file
-        @checkpoint_thread_running = false
+        @checkpoint_thread_mutex.synchronize do
+          @checkpoint_thread_running = false
+        end
         @checkpoint_thread.run if @checkpoint_thread.alive?
         log.trace "Waiting for the thread to complete"
         @checkpoint_thread.join
