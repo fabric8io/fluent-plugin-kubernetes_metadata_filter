@@ -77,7 +77,7 @@ module Fluent
     config_param :checkpoint_interval, :integer, default: 30
     # This is used to prune older entries that will be written to the sqlite db, the most recent entries(aka the hot LRU cache) will always be in the db.
     config_param :checkpoint_ttl, :integer, default: 3000
-    config_param :checkpoint_db_path, :string, default: '/var/log/k8s-metadata-checkpoint.db'
+    config_param :checkpoint_db_path, :string, default: '/var/lib/fluent-plugin-kubernetes_metadata_filter/checkpoint.db'
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
