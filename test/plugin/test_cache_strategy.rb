@@ -56,7 +56,7 @@ class TestCacheStrategy
 end
 
 class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
-  
+
     def setup
        @strategy = TestCacheStrategy.new
        @cache_key = 'some_long_container_id'
@@ -81,6 +81,22 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, {}))
     end
 
+    test 'when previously processed record for pod but metadata is not cached and can not be fetched' do
+      exp = {
+          'pod_id'=> @pod_uuid,
+          'namespace_id'=> @namespace_uuid
+      }
+      @strategy.id_cache[@cache_key] = {
+          pod_id: @pod_uuid,
+          namespace_id: @namespace_uuid
+      }
+      @strategy.stub :fetch_pod_metadata, {} do
+        @strategy.stub :fetch_namespace_metadata, nil do
+          assert_equal(exp, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, {}))
+        end
+      end
+    end
+
     test 'when metadata is not cached and is fetched' do
         exp = @pod_meta.merge(@namespace_meta)
         exp.delete('creation_timestamp')
@@ -98,7 +114,7 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         # we ever will have and should allow us to process all the deleted
         # pod records
         exp = {
-            'pod_id'=> @cache_key, 
+            'pod_id'=> @cache_key,
             'namespace_id'=> @namespace_uuid
         }
         @strategy.stub :fetch_pod_metadata, {} do
@@ -159,7 +175,7 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         end
         assert_equal({}, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, batch_miss_cache))
     end
-    
+
     test 'when metadata is not cached and no metadata can be fetched and allowing orphans for multiple records' do
         # we should never see this since pod meta should not be retrievable
         # unless the namespace exists

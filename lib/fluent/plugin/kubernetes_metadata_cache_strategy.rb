@@ -45,8 +45,9 @@ module KubernetesMetadata
       end
       pod_metadata = obtain_pod_metadata(pod_name, namespace_name, pod_id)
       namespace_metadata = obtain_namespace_metadata(namespace_id, namespace_name)
-      ids = {:pod_id => pod_metadata['pod_id'], :namespace_id => namespace_metadata['namespace_id']}
-      log.trace(ids)
+      ids = {}
+      ids[:pod_id] = pod_metadata.nil? ? nil : pod_metadata['pod_id']
+      ids[:namespace_id] = namespace_metadata.nil? ? nil : namespace_metadata['namespace_id']
       if !ids[:pod_id].nil? && !ids[:namespace_id].nil?
         # pod found and namespace found
         metadata = pod_metadata
@@ -82,7 +83,7 @@ module KubernetesMetadata
                 'namespace_id' => @orphaned_namespace_id
             }
           else
-            metadata = {}
+            metadata = {"pod_id" => pod_id, "namespace_id" => namespace_id}
           end
           batch_miss_cache["#{namespace_name}_#{pod_name}"] = metadata
         end

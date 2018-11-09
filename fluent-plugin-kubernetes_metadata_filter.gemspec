@@ -35,4 +35,5 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency "vcr"
   gem.add_development_dependency "bump"
   gem.add_development_dependency "yajl-ruby"
+  gem.add_development_dependency "timecop"
 end
