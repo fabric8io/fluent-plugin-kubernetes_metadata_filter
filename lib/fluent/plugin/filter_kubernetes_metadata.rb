@@ -24,7 +24,6 @@ require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
 require_relative 'checkpoint_metadata_cache'
 
-require "json"
 
 module Fluent
   class KubernetesMetadataFilter < Fluent::Filter

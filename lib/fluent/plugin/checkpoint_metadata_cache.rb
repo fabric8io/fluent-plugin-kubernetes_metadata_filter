@@ -17,6 +17,7 @@
 # limitations under the License.
 #
 require "sqlite3"
+require "json"
 
 module KubernetesMetadata
   module CheckPointCache
@@ -66,10 +67,15 @@ module KubernetesMetadata
       begin
         @db.transaction
         @cache.each do |k, v|
-          @db.execute "insert or ignore into cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
+          val = JSON.generate(v)
+          if val.length > 4294967295 # 2^31 -1 is the max size of SQlite
+            continue
+          end
+          @db.execute "insert or ignore into cache (id, val, created_at) values ( ?, ?, ?)", [k, val, current_timestamp.to_i]
         end
         @db.commit
       rescue SQLite3::Exception => e
+        @db.rollback
         log.trace "unable to write into cache due to to error '#{e}'"
       end
       begin
@@ -79,15 +85,21 @@ module KubernetesMetadata
         end
         @db.commit
       rescue SQLite3::Exception => e
+        @db.rollback
         log.trace "unable to write into cache due to to error '#{e}'"
       end
       begin
         @db.transaction
         @namespace_cache.each do |k, v|
-          @db.execute "insert or ignore into namespace_cache (id, val, created_at) values ( ?, ?, ?)", [k, JSON.generate(v), current_timestamp.to_i]
+          val = JSON.generate(v)
+          if val.length > 4294967295 # 2^31 -1 is the max size of SQlite
+            continue
+          end
+          @db.execute "insert or ignore into namespace_cache (id, val, created_at) values ( ?, ?, ?)", [k, val, current_timestamp.to_i]
         end
         @db.commit
       rescue SQLite3::Exception => e
+        @db.rollback
         log.trace "unable to write into cache due to to error '#{e}'"
       end
       log.trace "db write took " + (Time.now - current_timestamp).to_s if log.trace?
@@ -99,8 +111,7 @@ module KubernetesMetadata
         @cache[row[0]] = JSON.parse(row[1])
       end
       @db.execute("select * from id_cache") do |row|
-        rv = JSON.parse(row[1])
-        @id_cache[row[0]] = {:pod_id => rv['pod_id'], :namespace_id => rv['namespace_id']}
+        @id_cache[row[0]] = JSON.parse(row[1], :symbolize_names => true)
       end
       @db.execute("select * from namespace_cache") do |row|
         @namespace_cache[row[0]] = JSON.parse(row[1])
