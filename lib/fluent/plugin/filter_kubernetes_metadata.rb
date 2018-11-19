@@ -287,7 +287,8 @@ module Fluent::Plugin
       time_key = @time_fields.detect{ |ii| record.has_key?(ii) }
       time = record[time_key]
       if time.nil? || time.chop.empty?
-        return internal_time
+        # `internal_time` is a Fluent::EventTime, it can't compare with Time.
+        return Time.at(internal_time.to_f)
       end
       if ['_SOURCE_REALTIME_TIMESTAMP', '__REALTIME_TIMESTAMP'].include?(time_key)
         timei= time.to_i
