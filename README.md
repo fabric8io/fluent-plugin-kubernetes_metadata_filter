@@ -74,7 +74,7 @@ lookup the metdata
 Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
 ```
 <source>
-  type tail
+  @type tail
   path /var/log/containers/*.log
   pos_file fluentd-docker.pos
   time_format %Y-%m-%dT%H:%M:%S
@@ -84,18 +84,18 @@ Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
 </source>
 
 <filter kubernetes.var.log.containers.**.log>
-  type kubernetes_metadata
+  @type kubernetes_metadata
 </filter>
 
 <match **>
-  type stdout
+  @type stdout
 </match>
 ```
 
 Reading from the systemd journal (requires the fluentd `fluent-plugin-systemd` and `systemd-journal` plugins, and requires docker to use the `--log-driver=journald` log driver):
 ```
 <source>
-  type systemd
+  @type systemd
   path /run/log/journal
   pos_file journal.pos
   tag journal
@@ -111,12 +111,12 @@ Reading from the systemd journal (requires the fluentd `fluent-plugin-systemd` a
 </match>
 
 <filter kubernetes.**>
-  type kubernetes_metadata
+  @type kubernetes_metadata
   use_journal true
 </filter>
 
 <match **>
-  type stdout
+  @type stdout
 </match>
 ```
 
