@@ -20,7 +20,7 @@ require "sqlite3"
 require "json"
 
 module KubernetesMetadata
-  module CheckPointCache
+  module PersistentCache
     def start_checkpoint
       while @checkpoint_thread_running
         log.trace "check pointing cache to disk" if log.trace?

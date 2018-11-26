@@ -34,7 +34,7 @@ module Fluent
     include KubernetesMetadata::Common
     include KubernetesMetadata::WatchNamespaces
     include KubernetesMetadata::WatchPods
-    include KubernetesMetadata::CheckPointCache
+    include KubernetesMetadata::PersistentCache
 
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
 
@@ -237,7 +237,6 @@ module Fluent
         end
         if @checkpoint_enabled
           @checkpoint_thread_running = true
-          @checkpoint_thread_mutex = Mutex.new
           @checkpoint_thread = Thread.new(self) {|this| this.start_checkpoint}
           @checkpoint_thread.abort_on_exception = true
         end
@@ -272,9 +271,7 @@ module Fluent
       super
       if @checkpoint_enabled
         write_cache_to_file
-        @checkpoint_thread_mutex.synchronize do
-          @checkpoint_thread_running = false
-        end
+        @checkpoint_thread_running = false
         @checkpoint_thread.run if @checkpoint_thread.alive?
         log.trace "Waiting for the thread to complete"
         @checkpoint_thread.join

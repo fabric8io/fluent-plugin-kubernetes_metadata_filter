@@ -5,7 +5,7 @@ require 'lru_redux'
 require 'timecop'
 
 class TestCheckPointCache
-  include KubernetesMetadata::CheckPointCache
+  include KubernetesMetadata::PersistentCache
 
   def initialize
     @cache = LruRedux::TTL::ThreadSafeCache.new(100, 3600)
@@ -33,7 +33,7 @@ class TestCheckPointCache
 
 end
 
-class CheckPointMetadataCache < Test::Unit::TestCase
+class PersistentCacheTest < Test::Unit::TestCase
   def setup
     @checkpoint = TestCheckPointCache.new
     @checkpoint.checkpoint_db_path = '/tmp/test.db'
