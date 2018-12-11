@@ -72,6 +72,10 @@ module Fluent::Plugin
     config_param :orphaned_namespace_name, :string, default: '.orphaned'
     config_param :orphaned_namespace_id, :string, default: 'orphaned'
     config_param :lookup_from_k8s_field, :bool, default: true
+    # if `ca_file` is for an intermediate CA, or otherwise we do not have the root CA and want
+    # to trust the intermediate CA certs we do have, set this to `true` - this corresponds to
+    # the openssl s_client -partial_chain flag and X509_V_FLAG_PARTIAL_CHAIN
+    config_param :ssl_partial_chain, :bool, default: false
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
@@ -218,6 +222,21 @@ module Fluent::Plugin
             ca_file:     @ca_file,
             verify_ssl:  @verify_ssl ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
         }
+
+        if @ssl_partial_chain
+          # taken from the ssl.rb OpenSSL::SSL::SSLContext code for DEFAULT_CERT_STORE
+          require 'openssl'
+          ssl_store = OpenSSL::X509::Store.new
+          ssl_store.set_default_paths
+          if defined? OpenSSL::X509::V_FLAG_PARTIAL_CHAIN
+            flagval = OpenSSL::X509::V_FLAG_PARTIAL_CHAIN
+          else
+            # this version of ruby does not define OpenSSL::X509::V_FLAG_PARTIAL_CHAIN
+            flagval = 0x80000
+          end
+          ssl_store.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL | flagval
+          ssl_options[:cert_store] = ssl_store
+        end
 
         auth_options = {}
 
