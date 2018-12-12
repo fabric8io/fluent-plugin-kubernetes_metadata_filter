@@ -54,6 +54,9 @@ when true (default: `true`)
 * `orphaned_namespace_name` - The namespace to associate with records where the namespace can not be determined (default: `.orphaned`)
 * `orphaned_namespace_id` - The namespace id to associate with records where the namespace can not be determined (default: `orphaned`)
 * `lookup_from_k8s_field` - If the field `kubernetes` is present, lookup the metadata from the given subfields such as `kubernetes.namespace_name`, `kubernetes.pod_name`, etc.  This allows you to avoid having to pass in metadata to lookup in an explicitly formatted tag name or in an explicitly formatted `CONTAINER_NAME` value.  For example, set `kubernetes.namespace_name`, `kubernetes.pod_name`, `kubernetes.container_name`, and `docker.id` in the record, and the filter will fill in the rest. (default: `true`)
+* `ssl_partial_chain` - if `ca_file` is for an intermediate CA, or otherwise we do not have the root CA and want
+  to trust the intermediate CA certs we do have, set this to `true` - this corresponds to
+  the `openssl s_client -partial_chain` flag and `X509_V_FLAG_PARTIAL_CHAIN` (default: `false`)
 
 **NOTE:** As of the release 2.1.x of this plugin, it no longer supports parsing the source message into JSON and attaching it to the
 payload.  The following configuration options are removed:
