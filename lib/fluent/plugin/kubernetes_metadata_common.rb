@@ -39,7 +39,6 @@ module KubernetesMetadata
         self.de_dot!(annotations)
       end
       kubernetes_metadata = {
-        'namespace_id' => namespace_object['metadata']['uid'],
         'creation_timestamp' => namespace_object['metadata']['creationTimestamp']
       }
       kubernetes_metadata['namespace_labels'] = labels unless labels.empty?
@@ -62,9 +61,7 @@ module KubernetesMetadata
           # get plain container id (eg. docker://hash -> hash)
           container_id = container_status['containerID'].sub /^[-_a-zA-Z0-9]+:\/\//, ''
           container_meta[container_id] = {
-              'name' => container_status['name'],
-              'image' => container_status['image'],
-              'image_id' => container_status['imageID']
+              'name' => container_status['name']
           }
         end
       rescue
@@ -76,9 +73,7 @@ module KubernetesMetadata
           'pod_id'         => pod_object['metadata']['uid'],
           'pod_name'       => pod_object['metadata']['name'],
           'containers'     => syms_to_strs(container_meta),
-          'labels'         => labels,
-          'host'           => pod_object['spec']['nodeName'],
-          'master_url'     => @kubernetes_url
+          'host'           => pod_object['spec']['nodeName']
       }
       kubernetes_metadata['annotations'] = annotations unless annotations.empty?
       return kubernetes_metadata
