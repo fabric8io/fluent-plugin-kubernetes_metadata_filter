@@ -1,0 +1,114 @@
+version: 2.0
+
+install: &install
+  name: Install bundle
+  command: bundle install --path vendor/bundle
+
+missingdeps: &missingdeps
+  name: Install missing dependecies
+  command: |
+            cat /etc/os-release
+            printf "deb http://archive.debian.org/debian/ jessie main\ndeb-src http://archive.debian.org/debian/ jessie main\ndeb http://security.debian.org jessie/updates main\ndeb-src http://security.debian.org jessie/updates main" > /tmp/sources.list
+            sudo cp /tmp/sources.list /etc/apt/sources.list
+            sudo apt-get update
+            sudo apt-get install cmake libicu-dev libssl-dev
+  
+test: &test
+  name: Test bundle
+  command: bundle exec rake test
+  
+jobs:
+  "ruby-2.1.10":
+    docker:
+      - image: circleci/ruby:2.1.10
+    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
+    steps:
+      - run: *missingdeps
+      - checkout
+      - run: *install
+      - run: *test
+      - store_test_results:
+            path: coverage
+      - store_artifacts:
+            path: coverage
+
+  "ruby-2.2.10":
+    docker:
+      - image: circleci/ruby:2.2.10
+    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
+    steps:
+      - run: *missingdeps
+      - checkout
+      - run: *install
+      - run: *test
+      - store_test_results:
+            path: coverage
+      - store_artifacts:
+            path: coverage
+
+  "ruby-2.3.8":
+    docker:
+      - image: circleci/ruby:2.3.8
+    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
+    steps:
+      - run: *missingdeps
+      - checkout
+      - run: *install
+      - run: *test
+      - store_test_results:
+            path: coverage
+      - store_artifacts:
+            path: coverage
+
+  "ruby-2.4.6":
+    docker:
+      - image: circleci/ruby:2.4.6
+    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
+    steps:
+      - run: *missingdeps
+      - checkout
+      - run: *install
+      - run: *test
+      - store_test_results:
+            path: coverage
+      - store_artifacts:
+            path: coverage
+
+  "ruby-2.5.5":
+    docker:
+      - image: circleci/ruby:2.5.5
+    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
+    steps:
+      - run: *missingdeps
+      - checkout
+      - run: *install
+      - run: *test
+      - store_test_results:
+            path: coverage
+      - store_artifacts:
+            path: coverage
+
+  "ruby-2.6.3":
+    docker:
+      - image: circleci/ruby:2.6.3
+    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
+    steps:
+      - run: *missingdeps
+      - checkout
+      - run: *install
+      - run: *test
+      - store_test_results:
+            path: coverage
+      - store_artifacts:
+            path: coverage
+
+workflows:
+  version: 2
+  "test_multiple_ruby_versions":
+    jobs:
+      - ruby-2.1.10
+      - ruby-2.2.10
+      - ruby-2.3.8
+      - ruby-2.4.6
+      - ruby-2.5.5
+      - ruby-2.6.3
