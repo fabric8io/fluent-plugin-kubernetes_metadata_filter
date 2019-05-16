@@ -18,48 +18,6 @@ test: &test
   command: bundle exec rake test
   
 jobs:
-  "ruby-2.1.10":
-    docker:
-      - image: circleci/ruby:2.1.10
-    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
-    steps:
-      - run: *missingdeps
-      - checkout
-      - run: *install
-      - run: *test
-      - store_test_results:
-            path: coverage
-      - store_artifacts:
-            path: coverage
-
-  "ruby-2.2.10":
-    docker:
-      - image: circleci/ruby:2.2.10
-    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
-    steps:
-      - run: *missingdeps
-      - checkout
-      - run: *install
-      - run: *test
-      - store_test_results:
-            path: coverage
-      - store_artifacts:
-            path: coverage
-
-  "ruby-2.3.8":
-    docker:
-      - image: circleci/ruby:2.3.8
-    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
-    steps:
-      - run: *missingdeps
-      - checkout
-      - run: *install
-      - run: *test
-      - store_test_results:
-            path: coverage
-      - store_artifacts:
-            path: coverage
-
   "ruby-2.4.6":
     docker:
       - image: circleci/ruby:2.4.6
@@ -106,9 +64,6 @@ workflows:
   version: 2
   "test_multiple_ruby_versions":
     jobs:
-      - ruby-2.1.10
-      - ruby-2.2.10
-      - ruby-2.3.8
       - ruby-2.4.6
       - ruby-2.5.5
       - ruby-2.6.3
