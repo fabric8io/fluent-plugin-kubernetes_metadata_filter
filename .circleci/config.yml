@@ -1,4 +1,4 @@
-version: 2.0
+version: 2.1
 
 install: &install
   name: Install bundle
@@ -16,39 +16,23 @@ missingdeps: &missingdeps
 test: &test
   name: Test bundle
   command: bundle exec rake test
-  
-jobs:
-  "ruby-2.4.6":
+
+executors:
+  ruby-2-4:
     docker:
       - image: circleci/ruby:2.4.6
-    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
-    steps:
-      - run: *missingdeps
-      - checkout
-      - run: *install
-      - run: *test
-      - store_test_results:
-            path: coverage
-      - store_artifacts:
-            path: coverage
-
-  "ruby-2.5.5":
+  ruby-2-5:
     docker:
       - image: circleci/ruby:2.5.5
-    working_directory: ~/fluent-plugin-kubernetes_metadata_filter
-    steps:
-      - run: *missingdeps
-      - checkout
-      - run: *install
-      - run: *test
-      - store_test_results:
-            path: coverage
-      - store_artifacts:
-            path: coverage
-
-  "ruby-2.6.3":
+  ruby-2-6:
     docker:
       - image: circleci/ruby:2.6.3
+jobs:
+  "ruby-test":
+    parameters:
+      ruby-version:
+        type: executor
+    executor: << parameters.ruby-version >>
     working_directory: ~/fluent-plugin-kubernetes_metadata_filter
     steps:
       - run: *missingdeps
@@ -61,9 +45,12 @@ jobs:
             path: coverage
 
 workflows:
-  version: 2
   "test_multiple_ruby_versions":
     jobs:
-      - ruby-2.4.6
-      - ruby-2.5.5
-      - ruby-2.6.3
+      - ruby-test:
+          ruby-version: ruby-2-4
+      - ruby-test:
+          ruby-version: ruby-2-5
+      - ruby-test:
+          ruby-version: ruby-2-6
+      
