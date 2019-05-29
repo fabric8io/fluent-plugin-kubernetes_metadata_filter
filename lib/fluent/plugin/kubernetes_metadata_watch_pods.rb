@@ -24,9 +24,15 @@ module KubernetesMetadata
     include ::KubernetesMetadata::Common
 
     def start_pod_watch
+      k8s_node_name = ENV['K8S_NODE_NAME']
       begin
-        resource_version = @client.get_pods.resourceVersion
-        watcher          = @client.watch_pods(resource_version)
+        field_selector   = k8s_node_name ? "spec.nodeName=#{k8s_node_name}" : nil
+
+        # FIXME: limit seems to not take effect
+        # resource_version = @client.get_pods(limit: 1).resourceVersion
+        # watcher          = @client.watch_pods(resource_version: resource_version, field_selector: field_selector)
+
+        watcher          = @client.watch_pods(field_selector: field_selector)
       rescue Exception => e
         message = "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
         message += " (#{e.response})" if e.respond_to?(:response)
@@ -42,7 +48,7 @@ module KubernetesMetadata
             if cached
               @cache[cache_key] = parse_pod_metadata(notice.object)
               @stats.bump(:pod_cache_watch_updates)
-            elsif ENV['K8S_NODE_NAME'] == notice.object['spec']['nodeName'] then
+            elsif k8s_node_name == notice.object['spec']['nodeName'] then
               @cache[cache_key] = parse_pod_metadata(notice.object)
               @stats.bump(:pod_cache_host_updates)
             else
