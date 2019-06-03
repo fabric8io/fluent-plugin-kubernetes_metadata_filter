@@ -76,6 +76,10 @@ module Fluent::Plugin
     # to trust the intermediate CA certs we do have, set this to `true` - this corresponds to
     # the openssl s_client -partial_chain flag and X509_V_FLAG_PARTIAL_CHAIN
     config_param :ssl_partial_chain, :bool, default: false
+    config_param :skip_labels, :bool, default: false
+    config_param :skip_container_metadata, :bool, default: false
+    config_param :skip_master_url, :bool, default: false
+    config_param :skip_namespace_metadata, :bool, default: false
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
@@ -291,7 +295,7 @@ module Fluent::Plugin
       if @kubernetes_url.present?
         pod_metadata = get_pod_metadata(container_id, namespace_name, pod_name, create_time, batch_miss_cache)
 
-        if (pod_metadata.include? 'containers') && (pod_metadata['containers'].include? container_id)
+        if (pod_metadata.include? 'containers') && (pod_metadata['containers'].include? container_id) && !@skip_container_metadata
           metadata['kubernetes']['container_image'] = pod_metadata['containers'][container_id]['image']
           metadata['kubernetes']['container_image_id'] = pod_metadata['containers'][container_id]['image_id']
         end
