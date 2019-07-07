@@ -60,7 +60,8 @@ when true (default: `true`)
 * `skip_labels` - Skip all label fields from the metadata.
 * `skip_container_metadata` - Skip some of the container data of the metadata. The metadata will not contain the container_image and container_image_id fields.
 * `skip_master_url` - Skip the master_url field from the metadata.
-* `skip_namespace_metadata` - Skip the namespace_id field from the metadata. The fetch_namespace_metadata function will be skipped. The plugin will be faster and cpu consumption will be less. 
+* `skip_namespace_metadata` - Skip the namespace_id field from the metadata. The fetch_namespace_metadata function will be skipped. The plugin will be faster and cpu consumption will be less.
+
 **NOTE:** As of the release 2.1.x of this plugin, it no longer supports parsing the source message into JSON and attaching it to the
 payload.  The following configuration options are removed:
 
