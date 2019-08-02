@@ -68,6 +68,8 @@ payload.  The following configuration options are removed:
 * `merge_json_log`
 * `preserve_json_log`
 
+One way of preserving JSON logs can be through the [parser plugin](https://docs.fluentd.org/filter/parser)
+
 **NOTE** As of this release, the use of `use_journal` is **DEPRECATED**.  If this setting is not present, the plugin will
 attempt to figure out the source of the metadata fields from the following:
 - If `lookup_from_k8s_field true` (the default) and the following fields are present in the record:
