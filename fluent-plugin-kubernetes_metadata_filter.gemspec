@@ -23,9 +23,18 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency "fluentd", ">= 0.12.0"
   gem.add_runtime_dependency "lru_redux"
   gem.add_runtime_dependency "kubeclient", "~> 1.1.4"
+  if RUBY_VERSION == "2.0.0"
+    gem.add_runtime_dependency "public_suffix", "< 3"
+    gem.add_runtime_dependency "parallel", "< 1.14"
+    gem.add_runtime_dependency "rainbow", "< 3"
+  end
 
   gem.add_development_dependency "bundler", "~> 1.3"
-  gem.add_development_dependency "rake"
+  if RUBY_VERSION == "2.0.0"
+    gem.add_development_dependency "rake", "< 13"
+  else
+    gem.add_development_dependency "rake"
+  end
   gem.add_development_dependency "minitest", "~> 4.0"
   gem.add_development_dependency "test-unit", "~> 3.0.2"
   gem.add_development_dependency "test-unit-rr", "~> 1.0.3"
