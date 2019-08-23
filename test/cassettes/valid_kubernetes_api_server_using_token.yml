@@ -1,0 +1,57 @@
+#
+# Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
+# Kubernetes metadata
+#
+# Copyright 2015 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://localhost:8443/api
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      Accept:
+      - "*/*; q=0.5, application/xml"
+      Accept-Encoding:
+      - gzip, deflate
+      User-Agent:
+      - Ruby
+      Authorization:
+      - Bearer YzYyYzFlODMtODdhNS00ZTMyLWIzMmItNmY4NDc4OTI1ZWFh
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 08 May 2015 10:13:54 GMT
+      Content-Length:
+      - '67'
+    body:
+      encoding: UTF-8
+      string: |-
+        {
+          "versions": [
+            "v1"
+          ]
+        }
+    http_version: 
+  recorded_at: Fri, 08 May 2015 10:13:54 GMT
+recorded_with: VCR 2.9.3

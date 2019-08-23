@@ -38,6 +38,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
   end
 
   sub_test_case 'configure' do
+
     test 'check default' do
       d = create_driver
       assert_equal(1000, d.instance.cache_size)
@@ -168,7 +169,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'inability to connect to the api server handles exception and doensnt block pipeline' do
-      VCR.use_cassette('kubernetes_docker_metadata') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}]) do
         driver = create_driver('
           kubernetes_url https://localhost:8443
           watch false
@@ -195,7 +196,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with docker & kubernetes metadata where id cache hit and metadata miss' do
-      VCR.use_cassette('kubernetes_docker_metadata') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}]) do
         driver = create_driver('
           kubernetes_url https://localhost:8443
           watch false
@@ -228,7 +229,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with docker & kubernetes metadata where id cache hit and metadata is reloaded' do
-      VCR.use_cassette('kubernetes_docker_metadata') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'}, {name: 'kubernetes_get_namespace_default'}]) do
         driver = create_driver('
           kubernetes_url https://localhost:8443
           watch false
@@ -266,7 +267,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with docker & kubernetes metadata' do
-      VCR.use_cassette('kubernetes_docker_metadata') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'}, {name: 'kubernetes_get_namespace_default'}]) do
         filtered = emit({'time'=>'2015-05-08T09:22:01Z'})
         expected_kube_metadata = {
           'time'=>'2015-05-08T09:22:01Z',
@@ -294,7 +295,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with docker & kubernetes metadata & namespace_id enabled' do
-      VCR.use_cassette('metadata_with_namespace_id') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'},
+                         {name: 'kubernetes_get_namespace_default', options: {allow_playback_repeats: true}}]) do
         filtered = emit({}, '
           kubernetes_url https://localhost:8443
           watch false
@@ -324,7 +326,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with docker & kubernetes metadata using bearer token' do
-      VCR.use_cassette('kubernetes_docker_metadata_using_bearer_token') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server_using_token'}, {name: 'kubernetes_get_api_v1_using_token'},
+                         {name: 'kubernetes_get_pod_using_token'}, {name: 'kubernetes_get_namespace_default_using_token'}]) do
         filtered = emit({}, '
           kubernetes_url https://localhost:8443
           verify_ssl false
@@ -429,7 +432,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with kubernetes dotted labels, de_dot enabled' do
-      VCR.use_cassette('kubernetes_docker_metadata_dotted_labels') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'},
+                         {name: 'kubernetes_docker_metadata_dotted_labels'}]) do
         filtered = emit({}, '
           kubernetes_url https://localhost:8443
           watch false
@@ -462,7 +466,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with kubernetes dotted labels, de_dot disabled' do
-      VCR.use_cassette('kubernetes_docker_metadata_dotted_labels') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'},
+                         {name: 'kubernetes_docker_metadata_dotted_labels'}]) do
         filtered = emit({}, '
           kubernetes_url https://localhost:8443
           watch false
@@ -511,7 +516,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
         'randomfield' => 'randomvalue'
       }
-      VCR.use_cassette('kubernetes_docker_metadata') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'},
+                         {name: 'kubernetes_get_namespace_default'}]) do
         filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
@@ -549,7 +555,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
         'randomfield' => 'randomvalue'
       }
-      VCR.use_cassette('metadata_with_namespace_id') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'},
+                         {name: 'kubernetes_get_namespace_default', options: {allow_playback_repeats: true}}]) do
         filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
@@ -593,7 +600,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'docker' => {'container_id' => 'e463bc0d3ae38f5c89d92dca49b30e049e899799920b79d4d5f705acbe82ba95'},
         'randomfield' => 'randomvalue'
       }
-      VCR.use_cassette('metadata_from_tag_journald_and_kubernetes_fields') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'},
+                         {name: 'kubernetes_get_namespace_default'},
+                         {name: 'metadata_from_tag_journald_and_kubernetes_fields'}]) do
         es = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
@@ -636,7 +645,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'docker' => {'container_id' => 'e463bc0d3ae38f5c89d92dca49b30e049e899799920b79d4d5f705acbe82ba95'},
         'randomfield' => 'randomvalue'
       }
-      VCR.use_cassette('metadata_from_tag_and_journald_fields') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'},
+                         {name: 'kubernetes_get_namespace_default', options: {allow_playback_repeats: true}},
+                         {name: 'metadata_from_tag_and_journald_fields'}]) do
         es = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
@@ -680,7 +691,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'docker' => {'container_id' => 'e463bc0d3ae38f5c89d92dca49b30e049e899799920b79d4d5f705acbe82ba95'},
         'randomfield' => 'randomvalue'
       }
-      VCR.use_cassette('metadata_from_tag_and_journald_fields') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'},
+                         {name: 'kubernetes_get_namespace_default', options: {allow_playback_repeats: true}},
+                         {name: 'metadata_from_tag_and_journald_fields'}]) do
         es = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
@@ -712,7 +725,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with kubernetes annotations' do
-      VCR.use_cassette('kubernetes_docker_metadata_annotations') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'},
+                         {name: 'kubernetes_docker_metadata_annotations'},
+                         {name: 'kubernetes_get_namespace_default'}]) do
         filtered = emit({},'
           kubernetes_url https://localhost:8443
           watch false
@@ -754,7 +769,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
         'randomfield' => 'randomvalue'
       }
-      VCR.use_cassette('kubernetes_docker_metadata') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'},
+                         {name: 'kubernetes_get_namespace_default'},
+                         {name: 'metadata_from_tag_and_journald_fields'}]) do
         filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
@@ -785,7 +802,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with kubernetes namespace annotations' do
-      VCR.use_cassette('kubernetes_docker_metadata_annotations') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'},
+                         {name: 'kubernetes_docker_metadata_annotations'},
+                         {name: 'kubernetes_get_namespace_default'}]) do
         filtered = emit({},'
           kubernetes_url https://localhost:8443
           watch false
@@ -823,7 +842,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with kubernetes namespace annotations no match' do
-      VCR.use_cassette('kubernetes_docker_metadata_annotations') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'},
+                         {name: 'kubernetes_docker_metadata_annotations'},
+                         {name: 'kubernetes_get_namespace_default'}]) do
         filtered = emit({},'
           kubernetes_url https://localhost:8443
           watch false
@@ -859,7 +880,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
         'randomfield' => 'randomvalue'
       }
-      VCR.use_cassette('kubernetes_docker_metadata_annotations') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'},
+                         {name: 'kubernetes_docker_metadata_annotations'},
+                         {name: 'kubernetes_get_namespace_default'}]) do
         filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
@@ -881,7 +904,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
         'randomfield' => 'randomvalue'
       }
-      VCR.use_cassette('kubernetes_docker_metadata_annotations') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'},
+                         {name: 'kubernetes_docker_metadata_annotations'},
+                         {name: 'kubernetes_get_namespace_default'}]) do
         filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
@@ -898,7 +923,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'processes all events when reading from MessagePackEventStream' do
-      VCR.use_cassette('kubernetes_docker_metadata') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'},
+                         {name: 'kubernetes_get_pod'},
+                         {name: 'kubernetes_get_namespace_default'}]) do
         entries = [[@time, {'time'=>'2015-05-08T09:22:01Z'}], [@time, {'time'=>'2015-05-08T09:22:01Z'}]]
         array_stream = Fluent::ArrayEventStream.new(entries)
         msgpack_stream = Fluent::MessagePackEventStream.new(array_stream.to_msgpack_stream)
@@ -940,7 +967,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'with docker & kubernetes metadata using skip config params' do
-      VCR.use_cassette('kubernetes_docker_metadata') do
+      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'},
+                         {name: 'kubernetes_get_namespace_default'}]) do
         filtered = emit({},'
           kubernetes_url https://localhost:8443
           watch false
