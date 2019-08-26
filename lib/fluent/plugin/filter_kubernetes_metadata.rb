@@ -136,7 +136,7 @@ module Fluent::Plugin
             metadata = parse_namespace_metadata(metadata)
             @stats.bump(:namespace_cache_api_updates)
             log.trace("parsed metadata for #{namespace_name}: #{metadata}") if log.trace?
-             @namespace_cache[metadata['namespace_id']] = metadata
+            @namespace_cache[metadata['namespace_id']] = metadata
             return metadata
           rescue Exception => e
             log.debug(e)
@@ -164,7 +164,6 @@ module Fluent::Plugin
       end
 
       require 'kubeclient'
-      require 'active_support/core_ext/object/blank'
       require 'lru_redux'
       @stats = KubernetesMetadata::Stats.new
 
