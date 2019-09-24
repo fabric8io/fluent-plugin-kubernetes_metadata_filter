@@ -24,16 +24,18 @@ module KubernetesMetadata
     include ::KubernetesMetadata::Common
 
     def start_pod_watch
+      field_selector = ''
+      if ENV['K8S_NODE_NAME']
+        field_selector = 'spec.nodeName=' + ENV['K8S_NODE_NAME']
+      end
       begin
-        pods = @client.get_pods
+        pods = @client.get_pods(field_selector: field_selector)
         pods.each do |pod|
           cache_key = pod.metadata['uid']
-          if ENV['K8S_NODE_NAME'] == pod.spec['nodeName'] then
-            @cache[cache_key] = parse_pod_metadata(pod)
-            @stats.bump(:pod_cache_host_updates)
-          end
+          @cache[cache_key] = parse_pod_metadata(pod)
+          @stats.bump(:pod_cache_host_updates)
         end
-        watcher = @client.watch_pods(pods.resourceVersion)
+        watcher = @client.watch_pods(pods.resourceVersion, field_selector: field_selector)
       rescue Exception => e
         message = "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
         message += " (#{e.response})" if e.respond_to?(:response)
@@ -49,11 +51,9 @@ module KubernetesMetadata
             if cached
               @cache[cache_key] = parse_pod_metadata(notice.object)
               @stats.bump(:pod_cache_watch_updates)
-            elsif ENV['K8S_NODE_NAME'] == notice.object['spec']['nodeName'] then
+            else
               @cache[cache_key] = parse_pod_metadata(notice.object)
               @stats.bump(:pod_cache_host_updates)
-            else
-              @stats.bump(:pod_cache_watch_misses)
             end
           when 'DELETED'
             # ignore and let age out for cases where pods
