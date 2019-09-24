@@ -29,7 +29,7 @@ module KubernetesMetadata
       end
       begin
         options = {
-          resource_version: 0  # Fetch from API server.
+          resource_version: '0'  # Fetch from API server.
         }
         if field_selector
           options[:field_selector] = field_selector
