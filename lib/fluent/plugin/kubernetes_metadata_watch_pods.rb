@@ -24,22 +24,24 @@ module KubernetesMetadata
     include ::KubernetesMetadata::Common
 
     def start_pod_watch
-      field_selector = ''
       if ENV['K8S_NODE_NAME']
         field_selector = 'spec.nodeName=' + ENV['K8S_NODE_NAME']
       end
       begin
-        pods = @client.get_pods(
-          resource_version: 0,  # Fetch from API server.
-          field_selector: field_selector)
+        options = {
+          resource_version: 0  # Fetch from API server.
+        }
+        if field_selector
+          options[:field_selector] = field_selector
+        end
+        pods = @client.get_pods(options)
         pods.each do |pod|
           cache_key = pod.metadata['uid']
           @cache[cache_key] = parse_pod_metadata(pod)
           @stats.bump(:pod_cache_host_updates)
         end
-        watcher = @client.watch_pods(
-          resource_version: pods.resourceVersion,
-          field_selector: field_selector)
+        options[:resource_version] = pods.resourceVersion
+        watcher = @client.watch_pods(options)
       rescue Exception => e
         message = "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
         message += " (#{e.response})" if e.respond_to?(:response)
