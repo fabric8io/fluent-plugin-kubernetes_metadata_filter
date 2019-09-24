@@ -25,8 +25,15 @@ module KubernetesMetadata
 
     def start_pod_watch
       begin
-        resource_version = @client.get_pods.resourceVersion
-        watcher          = @client.watch_pods(resource_version)
+        pods = @client.get_pods
+        pods.each do |pod|
+          cache_key = pod.metadata['uid']
+          if ENV['K8S_NODE_NAME'] == pod.spec['nodeName'] then
+            @cache[cache_key] = parse_pod_metadata(pod)
+            @stats.bump(:pod_cache_host_updates)
+          end
+        end
+        watcher = @client.watch_pods(pods.resourceVersion)
       rescue Exception => e
         message = "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
         message += " (#{e.response})" if e.respond_to?(:response)
