@@ -173,6 +173,14 @@ class DefaultPodWatchStrategyTest < WatchTest
       end
     end
 
+    test 'pod watch notice is ignored when info not cached and MODIFIED is received' do
+      @client.stub :watch_pods, [@modified] do
+       start_pod_watch
+       assert_equal(false, @cache.key?('modified_uid'))
+       assert_equal(1, @stats[:pod_cache_watch_misses])
+      end
+    end
+
     test 'pod MODIFIED cached when hostname matches' do
       orig_env_val = ENV['K8S_NODE_NAME']
       ENV['K8S_NODE_NAME'] = 'aNodeName'
