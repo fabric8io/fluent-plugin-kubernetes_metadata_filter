@@ -24,15 +24,12 @@ module KubernetesMetadata
     include ::KubernetesMetadata::Common
 
     def start_pod_watch
-      if ENV['K8S_NODE_NAME']
-        field_selector = 'spec.nodeName=' + ENV['K8S_NODE_NAME']
-      end
       begin
         options = {
           resource_version: '0'  # Fetch from API server.
         }
-        if field_selector
-          options[:field_selector] = field_selector
+        if ENV['K8S_NODE_NAME']
+          options[:field_selector] = 'spec.nodeName=' + ENV['K8S_NODE_NAME']
         end
         pods = @client.get_pods(options)
         pods.each do |pod|
