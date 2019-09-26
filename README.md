@@ -86,10 +86,15 @@ Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
   @type tail
   path /var/log/containers/*.log
   pos_file fluentd-docker.pos
-  time_format %Y-%m-%dT%H:%M:%S
-  tag kubernetes.*
-  format json
   read_from_head true
+  tag kubernetes.*
+  <parse>
+    @type json
+    time_key time
+    time_type string
+    time_format "%Y-%m-%dT%H:%M:%S.%NZ"
+    keep_time_key false
+  </parse>
 </source>
 
 <filter kubernetes.var.log.containers.**.log>
