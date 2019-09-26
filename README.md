@@ -133,6 +133,22 @@ Reading from the systemd journal (requires the fluentd `fluent-plugin-systemd` a
   @type stdout
 </match>
 ```
+## Log content as JSON
+In former versions this plugin parsed the value of the key log as JSON. In the current version this feature was removed, to avoid duplicate features. It can parsed with the parser plugin like this:
+```
+<filter kubernetes.**>
+  @type parser
+  key_name log
+  <parse>
+    @type json
+    json_parser json
+  </parse>
+  replace_invalid_sequence true
+  reserve_data true # this preserves unparsable log lines
+  emit_invalid_record_to_error false # In case of unparsable log lines keep the error log clean
+  reserve_time # the time was already parsed in the source, we don't want to overwrite it with current time.
+</filter>
+```
 
 ## Environment variables for Kubernetes
 
