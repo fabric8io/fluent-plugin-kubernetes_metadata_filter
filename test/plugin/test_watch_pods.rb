@@ -25,6 +25,47 @@ class DefaultPodWatchStrategyTest < WatchTest
      include KubernetesMetadata::WatchPods
 
      setup do
+       @initial = Kubeclient::Common::EntityList.new(
+         'PodList',
+         '123',
+         [
+           Kubeclient::Resource.new({
+                                      'metadata' => {
+                                        'name' => 'initial',
+                                        'namespace' => 'initial_ns',
+                                        'uid' => 'initial_uid',
+                                        'labels' => {},
+                                      },
+                                      'spec' => {
+                                        'nodeName' => 'aNodeName',
+                                        'containers' => [{
+                                                           'name' => 'foo',
+                                                           'image' => 'bar',
+                                                         }, {
+                                                           'name' => 'bar',
+                                                           'image' => 'foo',
+                                                         }]
+                                      }
+                                    }),
+           Kubeclient::Resource.new({
+                                      'metadata' => {
+                                        'name' => 'modified',
+                                        'namespace' => 'create',
+                                        'uid' => 'modified_uid',
+                                        'labels' => {},
+                                      },
+                                      'spec' => {
+                                        'nodeName' => 'aNodeName',
+                                        'containers' => [{
+                                                           'name' => 'foo',
+                                                           'image' => 'bar',
+                                                         }, {
+                                                           'name' => 'bar',
+                                                           'image' => 'foo',
+                                                         }]
+                                      }
+                                    }),
+         ])
        @created = OpenStruct.new(
          type: 'CREATED',
          object: {
@@ -97,11 +138,38 @@ class DefaultPodWatchStrategyTest < WatchTest
        )
      end
 
+    test 'pod list caches pods' do
+      orig_env_val = ENV['K8S_NODE_NAME']
+      ENV['K8S_NODE_NAME'] = 'aNodeName'
+      @client.stub :get_pods, @initial do
+        start_pod_watch
+        assert_equal(true, @cache.key?('initial_uid'))
+        assert_equal(true, @cache.key?('modified_uid'))
+        assert_equal(2, @stats[:pod_cache_host_updates])
+      end
+      ENV['K8S_NODE_NAME'] = orig_env_val
+    end
+
+    test 'pod list caches pods and watch updates' do
+      orig_env_val = ENV['K8S_NODE_NAME']
+      ENV['K8S_NODE_NAME'] = 'aNodeName'
+      @client.stub :get_pods, @initial do
+        @client.stub :watch_pods, [@modified] do
+          start_pod_watch
+          assert_equal(2, @stats[:pod_cache_host_updates])
+          assert_equal(1, @stats[:pod_cache_watch_updates])
+        end
+      end
+      ENV['K8S_NODE_NAME'] = orig_env_val
+    end
+
     test 'pod watch notice ignores CREATED' do
-      @client.stub :watch_pods, [@created] do
-       start_pod_watch
-       assert_equal(false, @cache.key?('created_uid'))
-       assert_equal(1, @stats[:pod_cache_watch_ignored])
+      @client.stub :get_pods, @initial do
+        @client.stub :watch_pods, [@created] do
+          start_pod_watch
+          assert_equal(false, @cache.key?('created_uid'))
+          assert_equal(1, @stats[:pod_cache_watch_ignored])
+        end
       end
     end
 
