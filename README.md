@@ -80,7 +80,13 @@ then the plugin will parse those values using `container_name_to_kubernetes_rege
 - Otherwise, if the tag matches `tag_to_kubernetes_name_regexp`, the plugin will parse the tag and use those values to
 lookup the metdata
 
-Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
+Reading from the JSON formatted log files with `in_tail` and wildcard filenames while respecting the CRI-o log format with the same config you need the fluent-plugin "multi-format-parser":
+
+```
+fluent-gem install fluent-plugin-multi-format-parser
+```
+
+The config block could look like this:
 ```
 <source>
   @type tail
@@ -89,11 +95,20 @@ Reading from the JSON formatted log files with `in_tail` and wildcard filenames:
   read_from_head true
   tag kubernetes.*
   <parse>
-    @type json
-    time_key time
-    time_type string
-    time_format "%Y-%m-%dT%H:%M:%S.%NZ"
-    keep_time_key false
+    @type multi_format
+    <pattern>
+      format json
+      time_key time
+      time_type string
+      time_format "%Y-%m-%dT%H:%M:%S.%NZ"
+      keep_time_key false
+    </pattern>
+    <pattern>
+      format regexp
+      expression /^(?<time>.+) (?<stream>stdout|stderr)( (?<logtag>.))? (?<log>.*)$/
+      time_format '%Y-%m-%dT%H:%M:%S.%N%:z'
+      keep_time_key false
+    </pattern>
   </parse>
 </source>
 
@@ -134,7 +149,7 @@ Reading from the systemd journal (requires the fluentd `fluent-plugin-systemd` a
 </match>
 ```
 ## Log content as JSON
-In former versions this plugin parsed the value of the key log as JSON. In the current version this feature was removed, to avoid duplicate features. It can parsed with the parser plugin like this:
+In former versions this plugin parsed the value of the key log as JSON. In the current version this feature was removed, to avoid duplicate features in the fluentd plugin ecosystem. It can parsed with the parser plugin like this:
 ```
 <filter kubernetes.**>
   @type parser
