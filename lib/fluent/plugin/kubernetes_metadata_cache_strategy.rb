@@ -31,7 +31,7 @@ module KubernetesMetadata
         end
         metadata.merge!(@namespace_cache.fetch(ids[:namespace_id]) do
           @stats.bump(:namespace_cache_miss)
-          m = fetch_namespace_metadata(namespace_name)
+          m = fetch_namespace_metadata(namespace_name) unless @skip_namespace_metadata
           (m.nil? || m.empty?) ?  {'namespace_id'=>ids[:namespace_id]} : m
         end)
       else
@@ -39,6 +39,11 @@ module KubernetesMetadata
         @stats.bump(:id_cache_miss)
         return batch_miss_cache["#{namespace_name}_#{pod_name}"] if batch_miss_cache.key?("#{namespace_name}_#{pod_name}")
         pod_metadata = fetch_pod_metadata(namespace_name, pod_name)
+        if @skip_namespace_metadata
+          ids = { :pod_id=> pod_metadata['pod_id'] }
+          @id_cache[key] = ids
+          return pod_metadata
+        end
         namespace_metadata = fetch_namespace_metadata(namespace_name)
         ids = { :pod_id=> pod_metadata['pod_id'], :namespace_id => namespace_metadata['namespace_id'] }
         if !ids[:pod_id].nil? && !ids[:namespace_id].nil?

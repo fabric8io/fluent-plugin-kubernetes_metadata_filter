@@ -1,0 +1,69 @@
+#
+# Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
+# Kubernetes metadata
+#
+# Copyright 2015 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://localhost:8443/api/v1/namespaces/default
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      Accept:
+      - "*/*; q=0.5, application/xml"
+      Accept-Encoding:
+      - gzip, deflate
+      User-Agent:
+      - Ruby
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 08 May 2015 10:35:37 GMT
+      Transfer-Encoding:
+      - chunked
+    body:
+      encoding: UTF-8
+      string: |-
+        {
+          "kind": "Namespace",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "default",
+            "selfLink": "/api/v1/namespaces/default",
+            "uid": "898268c8-4a36-11e5-9d81-42010af0194c",
+            "resourceVersion": "6",
+            "creationTimestamp": "2015-05-08T09:22:01Z"
+          },
+          "spec": {
+            "finalizers": [
+                "kubernetes"
+            ]
+          },
+          "status": {
+            "phase": "Active"
+          }
+        }
+    http_version:
+  recorded_at: Fri, 08 May 2015 10:35:37 GMT
+recorded_with: VCR 2.9.3

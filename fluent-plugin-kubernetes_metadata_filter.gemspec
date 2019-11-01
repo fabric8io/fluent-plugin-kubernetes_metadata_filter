@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |gem|
   gem.name          = "fluent-plugin-kubernetes_metadata_filter"
-  gem.version       = "2.1.5"
+  gem.version       = "2.4.0"
   gem.authors       = ["Jimmi Dyson"]
   gem.email         = ["jimmidyson@gmail.com"]
   gem.description   = %q{Filter plugin to add Kubernetes metadata}
@@ -16,15 +16,14 @@ Gem::Specification.new do |gem|
   gem.executables   = gem.files.grep(%r{^bin/}) { |f| File.basename(f) }
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths = ["lib"]
-  gem.has_rdoc      = false
 
   gem.required_ruby_version = '>= 2.1.0'
 
   gem.add_runtime_dependency 'fluentd', ['>= 0.14.0', '< 2']
   gem.add_runtime_dependency "lru_redux"
-  gem.add_runtime_dependency "kubeclient", "~> 1.1.4"
+  gem.add_runtime_dependency "kubeclient", '< 5'
 
-  gem.add_development_dependency "bundler", "~> 1.3"
+  gem.add_development_dependency "bundler", "~> 2.0.2"
   gem.add_development_dependency "rake"
   gem.add_development_dependency "minitest", "~> 4.0"
   gem.add_development_dependency "test-unit", "~> 3.0.2"

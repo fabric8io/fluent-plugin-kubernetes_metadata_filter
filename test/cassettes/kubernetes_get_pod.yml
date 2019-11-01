@@ -20,42 +20,6 @@
 http_interactions:
 - request:
     method: get
-    uri: https://localhost:8443/api
-    body:
-      encoding: US-ASCII
-      string: ''
-    headers:
-      Accept:
-      - "*/*; q=0.5, application/xml"
-      Accept-Encoding:
-      - gzip, deflate
-      User-Agent:
-      - Ruby
-      Authorization:
-      - Bearer YzYyYzFlODMtODdhNS00ZTMyLWIzMmItNmY4NDc4OTI1ZWFh
-  response:
-    status:
-      code: 200
-      message: OK
-    headers:
-      Content-Type:
-      - application/json
-      Date:
-      - Sat, 09 May 2015 13:51:07 GMT
-      Content-Length:
-      - '67'
-    body:
-      encoding: UTF-8
-      string: |-
-        {
-          "versions": [
-            "v1"
-          ]
-        }
-    http_version: 
-  recorded_at: Sat, 09 May 2015 13:51:07 GMT
-- request:
-    method: get
     uri: https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc
     body:
       encoding: US-ASCII
@@ -67,8 +31,6 @@ http_interactions:
       - gzip, deflate
       User-Agent:
       - Ruby
-      Authorization:
-      - Bearer YzYyYzFlODMtODdhNS00ZTMyLWIzMmItNmY4NDc4OTI1ZWFh
   response:
     status:
       code: 200
@@ -77,7 +39,7 @@ http_interactions:
       Content-Type:
       - application/json
       Date:
-      - Sat, 09 May 2015 13:51:07 GMT
+      - Fri, 08 May 2015 10:35:37 GMT
       Transfer-Encoding:
       - chunked
     body:
@@ -92,7 +54,7 @@ http_interactions:
             "namespace": "default",
             "selfLink": "/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc",
             "uid": "c76927af-f563-11e4-b32d-54ee7527188d",
-            "resourceVersion": "3556",
+            "resourceVersion": "122",
             "creationTimestamp": "2015-05-08T09:22:42Z",
             "labels": {
               "component": "fabric8Console"
@@ -160,89 +122,25 @@ http_interactions:
               }
             ],
             "hostIP": "172.17.42.1",
-            "podIP": "172.17.0.4",
+            "podIP": "172.17.0.8",
             "containerStatuses": [
               {
                 "name": "fabric8-console-container",
                 "state": {
                   "running": {
-                    "startedAt": "2015-05-09T13:33:38Z"
+                    "startedAt": "2015-05-08T09:22:44Z"
                   }
                 },
                 "lastState": {},
                 "ready": true,
-                "restartCount": 2,
+                "restartCount": 0,
                 "image": "fabric8/hawtio-kubernetes:latest",
                 "imageID": "docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303",
                 "containerID": "docker://49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459"
-              },
-              {
-                "name": "POD",
-                "state": {
-                  "termination": {
-                    "exitCode": 0,
-                    "startedAt": "2015-05-09T09:45:08Z",
-                    "finishedAt": "2015-05-09T09:47:00Z"
-                  }
-                },
-                "lastState": {},
-                "ready": false,
-                "restartCount": 1,
-                "image": "openshift/origin-pod:v0.4.4",
-                "imageID": "docker://81fa37a83ec46fed9dddf30a9c3c43f54bfe4b65dea74a4c152fd515a0bf92a8",
-                "containerID": "docker://9c8ed1a9bbb6d9804b12379654461dcd3b447438c02c52ca7f7d2504e14ae96b"
               }
             ]
           }
         }
     http_version: 
-  recorded_at: Sat, 09 May 2015 13:51:07 GMT
-- request:
-    method: get
-    uri: https://localhost:8443/api/v1/namespaces/default
-    body:
-      encoding: US-ASCII
-      string: ''
-    headers:
-      Accept:
-      - "*/*; q=0.5, application/xml"
-      Accept-Encoding:
-      - gzip, deflate
-      User-Agent:
-      - Ruby
-  response:
-    status:
-      code: 200
-      message: OK
-    headers:
-      Content-Type:
-      - application/json
-      Date:
-      - Fri, 08 May 2015 10:35:37 GMT
-      Transfer-Encoding:
-      - chunked
-    body:
-      encoding: UTF-8
-      string: |-
-        {
-          "kind": "Namespace",
-          "apiVersion": "v1",
-          "metadata": {
-            "name": "default",
-            "selfLink": "/api/v1/namespaces/default",
-            "uid": "898268c8-4a36-11e5-9d81-42010af0194c",
-            "resourceVersion": "6",
-            "creationTimestamp": "2015-05-08T09:22:01Z"
-          },
-          "spec": {
-            "finalizers": [
-                "kubernetes"
-            ]
-          },
-          "status": {
-            "phase": "Active"
-          }
-        }
-    http_version:
   recorded_at: Fri, 08 May 2015 10:35:37 GMT
 recorded_with: VCR 2.9.3

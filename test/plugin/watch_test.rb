@@ -30,16 +30,16 @@ class WatchTest < Test::Unit::TestCase
       def @client.resourceVersion
         '12345'
       end
-      def @client.watch_pods(value)
+      def @client.watch_pods(options = {})
          []
       end
-      def @client.watch_namespaces(value)
+      def @client.watch_namespaces(options = {})
          []
       end
-      def @client.get_namespaces 
+      def @client.get_namespaces(options = {})
           self
       end
-      def @client.get_pods
+      def @client.get_pods(options = {})
           self
       end
     end
