@@ -22,8 +22,8 @@ require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
-
 require 'fluent/plugin/filter'
+require 'resolv'
 
 module Fluent::Plugin
   class KubernetesMetadataFilter < Fluent::Plugin::Filter
@@ -195,6 +195,10 @@ module Fluent::Plugin
         env_host = ENV['KUBERNETES_SERVICE_HOST']
         env_port = ENV['KUBERNETES_SERVICE_PORT']
         if env_host.present? && env_port.present?
+          if env_host =~ Resolv::IPv6::Regex
+            # Brackets are needed around IPv6 addresses
+            env_host = "[#{env_host}]"
+          end
           @kubernetes_url = "https://#{env_host}:#{env_port}/api"
           log.debug "Kubernetes URL is now '#{@kubernetes_url}'"
         end
