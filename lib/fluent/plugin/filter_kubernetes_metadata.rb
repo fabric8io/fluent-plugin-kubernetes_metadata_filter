@@ -204,6 +204,11 @@ module Fluent::Plugin
         end
       end
 
+      # Use verify_ssl configuration from env variable
+      if ENV['VERIFY_SSL'].present?
+      	@verify_ssl = ENV['VERIFY_SSL'] == "true" ? true : false
+      end
+
       # Use SSL certificate and bearer token from Kubernetes service account.
       if Dir.exist?(@secret_dir)
         log.debug "Found directory with secrets: #{@secret_dir}"
