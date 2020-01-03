@@ -24,25 +24,47 @@ module KubernetesMetadata
     include ::KubernetesMetadata::Common
 
     def start_namespace_watch
-      begin
-        options = {
-          resource_version: '0'  # Fetch from API server.
-        }
-        namespaces = @client.get_namespaces(options)
-        namespaces.each do |namespace|
-          cache_key = namespace.metadata['uid']
-          @namespace_cache[cache_key] = parse_namespace_metadata(namespace)
-          @stats.bump(:namespace_cache_host_updates)
-        end
-        options[:resource_version] = namespaces.resourceVersion
-        watcher = @client.watch_namespaces(options)
-      rescue Exception=>e
-        message = "start_namespace_watch: Exception encountered setting up namespace watch from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{e.message}"
-        message += " (#{e.response})" if e.respond_to?(:response)
-        log.debug(message)
+      get_namespaces_and_start_watcher
+    rescue Exception => e
+      message = "start_namespace_watch: Exception encountered setting up " \
+                "namespace watch from Kubernetes API #{@apiVersion} endpoint " \
+                "#{@kubernetes_url}: #{e.message}"
+      message += " (#{e.response})" if e.respond_to?(:response)
+      log.debug(message)
 
-        raise Fluent::ConfigError, message
+      raise Fluent::ConfigError, message
+    end
+
+    # List all namespaces, record the resourceVersion and return a watcher
+    # starting from that resourceVersion.
+    def get_namespaces_and_start_watcher
+      options = {
+        resource_version: '0'  # Fetch from API server.
+      }
+      namespaces = @client.get_namespaces(options)
+      namespaces.each do |namespace|
+        cache_key = namespace.metadata['uid']
+        @namespace_cache[cache_key] = parse_namespace_metadata(namespace)
+        @stats.bump(:namespace_cache_host_updates)
       end
+      options[:resource_version] = namespaces.resourceVersion
+      watcher = @client.watch_namespaces(options)
+      Thread.current[:namespace_watcher_alive] = true
+      watcher
+    end
+
+    # Reset the namespace watcher if it's not alive.
+    def reset_namespace_watcher_if_needed(watcher)
+      if Thread.current[:namespace_watcher_alive]
+        watcher
+      else
+        get_namespaces_and_start_watcher
+      end
+    end
+
+    # Given a watcher, process the notices and handle retries by resetting the
+    # watcher if needed.
+    def process_namespace_watcher_notices_with_retries(watcher)
       watcher.each do |notice|
         case notice.type
           when 'MODIFIED'
@@ -55,7 +77,7 @@ module KubernetesMetadata
               @stats.bump(:namespace_cache_watch_misses)
             end
           when 'DELETED'
-            # ignore and let age out for cases where 
+            # ignore and let age out for cases where
             # deleted but still processing logs
             @stats.bump(:namespace_cache_watch_deletes_ignored)
           else
@@ -64,7 +86,14 @@ module KubernetesMetadata
             @stats.bump(:namespace_cache_watch_ignored)
         end
       end
+    rescue Exception => e
+      # Instead of raising exceptions and crashing Fluentd, swallow the
+      # exception and reset the watcher.
+      log.info "Exception encountered parsing namespace watch event. " \
+               "The connection might have been closed. " \
+               "Resetting the namespace watcher.", e
+      Thread.current[:namespace_watcher_alive] = false
+      sleep(@watch_retry_interval)
     end
-
   end
 end

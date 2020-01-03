@@ -22,6 +22,8 @@ require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
+
+require 'fluent/plugin_helper/thread'
 require 'fluent/plugin/filter'
 require 'resolv'
 
@@ -36,6 +38,8 @@ module Fluent::Plugin
     include KubernetesMetadata::WatchPods
 
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
+
+    helpers :thread
 
     config_param :kubernetes_url, :string, default: nil
     config_param :cache_size, :integer, default: 1000
@@ -80,6 +84,8 @@ module Fluent::Plugin
     config_param :skip_container_metadata, :bool, default: false
     config_param :skip_master_url, :bool, default: false
     config_param :skip_namespace_metadata, :bool, default: false
+    # The time interval in seconds for retry backoffs when watch connections fail.
+    config_param :watch_retry_interval, :bool, default: 10
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
@@ -264,9 +270,38 @@ module Fluent::Plugin
         end
 
         if @watch
-          thread = Thread.new(self) { |this| this.start_pod_watch }
-          thread.abort_on_exception = true
-          namespace_thread = Thread.new(self) { |this| this.start_namespace_watch }
+          pod_thread = thread_create :"pod_watch_thread" do
+            # Any failures / exceptions in the initial setup should raise
+            # Fluent:ConfigError, so that users can inspect potential errors in
+            # the configuration.
+            watcher = start_pod_watch
+
+            # Any failures / exceptions in the followup watcher notice
+            # processing will be swallowed and retried. These failures /
+            # exceptions could be caused by Kubernetes API being temporarily
+            # down. We assume the configuration is correct at this point.
+            while thread_current_running?
+              process_pod_watcher_notices_with_retries(
+                reset_pod_watcher_if_needed(watcher))
+            end
+          end
+          pod_thread.abort_on_exception = true
+
+          namespace_thread = thread_create :"namespace_watch_thread" do
+            # Any failures / exceptions in the initial setup should raise
+            # Fluent:ConfigError, so that users can inspect potential errors in
+            # the configuration.
+            watcher = start_namespace_watch
+
+            # Any failures / exceptions in the followup watcher notice
+            # processing will be swallowed and retried. These failures /
+            # exceptions could be caused by Kubernetes API being temporarily
+            # down. We assume the configuration is correct at this point.
+            while thread_current_running?
+              process_namespace_watcher_notices_with_retries(
+                reset_namespace_watcher_if_needed(watcher))
+            end
+          end
           namespace_thread.abort_on_exception = true
         end
       end
