@@ -2,13 +2,15 @@ version: 2.1
 
 install: &install
   name: Install bundle
-  command: bundle install --path vendor/bundle
+  command: |
+            gem install bundler
+            bundle install --path vendor/bundle
 
 missingdeps: &missingdeps
   name: Install missing dependecies
   command: |
             cat /etc/os-release
-            printf "deb http://archive.debian.org/debian/ jessie main\ndeb-src http://archive.debian.org/debian/ jessie main\ndeb http://security.debian.org jessie/updates main\ndeb-src http://security.debian.org jessie/updates main" > /tmp/sources.list
+            printf "deb http://deb.debian.org/debian buster main\ndeb http://security.debian.org buster/updates main\ndeb-src http://security.debian.org buster/updates main" > /tmp/sources.list
             sudo cp /tmp/sources.list /etc/apt/sources.list
             sudo apt-get update
             sudo apt-get install cmake libicu-dev libssl-dev
@@ -53,4 +55,3 @@ workflows:
           ruby-version: ruby-2-5
       - ruby-test:
           ruby-version: ruby-2-6
-      
