@@ -86,7 +86,8 @@ module KubernetesMetadata
           'pod_id'         => pod_object['metadata']['uid'],
           'pod_name'       => pod_object['metadata']['name'],
           'containers'     => syms_to_strs(container_meta),
-          'host'           => pod_object['spec']['nodeName']
+          'host'           => pod_object['spec']['nodeName'],
+          'pod_ip'         => pod_object['status']['podIP']
       }
       kubernetes_metadata['annotations'] = annotations unless annotations.empty?
       kubernetes_metadata['labels'] = labels unless labels.empty?
