@@ -23,7 +23,7 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency "lru_redux"
   gem.add_runtime_dependency "kubeclient", '< 5'
 
-  gem.add_development_dependency "bundler", "~> 2.0.2"
+  gem.add_development_dependency "bundler", "~> 2.0"
   gem.add_development_dependency "rake"
   gem.add_development_dependency "minitest", "~> 4.0"
   gem.add_development_dependency "test-unit", "~> 3.0.2"
