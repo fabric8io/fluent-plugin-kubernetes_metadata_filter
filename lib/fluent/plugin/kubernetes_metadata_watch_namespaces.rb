@@ -24,35 +24,40 @@ module KubernetesMetadata
     include ::KubernetesMetadata::Common
 
     def start_namespace_watch
-      begin
-        resource_version = @client.get_namespaces.resourceVersion
-        watcher          = @client.watch_namespaces(resource_version)
-      rescue Exception=>e
-        message = "start_namespace_watch: Exception encountered setting up namespace watch from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{e.message}"
-        message += " (#{e.response})" if e.respond_to?(:response)
-        log.debug(message)
-        raise Fluent::ConfigError, message
-      end
-      watcher.each do |notice|
-        case notice.type
-          when 'MODIFIED'
-            cache_key = notice.object['metadata']['uid']
-            cached    = @namespace_cache[cache_key]
-            if cached
-              @namespace_cache[cache_key] = parse_namespace_metadata(notice.object)
-              @stats.bump(:namespace_cache_watch_updates)
-            else
-              @stats.bump(:namespace_cache_watch_misses)
-            end
-          when 'DELETED'
-            # ignore and let age out for cases where 
-            # deleted but still processing logs
-            @stats.bump(:namespace_cache_watch_deletes_ignored)
-          else
-            # Don't pay attention to creations, since the created namespace may not
-            # be used by any pod on this node.
-            @stats.bump(:namespace_cache_watch_ignored)
+      loop do
+        log.error "watchthread: Starting kubernetes namespace"
+        begin
+          resource_version = @client.get_namespaces.resourceVersion
+          watcher          = @client.watch_namespaces(resource_version)
+        rescue Exception=>e
+          message = "start_namespace_watch: Exception encountered setting up namespace watch from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{e.message}"
+          message += " (#{e.response})" if e.respond_to?(:response)
+          log.debug(message)
+          raise Fluent::ConfigError, message
         end
+        watcher.each do |notice|
+          log.error "watchthread: Received namespace update #{notice.object['metadata']['namespace']}"
+          case notice.type
+            when 'MODIFIED'
+              cache_key = notice.object['metadata']['uid']
+              cached    = @namespace_cache[cache_key]
+              if cached
+                @namespace_cache[cache_key] = parse_namespace_metadata(notice.object)
+                @stats.bump(:namespace_cache_watch_updates)
+              else
+                @stats.bump(:namespace_cache_watch_misses)
+              end
+            when 'DELETED'
+              # ignore and let age out for cases where 
+              # deleted but still processing logs
+              @stats.bump(:namespace_cache_watch_deletes_ignored)
+            else
+              # Don't pay attention to creations, since the created namespace may not
+              # be used by any pod on this node.
+              @stats.bump(:namespace_cache_watch_ignored)
+          end
+        end
+        log.error "watchthread: Ending kubernetes namespace"
       end
     end
 

@@ -24,51 +24,55 @@ module KubernetesMetadata
     include ::KubernetesMetadata::Common
 
     def start_pod_watch
-      begin
-        options = {
-          resource_version: '0'  # Fetch from API server.
-        }
-        if ENV['K8S_NODE_NAME']
-          options[:field_selector] = 'spec.nodeName=' + ENV['K8S_NODE_NAME']
-        end
-        pods = @client.get_pods(options)
-        pods.each do |pod|
-          cache_key = pod.metadata['uid']
-          @cache[cache_key] = parse_pod_metadata(pod)
-          @stats.bump(:pod_cache_host_updates)
-        end
-        options[:resource_version] = pods.resourceVersion
-        watcher = @client.watch_pods(options)
-      rescue Exception => e
-        message = "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
-        message += " (#{e.response})" if e.respond_to?(:response)
+      loop do
+        log.error "watchthread: Starting kubernetes pod"
+        begin
+          options = {
+            resource_version: '0'  # Fetch from API server.
+          }
+          if ENV['K8S_NODE_NAME']
+            options[:field_selector] = 'spec.nodeName=' + ENV['K8S_NODE_NAME']
+          end
+          pods = @client.get_pods(options)
+          pods.each do |pod|
+            cache_key = pod.metadata['uid']
+            @cache[cache_key] = parse_pod_metadata(pod)
+            @stats.bump(:pod_cache_host_updates)
+          end
+          options[:resource_version] = pods.resourceVersion
+          watcher = @client.watch_pods(options)
+        rescue Exception => e
+          message = "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
+          message += " (#{e.response})" if e.respond_to?(:response)
 
-        raise Fluent::ConfigError, message
-      end
+          raise Fluent::ConfigError, message
+        end
 
-      watcher.each do |notice|
-        case notice.type
-          when 'MODIFIED'
-            cache_key = notice.object['metadata']['uid']
-            cached    = @cache[cache_key]
-            if cached
-              @cache[cache_key] = parse_pod_metadata(notice.object)
-              @stats.bump(:pod_cache_watch_updates)
-            elsif ENV['K8S_NODE_NAME'] == notice.object['spec']['nodeName'] then
-              @cache[cache_key] = parse_pod_metadata(notice.object)
-              @stats.bump(:pod_cache_host_updates)
+        watcher.each do |notice|
+          case notice.type
+            when 'MODIFIED'
+              cache_key = notice.object['metadata']['uid']
+              cached    = @cache[cache_key]
+              if cached
+                @cache[cache_key] = parse_pod_metadata(notice.object)
+                @stats.bump(:pod_cache_watch_updates)
+              elsif ENV['K8S_NODE_NAME'] == notice.object['spec']['nodeName'] then
+                @cache[cache_key] = parse_pod_metadata(notice.object)
+                @stats.bump(:pod_cache_host_updates)
+              else
+                @stats.bump(:pod_cache_watch_misses)
+              end
+            when 'DELETED'
+              # ignore and let age out for cases where pods
+              # deleted but still processing logs
+              @stats.bump(:pod_cache_watch_delete_ignored)
             else
-              @stats.bump(:pod_cache_watch_misses)
-            end
-          when 'DELETED'
-            # ignore and let age out for cases where pods
-            # deleted but still processing logs
-            @stats.bump(:pod_cache_watch_delete_ignored)
-          else
-            # Don't pay attention to creations, since the created pod may not
-            # end up on this node.
-            @stats.bump(:pod_cache_watch_ignored)
+              # Don't pay attention to creations, since the created pod may not
+              # end up on this node.
+              @stats.bump(:pod_cache_watch_ignored)
+          end
         end
+        log.error "watchthread: Ending kubernetes pod"
       end
     end
   end

@@ -27,6 +27,7 @@ require 'resolv'
 
 module Fluent::Plugin
   class KubernetesMetadataFilter < Fluent::Plugin::Filter
+    @pod_mapping
     K8_POD_CA_CERT = 'ca.crt'
     K8_POD_TOKEN = 'token'
 
@@ -283,7 +284,7 @@ module Fluent::Plugin
           log.error "Error: invalid regular expression in annotation_match: #{e}"
         end
       end
-
+      @pod_mapping = self.generate_map()
     end
 
     def get_metadata_for_record(namespace_name, pod_name, container_name, container_id, create_time, batch_miss_cache)
@@ -356,6 +357,31 @@ module Fluent::Plugin
       end
       dump_stats
       new_es
+    end
+
+    def generate_map()
+      pod_mapping = {}
+      files       = Dir["/var/log/containers/*.log"]
+
+      files.each do |item|
+        match = item.match(@container_filename_to_uuid_regexp_compiled)
+        if match
+          pod_name  = match["pod_name"]
+          namespace = match["namespace"]
+          container_name = match["container_name"]
+          docker_id = match["docker_id"]
+
+          link_target = File.readlink(item)
+          pods_match = link_target.match(@pod_log_filename_to_uuid_regexp_compiled)
+          if pods_match
+            pod_uuid = pods_match["pod_uuid"]
+          end
+
+          log.info "Mapping uuid #{pod_uuid} to #{namespace}/#{pod_name}"
+          pod_mapping[pod_uuid] = { namespace: namespace, pod_name: pod_name, container_name: container_name, docker_id: docker_id }
+        end
+      end
+      pod_mapping
     end
 
     def get_metadata_for_journal_record(record, time, batch_miss_cache)
