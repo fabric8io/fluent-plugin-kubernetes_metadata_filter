@@ -25,6 +25,24 @@ class WatchNamespacesTestTest < WatchTest
      include KubernetesMetadata::WatchNamespaces
 
      setup do
+       @initial = Kubeclient::Common::EntityList.new(
+         'NamespaceList',
+         '123',
+         [
+           Kubeclient::Resource.new({
+                                      'metadata' => {
+                                        'name' => 'initial',
+                                        'uid' => 'initial_uid'
+                                      }
+                                    }),
+           Kubeclient::Resource.new({
+                                      'metadata' => {
+                                        'name' => 'modified',
+                                        'uid' => 'modified_uid'
+                                      }
+                                    })
+         ])
+
        @created = OpenStruct.new(
          type: 'CREATED',
          object: {
@@ -53,6 +71,28 @@ class WatchNamespacesTestTest < WatchTest
          }
        )
      end
+
+    test 'namespace list caches namespaces' do
+      @client.stub :get_namespaces, @initial do
+        start_namespace_watch
+        assert_equal(true, @namespace_cache.key?('initial_uid'))
+        assert_equal(true, @namespace_cache.key?('modified_uid'))
+        assert_equal(2, @stats[:namespace_cache_host_updates])
+      end
+    end
+
+    test 'namespace list caches namespaces and watch updates' do
+      orig_env_val = ENV['K8S_NODE_NAME']
+      ENV['K8S_NODE_NAME'] = 'aNodeName'
+      @client.stub :get_namespaces, @initial do
+        @client.stub :watch_namespaces, [@modified] do
+          start_namespace_watch
+          assert_equal(2, @stats[:namespace_cache_host_updates])
+          assert_equal(1, @stats[:namespace_cache_watch_updates])
+        end
+      end
+      ENV['K8S_NODE_NAME'] = orig_env_val
+    end
 
     test 'namespace watch ignores CREATED' do
       @client.stub :watch_namespaces, [@created] do
