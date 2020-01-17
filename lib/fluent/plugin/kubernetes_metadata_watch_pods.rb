@@ -40,8 +40,9 @@ module KubernetesMetadata
         options[:resource_version] = pods.resourceVersion
         watcher = @client.watch_pods(options)
       rescue Exception => e
-        message = "Exception encountered fetching metadata from Kubernetes API endpoint: #{e.message}"
+        message = "start_pod_watch: Exception encountered setting up pod watch from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}: #{e.message}"
         message += " (#{e.response})" if e.respond_to?(:response)
+        log.debug(message)
 
         raise Fluent::ConfigError, message
       end
