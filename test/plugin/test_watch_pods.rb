@@ -142,7 +142,7 @@ class DefaultPodWatchStrategyTest < WatchTest
       orig_env_val = ENV['K8S_NODE_NAME']
       ENV['K8S_NODE_NAME'] = 'aNodeName'
       @client.stub :get_pods, @initial do
-        start_pod_watch
+        process_pod_watcher_notices(start_pod_watch)
         assert_equal(true, @cache.key?('initial_uid'))
         assert_equal(true, @cache.key?('modified_uid'))
         assert_equal(2, @stats[:pod_cache_host_updates])
@@ -155,7 +155,7 @@ class DefaultPodWatchStrategyTest < WatchTest
       ENV['K8S_NODE_NAME'] = 'aNodeName'
       @client.stub :get_pods, @initial do
         @client.stub :watch_pods, [@modified] do
-          start_pod_watch
+          process_pod_watcher_notices(start_pod_watch)
           assert_equal(2, @stats[:pod_cache_host_updates])
           assert_equal(1, @stats[:pod_cache_watch_updates])
         end
@@ -166,7 +166,7 @@ class DefaultPodWatchStrategyTest < WatchTest
     test 'pod watch notice ignores CREATED' do
       @client.stub :get_pods, @initial do
         @client.stub :watch_pods, [@created] do
-          start_pod_watch
+          process_pod_watcher_notices(start_pod_watch)
           assert_equal(false, @cache.key?('created_uid'))
           assert_equal(1, @stats[:pod_cache_watch_ignored])
         end
@@ -175,7 +175,7 @@ class DefaultPodWatchStrategyTest < WatchTest
 
     test 'pod watch notice is ignored when info not cached and MODIFIED is received' do
       @client.stub :watch_pods, [@modified] do
-       start_pod_watch
+       process_pod_watcher_notices(start_pod_watch)
        assert_equal(false, @cache.key?('modified_uid'))
        assert_equal(1, @stats[:pod_cache_watch_misses])
       end
@@ -185,7 +185,7 @@ class DefaultPodWatchStrategyTest < WatchTest
       orig_env_val = ENV['K8S_NODE_NAME']
       ENV['K8S_NODE_NAME'] = 'aNodeName'
       @client.stub :watch_pods, [@modified] do
-       start_pod_watch
+       process_pod_watcher_notices(start_pod_watch)
        assert_equal(true, @cache.key?('modified_uid'))
        assert_equal(1, @stats[:pod_cache_host_updates])
       end
@@ -195,7 +195,7 @@ class DefaultPodWatchStrategyTest < WatchTest
     test 'pod watch notice is updated when MODIFIED is received' do
       @cache['modified_uid'] = {}
       @client.stub :watch_pods, [@modified] do
-       start_pod_watch
+       process_pod_watcher_notices(start_pod_watch)
        assert_equal(true, @cache.key?('modified_uid'))
        assert_equal(1, @stats[:pod_cache_watch_updates])
       end
@@ -204,7 +204,7 @@ class DefaultPodWatchStrategyTest < WatchTest
     test 'pod watch notice is ignored when delete is received' do
       @cache['deleted_uid'] = {}
       @client.stub :watch_pods, [@deleted] do
-       start_pod_watch
+       process_pod_watcher_notices(start_pod_watch)
        assert_equal(true, @cache.key?('deleted_uid'))
        assert_equal(1, @stats[:pod_cache_watch_delete_ignored])
       end

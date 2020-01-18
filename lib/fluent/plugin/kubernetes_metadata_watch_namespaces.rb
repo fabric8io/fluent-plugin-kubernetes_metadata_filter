@@ -24,7 +24,7 @@ module KubernetesMetadata
     include ::KubernetesMetadata::Common
 
     def start_namespace_watch
-      get_namespaces_and_start_watcher
+      return get_namespaces_and_start_watcher
     rescue Exception => e
       message = "start_namespace_watch: Exception encountered setting up " \
                 "namespace watch from Kubernetes API #{@apiVersion} endpoint " \
