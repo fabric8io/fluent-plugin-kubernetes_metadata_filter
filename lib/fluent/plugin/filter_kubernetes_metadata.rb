@@ -85,7 +85,11 @@ module Fluent::Plugin
     config_param :skip_master_url, :bool, default: false
     config_param :skip_namespace_metadata, :bool, default: false
     # The time interval in seconds for retry backoffs when watch connections fail.
-    config_param :watch_retry_interval, :bool, default: 10
+    config_param :watch_retry_interval, :bool, default: 1
+    # The base number of exponential backoff for retries.
+    config_param :watch_retry_exponential_backoff_base, :bool, default: 2
+    # The maximum number of times to retry pod and namespace watches.
+    config_param :watch_retry_max_times, :bool, default: 10
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
@@ -274,15 +278,40 @@ module Fluent::Plugin
             # Any failures / exceptions in the initial setup should raise
             # Fluent:ConfigError, so that users can inspect potential errors in
             # the configuration.
-            watcher = start_pod_watch
+            pod_watcher = start_pod_watch
+            Thread.current[:pod_watch_retry_backoff_interval] = @watch_retry_interval
+            Thread.current[:pod_watch_retry_count] = 0
 
             # Any failures / exceptions in the followup watcher notice
             # processing will be swallowed and retried. These failures /
             # exceptions could be caused by Kubernetes API being temporarily
             # down. We assume the configuration is correct at this point.
             while thread_current_running?
-              process_pod_watcher_notices_with_retries(
-                reset_pod_watcher_if_needed(watcher))
+              begin
+                pod_watcher ||= get_pods_and_start_watcher
+                process_pod_watcher_notices(pod_watcher)
+              rescue Exception => e
+                if Thread.current[:pod_watch_retry_count] <= @watch_retry_max_times
+                  # Instead of raising exceptions and crashing Fluentd, swallow
+                  # the exception and reset the watcher.
+                  log.info(
+                    "Exception encountered parsing pod watch event. The " \
+                    "connection might have been closed. Sleeping for " \
+                    "#{Thread.current[:pod_watch_retry_backoff_interval]} " \
+                    "seconds and resetting the pod watcher.", e)
+                  sleep(Thread.current[:pod_watch_retry_backoff_interval])
+                  Thread.current[:pod_watch_retry_count] += 1
+                  Thread.current[:pod_watch_retry_backoff_interval] *= @watch_retry_exponential_backoff_base
+                  pod_watcher = nil
+                else
+                  # Since retries failed for many times, log as errors instead
+                  # of info and raise exceptions and trigger Fluentd to restart.
+                  log.error(
+                    "Exception encountered parsing pod watch event. The " \
+                    "connection might have been closed. Retried " \
+                    "#{@watch_retry_max_times} times yet still failing.", e)
+                end
+              end
             end
           end
           pod_thread.abort_on_exception = true
@@ -291,15 +320,40 @@ module Fluent::Plugin
             # Any failures / exceptions in the initial setup should raise
             # Fluent:ConfigError, so that users can inspect potential errors in
             # the configuration.
-            watcher = start_namespace_watch
+            namespace_watcher = start_namespace_watch
+            Thread.current[:namespace_watch_retry_backoff_interval] = @watch_retry_interval
+            Thread.current[:namespace_watch_retry_count] = 0
 
             # Any failures / exceptions in the followup watcher notice
             # processing will be swallowed and retried. These failures /
             # exceptions could be caused by Kubernetes API being temporarily
             # down. We assume the configuration is correct at this point.
             while thread_current_running?
-              process_namespace_watcher_notices_with_retries(
-                reset_namespace_watcher_if_needed(watcher))
+              begin
+                namespace_watcher ||= get_namespaces_and_start_watcher
+                process_namespace_watcher_notices(namespace_watcher)
+              rescue Exception => e
+                if Thread.current[:namespace_watch_retry_count] <= @watch_retry_max_times
+                  # Instead of raising exceptions and crashing Fluentd, swallow
+                  # the exception and reset the watcher.
+                  log.info(
+                    "Exception encountered parsing namespace watch event. " \
+                    "The connection might have been closed. Sleeping for " \
+                    "#{Thread.current[:namespace_watch_retry_backoff_interval]} " \
+                    "seconds and resetting the namespace watcher.", e)
+                  sleep(Thread.current[:namespace_watch_retry_backoff_interval])
+                  Thread.current[:namespace_watch_retry_count] += 1
+                  Thread.current[:namespace_watch_retry_backoff_interval] *= @watch_retry_exponential_backoff_base
+                  namespace_watcher = nil
+                else
+                  # Since retries failed for many times, log as errors instead
+                  # of info and raise exceptions and trigger Fluentd to restart.
+                  log.error(
+                    "Exception encountered parsing namespace watch event. The " \
+                    "connection might have been closed. Retried " \
+                    "#{@watch_retry_max_times} times yet still failing.", e)
+                end
+              end
             end
           end
           namespace_thread.abort_on_exception = true

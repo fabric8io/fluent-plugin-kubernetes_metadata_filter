@@ -53,18 +53,8 @@ module KubernetesMetadata
       watcher
     end
 
-    # Reset the namespace watcher if it's not alive.
-    def reset_namespace_watcher_if_needed(watcher)
-      if Thread.current[:namespace_watcher_alive]
-        watcher
-      else
-        get_namespaces_and_start_watcher
-      end
-    end
-
-    # Given a watcher, process the notices and handle retries by resetting the
-    # watcher if needed.
-    def process_namespace_watcher_notices_with_retries(watcher)
+    # Process a watcher notice and potentially raise an exception.
+    def process_namespace_watcher_notices(watcher)
       watcher.each do |notice|
         case notice.type
           when 'MODIFIED'
@@ -86,14 +76,6 @@ module KubernetesMetadata
             @stats.bump(:namespace_cache_watch_ignored)
         end
       end
-    rescue Exception => e
-      # Instead of raising exceptions and crashing Fluentd, swallow the
-      # exception and reset the watcher.
-      log.info "Exception encountered parsing namespace watch event. " \
-               "The connection might have been closed. " \
-               "Resetting the namespace watcher.", e
-      Thread.current[:namespace_watcher_alive] = false
-      sleep(@watch_retry_interval)
     end
   end
 end
