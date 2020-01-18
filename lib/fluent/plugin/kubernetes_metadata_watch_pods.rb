@@ -52,7 +52,6 @@ module KubernetesMetadata
       end
       options[:resource_version] = pods.resourceVersion
       watcher = @client.watch_pods(options)
-      Thread.current[:pod_watcher_alive] = true
       watcher
     end
 

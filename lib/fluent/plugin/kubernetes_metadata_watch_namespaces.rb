@@ -49,7 +49,6 @@ module KubernetesMetadata
       end
       options[:resource_version] = namespaces.resourceVersion
       watcher = @client.watch_namespaces(options)
-      Thread.current[:namespace_watcher_alive] = true
       watcher
     end
 
