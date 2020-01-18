@@ -291,6 +291,7 @@ module Fluent::Plugin
                 pod_watcher ||= get_pods_and_start_watcher
                 process_pod_watcher_notices(pod_watcher)
               rescue Exception => e
+                @stats.bump(:pod_watch_failures)
                 if Thread.current[:pod_watch_retry_count] <= @watch_retry_max_times
                   # Instead of raising exceptions and crashing Fluentd, swallow
                   # the exception and reset the watcher.
@@ -333,6 +334,7 @@ module Fluent::Plugin
                 namespace_watcher ||= get_namespaces_and_start_watcher
                 process_namespace_watcher_notices(namespace_watcher)
               rescue Exception => e
+                @stats.bump(:namespace_watch_failures)
                 if Thread.current[:namespace_watch_retry_count] <= @watch_retry_max_times
                   # Instead of raising exceptions and crashing Fluentd, swallow
                   # the exception and reset the watcher.
