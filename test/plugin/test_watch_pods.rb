@@ -210,4 +210,16 @@ class DefaultPodWatchStrategyTest < WatchTest
       end
     end
 
+    test 'pod watch retries when exceptions are encountered' do
+      @client.stub :get_pods, @initial do
+        @client.stub :watch_pods, [[@created, @exception_raised]] do
+          assert_raise Fluent::UnrecoverableError do
+            set_up_pod_thread
+          end
+          assert_equal(3, @stats[:pod_watch_failures])
+          assert_equal(2, Thread.current[:pod_watch_retry_count])
+          assert_equal(4, Thread.current[:pod_watch_retry_backoff_interval])
+        end
+      end
+    end
 end

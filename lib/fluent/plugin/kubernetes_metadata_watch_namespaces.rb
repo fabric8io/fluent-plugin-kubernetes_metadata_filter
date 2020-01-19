@@ -23,6 +23,50 @@ module KubernetesMetadata
 
     include ::KubernetesMetadata::Common
 
+    def set_up_namespace_thread
+      # Any failures / exceptions in the initial setup should raise
+      # Fluent:ConfigError, so that users can inspect potential errors in
+      # the configuration.
+      namespace_watcher = start_namespace_watch
+      Thread.current[:namespace_watch_retry_backoff_interval] = @watch_retry_interval
+      Thread.current[:namespace_watch_retry_count] = 0
+
+      # Any failures / exceptions in the followup watcher notice
+      # processing will be swallowed and retried. These failures /
+      # exceptions could be caused by Kubernetes API being temporarily
+      # down. We assume the configuration is correct at this point.
+      while thread_current_running?
+        begin
+          namespace_watcher ||= get_namespaces_and_start_watcher
+          process_namespace_watcher_notices(namespace_watcher)
+        rescue Exception => e
+          @stats.bump(:namespace_watch_failures)
+          if Thread.current[:namespace_watch_retry_count] < @watch_retry_max_times
+            # Instead of raising exceptions and crashing Fluentd, swallow
+            # the exception and reset the watcher.
+            log.info(
+              "Exception encountered parsing namespace watch event. " \
+              "The connection might have been closed. Sleeping for " \
+              "#{Thread.current[:namespace_watch_retry_backoff_interval]} " \
+              "seconds and resetting the namespace watcher.", e)
+            sleep(Thread.current[:namespace_watch_retry_backoff_interval])
+            Thread.current[:namespace_watch_retry_count] += 1
+            Thread.current[:namespace_watch_retry_backoff_interval] *= @watch_retry_exponential_backoff_base
+            namespace_watcher = nil
+          else
+            # Since retries failed for many times, log as errors instead
+            # of info and raise exceptions and trigger Fluentd to restart.
+            message =
+              "Exception encountered parsing namespace watch event. The " \
+              "connection might have been closed. Retried " \
+              "#{@watch_retry_max_times} times yet still failing. Restarting."
+            log.error(message, e)
+            raise Fluent::UnrecoverableError.new(message)
+          end
+        end
+      end
+    end
+
     def start_namespace_watch
       return get_namespaces_and_start_watcher
     rescue Exception => e

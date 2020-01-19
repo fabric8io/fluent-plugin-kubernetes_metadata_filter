@@ -128,4 +128,16 @@ class WatchNamespacesTestTest < WatchTest
       end
     end
 
+    test 'namespace watch retries when exceptions are encountered' do
+      @client.stub :get_namespaces, @initial do
+        @client.stub :watch_namespaces, [[@created, @exception_raised]] do
+          assert_raise Fluent::UnrecoverableError do
+            set_up_namespace_thread
+          end
+          assert_equal(3, @stats[:namespace_watch_failures])
+          assert_equal(2, Thread.current[:namespace_watch_retry_count])
+          assert_equal(4, Thread.current[:namespace_watch_retry_backoff_interval])
+        end
+      end
+    end
 end
