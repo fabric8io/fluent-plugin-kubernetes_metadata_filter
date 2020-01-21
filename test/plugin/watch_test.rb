@@ -20,38 +20,54 @@ require_relative '../helper'
 require 'ostruct'
 
 class WatchTest < Test::Unit::TestCase
-   
-    setup do
-      @annotations_regexps = []
-      @namespace_cache = {}
-      @cache = {}
-      @stats = KubernetesMetadata::Stats.new
-      @client = OpenStruct.new
-      def @client.resourceVersion
-        '12345'
-      end
-      def @client.watch_pods(options = {})
-         []
-      end
-      def @client.watch_namespaces(options = {})
-         []
-      end
-      def @client.get_namespaces(options = {})
-          self
-      end
-      def @client.get_pods(options = {})
-          self
-      end
+
+  def thread_current_running?
+    true
+  end
+
+  setup do
+    @annotations_regexps = []
+    @namespace_cache = {}
+    @watch_retry_max_times = 2
+    @watch_retry_interval = 1
+    @watch_retry_exponential_backoff_base = 2
+    @cache = {}
+    @stats = KubernetesMetadata::Stats.new
+
+    @client = OpenStruct.new
+    def @client.resourceVersion
+      '12345'
+    end
+    def @client.watch_pods(options = {})
+      []
+    end
+    def @client.watch_namespaces(options = {})
+      []
+    end
+    def @client.get_namespaces(options = {})
+      self
+    end
+    def @client.get_pods(options = {})
+      self
     end
 
-    def watcher=(value)
+    @exception_raised = OpenStruct.new
+    def @exception_raised.each
+      raise Exception
     end
+  end
 
-    def log
-        logger = {}
-        def logger.debug(message)
-        end
-        logger
+  def watcher=(value)
+  end
+
+  def log
+    logger = {}
+    def logger.debug(message)
     end
-
+    def logger.info(message, error)
+    end
+    def logger.error(message, error)
+    end
+    logger
+  end
 end

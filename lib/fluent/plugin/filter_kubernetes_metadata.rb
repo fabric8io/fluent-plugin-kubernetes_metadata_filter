@@ -22,6 +22,8 @@ require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
+
+require 'fluent/plugin_helper/thread'
 require 'fluent/plugin/filter'
 require 'resolv'
 
@@ -36,6 +38,8 @@ module Fluent::Plugin
     include KubernetesMetadata::WatchPods
 
     Fluent::Plugin.register_filter('kubernetes_metadata', self)
+
+    helpers :thread
 
     config_param :kubernetes_url, :string, default: nil
     config_param :cache_size, :integer, default: 1000
@@ -80,6 +84,12 @@ module Fluent::Plugin
     config_param :skip_container_metadata, :bool, default: false
     config_param :skip_master_url, :bool, default: false
     config_param :skip_namespace_metadata, :bool, default: false
+    # The time interval in seconds for retry backoffs when watch connections fail.
+    config_param :watch_retry_interval, :bool, default: 1
+    # The base number of exponential backoff for retries.
+    config_param :watch_retry_exponential_backoff_base, :bool, default: 2
+    # The maximum number of times to retry pod and namespace watches.
+    config_param :watch_retry_max_times, :bool, default: 10
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
@@ -264,9 +274,14 @@ module Fluent::Plugin
         end
 
         if @watch
-          thread = Thread.new(self) { |this| this.start_pod_watch }
-          thread.abort_on_exception = true
-          namespace_thread = Thread.new(self) { |this| this.start_namespace_watch }
+          pod_thread = thread_create :"pod_watch_thread" do
+            set_up_pod_thread
+          end
+          pod_thread.abort_on_exception = true
+
+          namespace_thread = thread_create :"namespace_watch_thread" do
+            set_up_namespace_thread
+          end
           namespace_thread.abort_on_exception = true
         end
       end
