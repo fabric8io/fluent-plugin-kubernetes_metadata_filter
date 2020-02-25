@@ -35,7 +35,7 @@ module KubernetesMetadata
       # processing will be swallowed and retried. These failures /
       # exceptions could be caused by Kubernetes API being temporarily
       # down. We assume the configuration is correct at this point.
-      while thread_current_running?
+      while true
         begin
           namespace_watcher ||= get_namespaces_and_start_watcher
           process_namespace_watcher_notices(namespace_watcher)
