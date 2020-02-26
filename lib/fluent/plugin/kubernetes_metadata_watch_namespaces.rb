@@ -119,6 +119,7 @@ module KubernetesMetadata
             @stats.bump(:namespace_cache_watch_ignored)
         end
       end
+      raise
     end
   end
 end

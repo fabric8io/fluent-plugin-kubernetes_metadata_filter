@@ -125,6 +125,7 @@ module KubernetesMetadata
             @stats.bump(:pod_cache_watch_ignored)
         end
       end
+      raise
     end
   end
 end
