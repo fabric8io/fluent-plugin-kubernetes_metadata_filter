@@ -274,7 +274,7 @@ module Fluent::Plugin
           pod_thread = Thread.new(self) { |this| this.set_up_pod_thread }
           pod_thread.abort_on_exception = true
 
-          namespace_thread = Thread.new(self) { |title| this.set_up_namespace_thread }
+          namespace_thread = Thread.new(self) { |this| this.set_up_namespace_thread }
           namespace_thread.abort_on_exception = true
         end
       end
