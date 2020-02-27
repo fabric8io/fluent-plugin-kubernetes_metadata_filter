@@ -113,13 +113,15 @@ module KubernetesMetadata
             # ignore and let age out for cases where
             # deleted but still processing logs
             @stats.bump(:namespace_cache_watch_deletes_ignored)
+          when 'ERROR'
+            message = notice['object']['message'] if notice['object'] && notice['object']['message']
+            raise "Error while watching namespaces: #{message}"
           else
             # Don't pay attention to creations, since the created namespace may not
             # be used by any namespace on this node.
             @stats.bump(:namespace_cache_watch_ignored)
         end
       end
-      raise
     end
   end
 end
