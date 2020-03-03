@@ -35,7 +35,7 @@ module KubernetesMetadata
       # processing will be swallowed and retried. These failures /
       # exceptions could be caused by Kubernetes API being temporarily
       # down. We assume the configuration is correct at this point.
-      while thread_current_running?
+      while true
         begin
           pod_watcher ||= get_pods_and_start_watcher
           process_pod_watcher_notices(pod_watcher)
