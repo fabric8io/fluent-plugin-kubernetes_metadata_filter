@@ -95,6 +95,9 @@ module KubernetesMetadata
         @stats.bump(:pod_cache_host_updates)
       end
       options[:resource_version] = pods.resourceVersion
+      # At this point a successful connection was made to the API server,
+      # reset pod_watch_retry_count to zero
+      Thread.current[:pod_watch_retry_count] = 0
       watcher = @client.watch_pods(options)
       watcher
     end
