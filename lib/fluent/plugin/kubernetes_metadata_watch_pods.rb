@@ -61,6 +61,7 @@ module KubernetesMetadata
               "connection might have been closed. Retried " \
               "#{@watch_retry_max_times} times yet still failing. Restarting."
             log.error(message, e)
+            Thread.current[:pod_watch_retry_count] = 0
             raise Fluent::UnrecoverableError.new(message)
           end
         end
