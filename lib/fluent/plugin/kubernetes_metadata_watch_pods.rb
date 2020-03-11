@@ -29,7 +29,6 @@ module KubernetesMetadata
       # the configuration.
       pod_watcher = start_pod_watch
       Thread.current[:pod_watch_retry_backoff_interval] = @watch_retry_interval
-      Thread.current[:pod_watch_retry_count] = 0
 
       # Any failures / exceptions in the followup watcher notice
       # processing will be swallowed and retried. These failures /
@@ -61,7 +60,6 @@ module KubernetesMetadata
               "connection might have been closed. Retried " \
               "#{@watch_retry_max_times} times yet still failing. Restarting."
             log.error(message, e)
-            Thread.current[:pod_watch_retry_count] = 0
             raise Fluent::UnrecoverableError.new(message)
           end
         end
@@ -105,6 +103,7 @@ module KubernetesMetadata
       watcher.each do |notice|
         case notice.type
           when 'MODIFIED'
+            Thread.current[:pod_watch_retry_count] = 0
             cache_key = notice.object['metadata']['uid']
             cached    = @cache[cache_key]
             if cached
@@ -117,10 +116,12 @@ module KubernetesMetadata
               @stats.bump(:pod_cache_watch_misses)
             end
           when 'DELETED'
+            Thread.current[:pod_watch_retry_count] = 0
             # ignore and let age out for cases where pods
             # deleted but still processing logs
             @stats.bump(:pod_cache_watch_delete_ignored)
           else
+            Thread.current[:pod_watch_retry_count] = 0
             # Don't pay attention to creations, since the created pod may not
             # end up on this node.
             @stats.bump(:pod_cache_watch_ignored)

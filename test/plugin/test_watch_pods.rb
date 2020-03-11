@@ -217,8 +217,7 @@ class DefaultPodWatchStrategyTest < WatchTest
             set_up_pod_thread
           end
           assert_equal(3, @stats[:pod_watch_failures])
-          # Reset retry count to 0 after retrying.
-          assert_equal(0, Thread.current[:pod_watch_retry_count])
+          assert_equal(2, Thread.current[:pod_watch_retry_count])
           assert_equal(4, Thread.current[:pod_watch_retry_backoff_interval])
         end
       end
