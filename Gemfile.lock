@@ -1,0 +1,147 @@
+PATH
+  remote: .
+  specs:
+    fluent-plugin-kubernetes_metadata_filter (2.4.2)
+      fluentd (>= 0.14.0, < 2)
+      kubeclient (< 5)
+      lru_redux
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    addressable (2.7.0)
+      public_suffix (>= 2.0.2, < 5.0)
+    ast (2.4.0)
+    bump (0.9.0)
+    charlock_holmes (0.7.7)
+    codeclimate-test-reporter (0.6.0)
+      simplecov (>= 0.7.1, < 1.0.0)
+    concurrent-ruby (1.1.6)
+    cool.io (1.6.0)
+    copyright-header (1.0.22)
+      github-linguist
+    crack (0.4.3)
+      safe_yaml (~> 1.0.0)
+    docile (1.3.2)
+    domain_name (0.5.20190701)
+      unf (>= 0.0.5, < 1.0.0)
+    escape_utils (1.2.1)
+    ffi (1.12.2)
+    ffi-compiler (1.0.1)
+      ffi (>= 1.0.0)
+      rake
+    fluentd (1.9.3)
+      cool.io (>= 1.4.5, < 2.0.0)
+      http_parser.rb (>= 0.5.1, < 0.7.0)
+      msgpack (>= 1.3.1, < 2.0.0)
+      serverengine (>= 2.0.4, < 3.0.0)
+      sigdump (~> 0.2.2)
+      strptime (>= 0.2.2, < 1.0.0)
+      tzinfo (>= 1.0, < 3.0)
+      tzinfo-data (~> 1.0)
+      yajl-ruby (~> 1.0)
+    github-linguist (7.8.0)
+      charlock_holmes (~> 0.7.6)
+      escape_utils (~> 1.2.0)
+      mini_mime (~> 1.0)
+      rugged (>= 0.25.1)
+    hashdiff (1.0.1)
+    http (4.3.0)
+      addressable (~> 2.3)
+      http-cookie (~> 1.0)
+      http-form_data (~> 2.2)
+      http-parser (~> 1.2.0)
+    http-accept (1.7.0)
+    http-cookie (1.0.3)
+      domain_name (~> 0.5)
+    http-form_data (2.3.0)
+    http-parser (1.2.1)
+      ffi-compiler (>= 1.0, < 2.0)
+    http_parser.rb (0.6.0)
+    jaro_winkler (1.5.4)
+    kubeclient (4.6.0)
+      http (>= 3.0, < 5.0)
+      recursive-open-struct (~> 1.0, >= 1.0.4)
+      rest-client (~> 2.0)
+    lru_redux (1.1.0)
+    mime-types (3.3.1)
+      mime-types-data (~> 3.2015)
+    mime-types-data (3.2019.1009)
+    mini_mime (1.0.2)
+    minitest (4.7.5)
+    msgpack (1.3.3)
+    netrc (0.11.0)
+    parallel (1.19.1)
+    parser (2.7.0.4)
+      ast (~> 2.4.0)
+    power_assert (1.1.6)
+    public_suffix (4.0.3)
+    rainbow (3.0.0)
+    rake (13.0.1)
+    recursive-open-struct (1.1.1)
+    rest-client (2.1.0)
+      http-accept (>= 1.7.0, < 2.0)
+      http-cookie (>= 1.0.2, < 2.0)
+      mime-types (>= 1.16, < 4.0)
+      netrc (~> 0.8)
+    rexml (3.2.4)
+    rr (1.2.1)
+    rubocop (0.80.1)
+      jaro_winkler (~> 1.5.1)
+      parallel (~> 1.10)
+      parser (>= 2.7.0.1)
+      rainbow (>= 2.2.2, < 4.0)
+      rexml
+      ruby-progressbar (~> 1.7)
+      unicode-display_width (>= 1.4.0, < 1.7)
+    ruby-progressbar (1.10.1)
+    rugged (0.99.0)
+    safe_yaml (1.0.5)
+    serverengine (2.2.1)
+      sigdump (~> 0.2.2)
+    sigdump (0.2.4)
+    simplecov (0.18.5)
+      docile (~> 1.1)
+      simplecov-html (~> 0.11)
+    simplecov-html (0.12.2)
+    strptime (0.2.3)
+    test-unit (3.0.9)
+      power_assert
+    test-unit-rr (1.0.5)
+      rr (>= 1.1.1)
+      test-unit (>= 2.5.2)
+    tzinfo (2.0.1)
+      concurrent-ruby (~> 1.0)
+    tzinfo-data (1.2019.3)
+      tzinfo (>= 1.0.0)
+    unf (0.1.4)
+      unf_ext
+    unf_ext (0.0.7.6)
+    unicode-display_width (1.6.1)
+    vcr (5.1.0)
+    webmock (3.8.3)
+      addressable (>= 2.3.6)
+      crack (>= 0.3.2)
+      hashdiff (>= 0.4.0, < 2.0.0)
+    yajl-ruby (1.4.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bump
+  bundler (~> 2.0)
+  codeclimate-test-reporter (< 1.0.0)
+  copyright-header
+  fluent-plugin-kubernetes_metadata_filter!
+  minitest (~> 4.0)
+  rake
+  rubocop
+  test-unit (~> 3.0.2)
+  test-unit-rr (~> 1.0.3)
+  vcr
+  webmock
+  yajl-ruby
+
+BUNDLED WITH
+   2.1.4
