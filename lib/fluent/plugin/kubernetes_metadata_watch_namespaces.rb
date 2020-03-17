@@ -92,9 +92,6 @@ module KubernetesMetadata
         @stats.bump(:namespace_cache_host_updates)
       end
       options[:resource_version] = namespaces.resourceVersion
-      # At this point a successful connection was made to the API server,
-      # reset namespace_watch_retry_count to zero
-      Thread.current[:namespace_watch_retry_count] = 0
       watcher = @client.watch_namespaces(options)
       watcher
     end
