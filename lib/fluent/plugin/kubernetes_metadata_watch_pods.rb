@@ -120,6 +120,9 @@ module KubernetesMetadata
             # ignore and let age out for cases where pods
             # deleted but still processing logs
             @stats.bump(:pod_cache_watch_delete_ignored)
+          when 'ERROR'
+            message = notice['object']['message'] if notice['object'] && notice['object']['message']
+            raise "Error while watching pods: #{message}"
           else
             Thread.current[:pod_watch_retry_count] = 0
             # Don't pay attention to creations, since the created pod may not
