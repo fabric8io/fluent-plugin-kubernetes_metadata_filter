@@ -208,7 +208,7 @@ Then output becomes as belows
     "host": "jimmi-redhat.localnet",
     "pod_name":"fabric8-console-controller-98rqc",
     "pod_id": "c76927af-f563-11e4-b32d-54ee7527188d",
-    "pod_ip"=>"172.17.0.8",
+    "pod_ip": "172.17.0.8",
     "container_name": "fabric8-console-container",
     "namespace_name": "default",
     "namespace_id": "23437884-8e08-4d95-850b-e94378c9b2fd",
