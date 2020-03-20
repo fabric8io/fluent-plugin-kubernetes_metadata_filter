@@ -222,7 +222,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'namespace_name'  => 'default',
             'namespace_id'    => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'          => 'c76927af-f563-11e4-b32d-54ee7527188d',
-            'pod_ip'          => '172.17.0.8',
           }
         }
 
@@ -352,6 +351,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'namespace_name'     => 'default',
             'namespace_id'       => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'pod_ip'             => '172.17.0.8',
             'master_url'         => 'https://localhost:8443',
             'labels' => {
               'component' => 'fabric8Console'
@@ -460,6 +460,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             },
             'namespace_name'     => 'default',
             'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'pod_ip'             => '172.17.0.8',
             'master_url'         => 'https://localhost:8443',
             'labels' => {
               'kubernetes_io/test' => 'somevalue'
@@ -495,6 +496,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             },
             'namespace_name'     => 'default',
             'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'pod_ip'             => '172.17.0.8',
             'master_url'         => 'https://localhost:8443',
             'labels' => {
               'kubernetes.io/test' => 'somevalue'
@@ -542,6 +544,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'namespace_name'     => 'default',
             'namespace_id'       => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'pod_ip'             => '172.17.0.8',
             'master_url'         => 'https://localhost:8443',
             'labels' => {
               'component' => 'fabric8Console'
@@ -581,6 +584,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'namespace_name'     => 'default',
             'namespace_id'       => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'pod_ip'             => '172.17.0.8',
             'master_url'         => 'https://localhost:8443',
             'labels' => {
               'component' => 'fabric8Console'
@@ -626,6 +630,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'namespace_name'     => 'k8s-namespace-name',
             'namespace_id'       => '8e0dc8fc-59f2-49f7-a3e2-ed0913e19d9f',
             'pod_id'             => 'ebabf749-5fcd-4750-a3f0-aedd89476da8',
+            'pod_ip'             => '172.17.0.8',
             'master_url'         => 'https://localhost:8443',
             'labels' => {
               'component' => 'k8s-test'
@@ -672,6 +677,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'namespace_name'     => 'journald-namespace-name',
             'namespace_id'       => '8282888f-733f-4f23-a3d3-1fdfa3bdacf2',
             'pod_id'             => '5e1c1e27-b637-4e81-80b6-6d8a8c404d3b',
+            'pod_ip'             => '172.17.0.8',
             'master_url'         => 'https://localhost:8443',
             'labels' => {
               'component' => 'journald-test'
@@ -719,6 +725,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'namespace_name'     => 'default',
             'namespace_id'       => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'pod_ip'             => '172.17.0.8',
             'master_url'         => 'https://localhost:8443',
             'labels' => {
               'component' => 'fabric8Console'
@@ -752,6 +759,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
                 'namespace_name'     => 'default',
                 'namespace_id'       => '898268c8-4a36-11e5-9d81-42010af0194c',
                 'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+                'pod_ip'             => '172.17.0.8',
                 'master_url'         => 'https://localhost:8443',
                 'labels'             => {
                     'component' => 'fabric8Console'
@@ -796,6 +804,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'namespace_name'     => 'default',
             'namespace_id'       => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'pod_ip'             => '172.17.0.8',
             'master_url'         => 'https://localhost:8443',
             'labels' => {
               'component' => 'fabric8Console'
@@ -829,6 +838,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
                 'container_image'    => 'fabric8/hawtio-kubernetes:latest',
                 'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
                 'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+                'pod_ip'             => '172.17.0.8',
                 'master_url'         => 'https://localhost:8443',
                 'labels'             => {
                     'component' => 'fabric8Console'
@@ -869,6 +879,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
                 'namespace_id'       => '898268c8-4a36-11e5-9d81-42010af0194c',
                 'namespace_name'     => 'default',
                 'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+                'pod_ip'             => '172.17.0.8',
                 'master_url'         => 'https://localhost:8443',
                 'labels'             => {
                     'component' => 'fabric8Console'
@@ -959,6 +970,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
                 'namespace_name'     => 'default',
                 'namespace_id'       => '898268c8-4a36-11e5-9d81-42010af0194c',
                 'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+                'pod_ip'             => '172.17.0.8',
                 'master_url'         => 'https://localhost:8443',
                 'labels' => {
                     'component' => 'fabric8Console'
@@ -992,7 +1004,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
                 'pod_name'           => 'fabric8-console-controller-98rqc',
                 'container_name'     => 'fabric8-console-container',
                 'namespace_name'     => 'default',
-                'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d'
+                'pod_id'             => 'c76927af-f563-11e4-b32d-54ee7527188d',
+                'pod_ip'             => '172.17.0.8'
             }
         }
 
