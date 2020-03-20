@@ -185,6 +185,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           },
           'kubernetes' => {
             'pod_name'       => 'fabric8-console-controller-98rqc',
+            'pod_ip'         => '172.17.0.8',
             'container_name' => 'fabric8-console-container',
             "namespace_id"=>"orphaned",
             'namespace_name' => '.orphaned',
@@ -370,6 +371,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           },
           'kubernetes' => {
               'pod_name'        => 'fabric8-console-controller-98rqc',
+              'pod_ip'          => '172.17.0.8',
               'container_name'  => 'fabric8-console-container',
               'namespace_name'  => 'default',
           }
@@ -392,6 +394,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         },
         'kubernetes' => {
           'pod_name'           => 'fabric8-console-controller-98rqc',
+          'pod_ip'             => '172.17.0.8',
           'container_name'     => 'fabric8-console-container',
           'namespace_name'     => '.orphaned',
           'orphaned_namespace' => 'default',
