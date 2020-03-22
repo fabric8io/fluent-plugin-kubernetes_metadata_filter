@@ -34,6 +34,7 @@ class WatchTest < Test::Unit::TestCase
     @cache = {}
     @stats = KubernetesMetadata::Stats.new
     Thread.current[:pod_watch_retry_count] = 0
+    Thread.current[:namespace_watch_retry_count] = 0
 
     @client = OpenStruct.new
     def @client.resourceVersion

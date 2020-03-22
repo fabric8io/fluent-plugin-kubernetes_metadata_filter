@@ -70,6 +70,12 @@ class WatchNamespacesTestTest < WatchTest
             }
          }
        )
+       @error = OpenStruct.new(
+         type: 'ERROR',
+         object: {
+           'message' => 'some error message'
+         }
+       )
      end
 
     test 'namespace list caches namespaces' do
@@ -137,6 +143,39 @@ class WatchNamespacesTestTest < WatchTest
           assert_equal(3, @stats[:namespace_watch_failures])
           assert_equal(2, Thread.current[:namespace_watch_retry_count])
           assert_equal(4, Thread.current[:namespace_watch_retry_backoff_interval])
+          assert_nil(@stats[:namespace_watch_error_type_notices])
+        end
+      end
+    end
+
+    test 'namespace watch retries when error is received' do
+      @client.stub :get_namespaces, @initial do
+        @client.stub :watch_namespaces, [@error] do
+          assert_raise Fluent::UnrecoverableError do
+            set_up_namespace_thread
+          end
+          assert_equal(3, @stats[:namespace_watch_failures])
+          assert_equal(2, Thread.current[:namespace_watch_retry_count])
+          assert_equal(4, Thread.current[:namespace_watch_retry_backoff_interval])
+          assert_equal(3, @stats[:namespace_watch_error_type_notices])
+        end
+      end
+    end
+
+    test 'namespace watch continues after retries succeed' do
+      @client.stub :get_namespaces, @initial do
+        @client.stub :watch_namespaces, [@modified, @error, @modified] do
+          # Force the infinite watch loop to exit after 3 seconds. Verifies that
+          # no unrecoverable error was thrown during this period of time.
+          assert_raise Timeout::Error.new('execution expired') do
+            Timeout.timeout(3) do
+              set_up_namespace_thread
+            end
+          end
+          assert_operator(@stats[:namespace_watch_failures], :>=, 3)
+          assert_operator(Thread.current[:namespace_watch_retry_count], :<=, 1)
+          assert_operator(Thread.current[:namespace_watch_retry_backoff_interval], :<=, 1)
+          assert_operator(@stats[:namespace_watch_error_type_notices], :>=, 3)
         end
       end
     end

@@ -29,7 +29,6 @@ module KubernetesMetadata
       # the configuration.
       namespace_watcher = start_namespace_watch
       Thread.current[:namespace_watch_retry_backoff_interval] = @watch_retry_interval
-      Thread.current[:namespace_watch_retry_count] = 0
 
       # Any failures / exceptions in the followup watcher notice
       # processing will be swallowed and retried. These failures /
@@ -96,11 +95,19 @@ module KubernetesMetadata
       watcher
     end
 
+    # Reset namespace watch retry count and backoff interval as there is a
+    # successful watch notice.
+    def reset_namespace_watch_retry_stats
+      Thread.current[:namespace_watch_retry_count] = 0
+      Thread.current[:namespace_watch_retry_backoff_interval] = @watch_retry_interval
+    end
+
     # Process a watcher notice and potentially raise an exception.
     def process_namespace_watcher_notices(watcher)
       watcher.each do |notice|
         case notice.type
           when 'MODIFIED'
+            reset_namespace_watch_retry_stats
             cache_key = notice.object['metadata']['uid']
             cached    = @namespace_cache[cache_key]
             if cached
@@ -110,13 +117,16 @@ module KubernetesMetadata
               @stats.bump(:namespace_cache_watch_misses)
             end
           when 'DELETED'
+            reset_namespace_watch_retry_stats
             # ignore and let age out for cases where
             # deleted but still processing logs
             @stats.bump(:namespace_cache_watch_deletes_ignored)
           when 'ERROR'
+            @stats.bump(:namespace_watch_error_type_notices)
             message = notice['object']['message'] if notice['object'] && notice['object']['message']
             raise "Error while watching namespaces: #{message}"
           else
+            reset_namespace_watch_retry_stats
             # Don't pay attention to creations, since the created namespace may not
             # be used by any namespace on this node.
             @stats.bump(:namespace_cache_watch_ignored)

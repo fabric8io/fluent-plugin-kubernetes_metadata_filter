@@ -98,13 +98,19 @@ module KubernetesMetadata
       watcher
     end
 
+    # Reset pod watch retry count and backoff interval as there is a
+    # successful watch notice.
+    def reset_pod_watch_retry_stats
+      Thread.current[:pod_watch_retry_count] = 0
+      Thread.current[:pod_watch_retry_backoff_interval] = @watch_retry_interval
+    end
+
     # Process a watcher notice and potentially raise an exception.
     def process_pod_watcher_notices(watcher)
       watcher.each do |notice|
         case notice.type
           when 'MODIFIED'
-            Thread.current[:pod_watch_retry_count] = 0
-            Thread.current[:pod_watch_retry_backoff_interval] = @watch_retry_interval
+            reset_pod_watch_retry_stats
             cache_key = notice.object['metadata']['uid']
             cached    = @cache[cache_key]
             if cached
@@ -117,8 +123,7 @@ module KubernetesMetadata
               @stats.bump(:pod_cache_watch_misses)
             end
           when 'DELETED'
-            Thread.current[:pod_watch_retry_count] = 0
-            Thread.current[:pod_watch_retry_backoff_interval] = @watch_retry_interval
+            reset_pod_watch_retry_stats
             # ignore and let age out for cases where pods
             # deleted but still processing logs
             @stats.bump(:pod_cache_watch_delete_ignored)
@@ -127,8 +132,7 @@ module KubernetesMetadata
             message = notice['object']['message'] if notice['object'] && notice['object']['message']
             raise "Error while watching pods: #{message}"
           else
-            Thread.current[:pod_watch_retry_count] = 0
-            Thread.current[:pod_watch_retry_backoff_interval] = @watch_retry_interval
+            reset_pod_watch_retry_stats
             # Don't pay attention to creations, since the created pod may not
             # end up on this node.
             @stats.bump(:pod_cache_watch_ignored)
