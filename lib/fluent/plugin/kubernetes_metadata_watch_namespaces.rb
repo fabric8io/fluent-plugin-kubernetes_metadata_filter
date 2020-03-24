@@ -29,6 +29,7 @@ module KubernetesMetadata
       # the configuration.
       namespace_watcher = start_namespace_watch
       Thread.current[:namespace_watch_retry_backoff_interval] = @watch_retry_interval
+      Thread.current[:namespace_watch_retry_count] = 0
 
       # Any failures / exceptions in the followup watcher notice
       # processing will be swallowed and retried. These failures /
