@@ -208,6 +208,8 @@ module Fluent::Plugin
           end
           @kubernetes_url = "https://#{env_host}:#{env_port}/api"
           log.debug "Kubernetes URL is now '#{@kubernetes_url}'"
+        else
+          log.debug "No Kubernetes URL could be found in config or environ"
         end
       end
 
