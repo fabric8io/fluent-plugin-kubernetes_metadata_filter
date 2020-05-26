@@ -82,11 +82,11 @@ module Fluent::Plugin
     config_param :skip_master_url, :bool, default: false
     config_param :skip_namespace_metadata, :bool, default: false
     # The time interval in seconds for retry backoffs when watch connections fail.
-    config_param :watch_retry_interval, :bool, default: 1
+    config_param :watch_retry_interval, :integer, default: 1
     # The base number of exponential backoff for retries.
-    config_param :watch_retry_exponential_backoff_base, :bool, default: 2
+    config_param :watch_retry_exponential_backoff_base, :integer, default: 2
     # The maximum number of times to retry pod and namespace watches.
-    config_param :watch_retry_max_times, :bool, default: 10
+    config_param :watch_retry_max_times, :integer, default: 10
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
