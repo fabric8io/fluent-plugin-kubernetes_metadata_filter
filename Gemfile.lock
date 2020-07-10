@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fluent-plugin-kubernetes_metadata_filter (2.5.0)
+    fluent-plugin-kubernetes_metadata_filter (2.5.1)
       fluentd (>= 0.14.0, < 1.12)
       kubeclient (< 5)
       lru_redux
@@ -58,8 +58,12 @@ GEM
     http-parser (1.2.1)
       ffi-compiler (>= 1.0, < 2.0)
     http_parser.rb (0.6.0)
-    kubeclient (4.7.0)
+    jsonpath (1.0.5)
+      multi_json
+      to_regexp (~> 0.2.1)
+    kubeclient (4.8.0)
       http (>= 3.0, < 5.0)
+      jsonpath (~> 1.0)
       recursive-open-struct (~> 1.1, >= 1.1.1)
       rest-client (~> 2.0)
     lru_redux (1.1.0)
@@ -69,6 +73,7 @@ GEM
     mini_mime (1.0.2)
     minitest (4.7.5)
     msgpack (1.3.3)
+    multi_json (1.15.0)
     netrc (0.11.0)
     parallel (1.19.2)
     parser (2.7.1.4)
@@ -113,6 +118,7 @@ GEM
     test-unit-rr (1.0.5)
       rr (>= 1.1.1)
       test-unit (>= 2.5.2)
+    to_regexp (0.2.1)
     tzinfo (2.0.2)
       concurrent-ruby (~> 1.0)
     tzinfo-data (1.2020.1)
