@@ -19,6 +19,13 @@
 require_relative 'kubernetes_metadata_common'
 
 module KubernetesMetadata
+
+  class GoneError < StandardError
+    def initialize(msg="410 Gone")
+      super
+    end
+  end
+
   module WatchPods
 
     include ::KubernetesMetadata::Common
@@ -39,6 +46,11 @@ module KubernetesMetadata
         begin
           pod_watcher ||= get_pods_and_start_watcher
           process_pod_watcher_notices(pod_watcher)
+        rescue GoneError
+          # Expected error. Quietly go back through the loop in order to
+          # start watching from the latest resource versions
+          log.debug("410 Gone encountered. Restarting watch to reset resource versions.")
+          pod_watcher = nil
         rescue Exception => e
           @stats.bump(:pod_watch_failures)
           if Thread.current[:pod_watch_retry_count] < @watch_retry_max_times
@@ -129,9 +141,14 @@ module KubernetesMetadata
             # deleted but still processing logs
             @stats.bump(:pod_cache_watch_delete_ignored)
           when 'ERROR'
-            @stats.bump(:pod_watch_error_type_notices)
-            message = notice['object']['message'] if notice['object'] && notice['object']['message']
-            raise "Error while watching pods: #{message}"
+            if notice.object && notice.object['code'] == 410
+              @stats.bump(:pod_watch_gone_notices)
+              raise GoneError
+            else
+              @stats.bump(:pod_watch_error_type_notices)
+              message = notice['object']['message'] if notice['object'] && notice['object']['message']
+              raise "Error while watching pods: #{message}"
+            end
           else
             reset_pod_watch_retry_stats
             # Don't pay attention to creations, since the created pod may not

@@ -142,6 +142,20 @@ class DefaultPodWatchStrategyTest < WatchTest
            'message' => 'some error message'
          }
        )
+       @gone = OpenStruct.new(
+           type: 'ERROR',
+           object: {
+               'code' => 410,
+               'kind' => 'Status',
+               'message' => 'too old resource version: 123 (391079)',
+               'metadata' => {
+                   'name' => 'gone',
+                   'namespace' => 'gone',
+                   'uid' => 'gone_uid'
+               },
+               'reason' => 'Gone'
+           }
+       )
      end
 
     test 'pod list caches pods' do
@@ -229,6 +243,16 @@ class DefaultPodWatchStrategyTest < WatchTest
         end
       end
     end
+
+     test 'pod watch raises a GoneError when a 410 Gone error is received' do
+       @cache['gone_uid'] = {}
+       @client.stub :watch_pods, [@gone] do
+         assert_raise KubernetesMetadata::GoneError do
+           process_pod_watcher_notices(start_pod_watch)
+         end
+         assert_equal(1, @stats[:pod_watch_gone_notices])
+       end
+     end
 
     test 'pod watch retries when error is received' do
       @client.stub :get_pods, @initial do
