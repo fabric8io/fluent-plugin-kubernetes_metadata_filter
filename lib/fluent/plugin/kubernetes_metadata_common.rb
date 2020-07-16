@@ -19,6 +19,12 @@
 module KubernetesMetadata
   module Common
 
+    class GoneError < StandardError
+      def initialize(msg="410 Gone")
+        super
+      end
+    end
+
     def match_annotations(annotations)
       result = {}
       @annotations_regexps.each do |regexp|

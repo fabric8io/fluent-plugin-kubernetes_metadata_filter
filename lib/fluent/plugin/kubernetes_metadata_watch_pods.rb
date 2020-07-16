@@ -20,12 +20,6 @@ require_relative 'kubernetes_metadata_common'
 
 module KubernetesMetadata
 
-  class GoneError < StandardError
-    def initialize(msg="410 Gone")
-      super
-    end
-  end
-
   module WatchPods
 
     include ::KubernetesMetadata::Common
@@ -46,10 +40,11 @@ module KubernetesMetadata
         begin
           pod_watcher ||= get_pods_and_start_watcher
           process_pod_watcher_notices(pod_watcher)
-        rescue GoneError
+        rescue GoneError => e
           # Expected error. Quietly go back through the loop in order to
           # start watching from the latest resource versions
-          log.debug("410 Gone encountered. Restarting watch to reset resource versions.")
+          @stats.bump(:pod_watch_gone_errors)
+          log.info("410 Gone encountered. Restarting pod watch to reset resource versions.", e)
           pod_watcher = nil
         rescue Exception => e
           @stats.bump(:pod_watch_failures)
