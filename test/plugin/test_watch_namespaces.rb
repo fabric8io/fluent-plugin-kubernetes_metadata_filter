@@ -76,6 +76,20 @@ class WatchNamespacesTestTest < WatchTest
            'message' => 'some error message'
          }
        )
+       @gone = OpenStruct.new(
+           type: 'ERROR',
+           object: {
+               'code' => 410,
+               'kind' => 'Status',
+               'message' => 'too old resource version: 123 (391079)',
+               'metadata' => {
+                   'name' => 'gone',
+                   'namespace' => 'gone',
+                   'uid' => 'gone_uid'
+               },
+               'reason' => 'Gone'
+           }
+       )
      end
 
     test 'namespace list caches namespaces' do
@@ -176,6 +190,32 @@ class WatchNamespacesTestTest < WatchTest
           assert_operator(Thread.current[:namespace_watch_retry_count], :<=, 1)
           assert_operator(Thread.current[:namespace_watch_retry_backoff_interval], :<=, 1)
           assert_operator(@stats[:namespace_watch_error_type_notices], :>=, 3)
+        end
+      end
+    end
+
+    test 'namespace watch raises a GoneError when a 410 Gone error is received' do
+      @cache['gone_uid'] = {}
+      @client.stub :watch_namespaces, [@gone] do
+        assert_raise KubernetesMetadata::Common::GoneError do
+          process_namespace_watcher_notices(start_namespace_watch)
+        end
+        assert_equal(1, @stats[:namespace_watch_gone_notices])
+      end
+    end
+
+    test 'namespace watch retries when 410 Gone errors are encountered' do
+      @client.stub :get_namespaces, @initial do
+        @client.stub :watch_namespaces, [@created, @gone, @modified] do
+          # Force the infinite watch loop to exit after 3 seconds. Verifies that
+          # no unrecoverable error was thrown during this period of time.
+          assert_raise Timeout::Error.new('execution expired') do
+            Timeout.timeout(3) do
+              set_up_namespace_thread
+            end
+          end
+          assert_operator(@stats[:namespace_watch_gone_errors], :>=, 3)
+          assert_operator(@stats[:namespace_watch_gone_notices], :>=, 3)
         end
       end
     end

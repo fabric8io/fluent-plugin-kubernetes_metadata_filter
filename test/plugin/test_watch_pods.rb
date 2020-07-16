@@ -244,16 +244,6 @@ class DefaultPodWatchStrategyTest < WatchTest
       end
     end
 
-     test 'pod watch raises a GoneError when a 410 Gone error is received' do
-       @cache['gone_uid'] = {}
-       @client.stub :watch_pods, [@gone] do
-         assert_raise KubernetesMetadata::GoneError do
-           process_pod_watcher_notices(start_pod_watch)
-         end
-         assert_equal(1, @stats[:pod_watch_gone_notices])
-       end
-     end
-
     test 'pod watch retries when error is received' do
       @client.stub :get_pods, @initial do
         @client.stub :watch_pods, [@error] do
@@ -282,6 +272,32 @@ class DefaultPodWatchStrategyTest < WatchTest
           assert_operator(Thread.current[:pod_watch_retry_count], :<=, 1)
           assert_operator(Thread.current[:pod_watch_retry_backoff_interval], :<=, 1)
           assert_operator(@stats[:pod_watch_error_type_notices], :>=, 3)
+        end
+      end
+    end
+
+    test 'pod watch raises a GoneError when a 410 Gone error is received' do
+      @cache['gone_uid'] = {}
+      @client.stub :watch_pods, [@gone] do
+        assert_raise KubernetesMetadata::Common::GoneError do
+          process_pod_watcher_notices(start_pod_watch)
+        end
+        assert_equal(1, @stats[:pod_watch_gone_notices])
+      end
+    end
+
+    test 'pod watch retries when 410 Gone errors are encountered' do
+      @client.stub :get_pods, @initial do
+        @client.stub :watch_pods, [@created, @gone, @modified] do
+          # Force the infinite watch loop to exit after 3 seconds. Verifies that
+          # no unrecoverable error was thrown during this period of time.
+          assert_raise Timeout::Error.new('execution expired') do
+            Timeout.timeout(3) do
+              set_up_pod_thread
+            end
+          end
+          assert_operator(@stats[:pod_watch_gone_errors], :>=, 3)
+          assert_operator(@stats[:pod_watch_gone_notices], :>=, 3)
         end
       end
     end
