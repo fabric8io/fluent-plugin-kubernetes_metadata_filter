@@ -90,29 +90,15 @@ module Fluent::Plugin
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
-      begin
-        metadata = @client.get_pod(pod_name, namespace_name)
-        unless metadata
-          log.trace("no metadata returned for: #{namespace_name}/#{pod_name}") if log.trace?
-          @stats.bump(:pod_cache_api_nil_not_found)
-        else
-          begin
-            log.trace("raw metadata for #{namespace_name}/#{pod_name}: #{metadata}") if log.trace?
-            metadata = parse_pod_metadata(metadata)
-            @stats.bump(:pod_cache_api_updates)
-            log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}") if log.trace?
-            @cache[metadata['pod_id']] = metadata
-            return metadata
-          rescue Exception=>e
-            log.debug(e)
-            @stats.bump(:pod_cache_api_nil_bad_resp_payload)
-            log.trace("returning empty metadata for #{namespace_name}/#{pod_name} due to error '#{e}'") if log.trace?
-          end
-        end
-      rescue Exception=>e
-        @stats.bump(:pod_cache_api_nil_error)
-        log.debug "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
-      end
+      pod_object = @client.get_pod(pod_name, namespace_name)
+      log.trace("raw metadata for #{namespace_name}/#{pod_name}: #{pod_object}") if log.trace?
+      metadata = parse_pod_metadata(pod_object)
+      @stats.bump(:pod_cache_api_updates)
+      log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}") if log.trace?
+      @cache[metadata['pod_id']] = metadata
+    rescue Exception => e
+      @stats.bump(:pod_cache_api_nil_error)
+      log.debug "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
       {}
     end
 
@@ -132,29 +118,15 @@ module Fluent::Plugin
 
     def fetch_namespace_metadata(namespace_name)
       log.trace("fetching namespace metadata: #{namespace_name}") if log.trace?
-      begin
-        metadata = @client.get_namespace(namespace_name)
-        unless metadata
-            log.trace("no metadata returned for: #{namespace_name}") if log.trace?
-            @stats.bump(:namespace_cache_api_nil_not_found)
-        else
-          begin
-            log.trace("raw metadata for #{namespace_name}: #{metadata}") if log.trace?
-            metadata = parse_namespace_metadata(metadata)
-            @stats.bump(:namespace_cache_api_updates)
-            log.trace("parsed metadata for #{namespace_name}: #{metadata}") if log.trace?
-            @namespace_cache[metadata['namespace_id']] = metadata
-            return metadata
-          rescue Exception => e
-            log.debug(e)
-            @stats.bump(:namespace_cache_api_nil_bad_resp_payload)
-            log.trace("returning empty metadata for #{namespace_name} due to error '#{e}'") if log.trace?
-          end
-        end
-      rescue Exception => kube_error
-        @stats.bump(:namespace_cache_api_nil_error)
-        log.debug "Exception '#{kube_error}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
-      end
+      namespace_object = @client.get_namespace(namespace_name)
+      log.trace("raw metadata for #{namespace_name}: #{namespace_object}") if log.trace?
+      metadata = parse_namespace_metadata(namespace_object)
+      @stats.bump(:namespace_cache_api_updates)
+      log.trace("parsed metadata for #{namespace_name}: #{metadata}") if log.trace?
+      @namespace_cache[metadata['namespace_id']] = metadata
+    rescue Exception => kube_error
+      @stats.bump(:namespace_cache_api_nil_error)
+      log.debug "Exception '#{kube_error}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
       {}
     end
 
