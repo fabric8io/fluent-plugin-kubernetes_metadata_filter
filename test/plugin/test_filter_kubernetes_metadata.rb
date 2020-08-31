@@ -17,11 +17,6 @@
 # limitations under the License.
 #
 require_relative '../helper'
-require 'fluent/test/driver/filter'
-require 'fluent/plugin/filter_kubernetes_metadata'
-
-require 'webmock/test_unit'
-WebMock.disable_net_connect!
 
 class KubernetesMetadataFilterTest < Test::Unit::TestCase
   include Fluent

@@ -17,12 +17,9 @@
 # limitations under the License.
 #
 require_relative '../helper'
-require 'fluent/plugin/kubernetes_metadata_stats'
-require 'webmock/test_unit'
-WebMock.disable_net_connect!
 
 class KubernetesMetadataCacheStatsTest < Test::Unit::TestCase
-  
+
     test 'watch stats' do
       require 'lru_redux'
       stats = KubernetesMetadata::Stats.new
@@ -32,5 +29,5 @@ class KubernetesMetadataCacheStatsTest < Test::Unit::TestCase
 
       assert_equal("stats - deleted: 2, missed: 1", stats.to_s)
     end
-    
+
 end

@@ -16,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+require 'bundler/setup'
 require 'codeclimate-test-reporter'
 SimpleCov.start do
   formatter SimpleCov::Formatter::MultiFormatter.new [
@@ -31,8 +32,14 @@ require 'fileutils'
 require 'fluent/log'
 require 'fluent/test'
 require 'minitest/autorun'
-require 'webmock/test_unit'
 require 'vcr'
+require 'ostruct'
+require 'fluent/plugin/filter_kubernetes_metadata'
+require 'fluent/test/driver/filter'
+require 'kubeclient'
+
+require 'webmock/test_unit'
+WebMock.disable_net_connect!
 
 VCR.configure do |config|
   config.cassette_library_dir = 'test/cassettes'
@@ -61,4 +68,13 @@ def ipv6_enabled?
   rescue
     false
   end
+end
+
+# TEST_NAME='foo' ruby test_file.rb to run a single test case
+if ENV["TEST_NAME"]
+  (class << Test::Unit::TestCase; self; end).prepend(Module.new do
+    def test(name)
+      super if name == ENV["TEST_NAME"]
+    end
+  end)
 end

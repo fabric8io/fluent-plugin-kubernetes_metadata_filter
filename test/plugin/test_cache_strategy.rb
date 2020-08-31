@@ -17,11 +17,6 @@
 # limitations under the License.
 #
 require_relative '../helper'
-require_relative '../../lib/fluent/plugin/kubernetes_metadata_cache_strategy'
-require_relative '../../lib/fluent/plugin/kubernetes_metadata_stats'
-require 'lru_redux'
-require 'webmock/test_unit'
-WebMock.disable_net_connect!
 
 class TestCacheStrategy
     include KubernetesMetadata::CacheStrategy
@@ -56,7 +51,7 @@ class TestCacheStrategy
 end
 
 class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
-  
+
     def setup
        @strategy = TestCacheStrategy.new
        @cache_key = 'some_long_container_id'
@@ -114,7 +109,7 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         # we ever will have and should allow us to process all the deleted
         # pod records
         exp = {
-            'pod_id'=> @cache_key, 
+            'pod_id'=> @cache_key,
             'namespace_id'=> @namespace_uuid
         }
         @strategy.stub :fetch_pod_metadata, {} do
@@ -175,7 +170,7 @@ class KubernetesMetadataCacheStrategyTest < Test::Unit::TestCase
         end
         assert_equal({}, @strategy.get_pod_metadata(@cache_key,'namespace', 'pod', @time, batch_miss_cache))
     end
-    
+
     test 'when metadata is not cached and no metadata can be fetched and allowing orphans for multiple records' do
         # we should never see this since pod meta should not be retrievable
         # unless the namespace exists
