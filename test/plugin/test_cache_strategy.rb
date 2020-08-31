@@ -33,9 +33,11 @@ class TestCacheStrategy
     attr_accessor :stats, :cache, :id_cache, :namespace_cache, :allow_orphans
 
     def fetch_pod_metadata(namespace_name, pod_name)
+        {}
     end
 
     def fetch_namespace_metadata(namespace_name)
+        {}
     end
 
     def log

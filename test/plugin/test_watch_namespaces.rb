@@ -24,71 +24,72 @@ class WatchNamespacesTestTest < WatchTest
      include KubernetesMetadata::WatchNamespaces
 
      setup do
-       @initial = Kubeclient::Common::EntityList.new(
-         'NamespaceList',
-         '123',
-         [
-           Kubeclient::Resource.new({
-                                      'metadata' => {
-                                        'name' => 'initial',
-                                        'uid' => 'initial_uid'
-                                      }
-                                    }),
-           Kubeclient::Resource.new({
-                                      'metadata' => {
-                                        'name' => 'modified',
-                                        'uid' => 'modified_uid'
-                                      }
-                                    })
-         ])
+       @initial = {
+         kind: 'NamespaceList',
+         metadata: {resourceVersion: '123'},
+         items: [
+           {
+             metadata: {
+               name: 'initial',
+               uid: 'initial_uid'
+             }
+           },
+           {
+             metadata: {
+               name: 'modified',
+               uid: 'modified_uid'
+             }
+           }
+         ]
+       }
 
-       @created = OpenStruct.new(
+       @created = {
          type: 'CREATED',
          object: {
-           'metadata' => {
-                'name' => 'created',
-                'uid' => 'created_uid'
-            }
+           metadata: {
+             name: 'created',
+             uid: 'created_uid'
+           }
          }
-       )
-       @modified = OpenStruct.new(
+       }
+       @modified = {
          type: 'MODIFIED',
          object: {
-           'metadata' => {
-                'name' => 'foo',
-                'uid' => 'modified_uid'
-            }
+           metadata: {
+             name: 'foo',
+             uid: 'modified_uid'
+           }
          }
-       )
-       @deleted = OpenStruct.new(
+       }
+       @deleted = {
          type: 'DELETED',
          object: {
-           'metadata' => {
-                'name' => 'deleteme',
-                'uid' => 'deleted_uid'
-            }
+           metadata: {
+             name: 'deleteme',
+             uid: 'deleted_uid'
+           }
          }
-       )
-       @error = OpenStruct.new(
+       }
+       @error = {
          type: 'ERROR',
          object: {
-           'message' => 'some error message'
+           message: 'some error message'
          }
-       )
-       @gone = OpenStruct.new(
-           type: 'ERROR',
-           object: {
-               'code' => 410,
-               'kind' => 'Status',
-               'message' => 'too old resource version: 123 (391079)',
-               'metadata' => {
-                   'name' => 'gone',
-                   'namespace' => 'gone',
-                   'uid' => 'gone_uid'
-               },
-               'reason' => 'Gone'
-           }
-       )
+       }
+       @gone = {
+         type: 'ERROR',
+         object: {
+           code: 410,
+           kind: 'Status',
+           message: 'too old resource version: 123 (391079)',
+           metadata: {
+             name: 'gone',
+             namespace: 'gone',
+             uid: 'gone_uid'
+           },
+           reason: 'Gone'
+         }
+       }
      end
 
     test 'namespace list caches namespaces' do

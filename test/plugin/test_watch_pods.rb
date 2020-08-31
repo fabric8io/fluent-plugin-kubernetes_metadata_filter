@@ -24,140 +24,141 @@ class DefaultPodWatchStrategyTest < WatchTest
      include KubernetesMetadata::WatchPods
 
      setup do
-       @initial = Kubeclient::Common::EntityList.new(
-         'PodList',
-         '123',
-         [
-           Kubeclient::Resource.new({
-                                      'metadata' => {
-                                        'name' => 'initial',
-                                        'namespace' => 'initial_ns',
-                                        'uid' => 'initial_uid',
-                                        'labels' => {},
-                                      },
-                                      'spec' => {
-                                        'nodeName' => 'aNodeName',
-                                        'containers' => [{
-                                                           'name' => 'foo',
-                                                           'image' => 'bar',
-                                                         }, {
-                                                           'name' => 'bar',
-                                                           'image' => 'foo',
-                                                         }]
-                                      }
-                                    }),
-           Kubeclient::Resource.new({
-                                      'metadata' => {
-                                        'name' => 'modified',
-                                        'namespace' => 'create',
-                                        'uid' => 'modified_uid',
-                                        'labels' => {},
-                                      },
-                                      'spec' => {
-                                        'nodeName' => 'aNodeName',
-                                        'containers' => [{
-                                                           'name' => 'foo',
-                                                           'image' => 'bar',
-                                                         }, {
-                                                           'name' => 'bar',
-                                                           'image' => 'foo',
-                                                         }]
-                                      }
-                                    }),
-         ])
-       @created = OpenStruct.new(
+       @initial = {
+         kind: 'PodList',
+         metadata: {resourceVersion: '123'},
+         items: [
+           {
+             metadata: {
+               name: 'initial',
+               namespace: 'initial_ns',
+               uid: 'initial_uid',
+               labels: {},
+             },
+             spec: {
+               nodeName: 'aNodeName',
+               containers: [{
+                 name: 'foo',
+                 image: 'bar',
+               }, {
+                 name: 'bar',
+                 image: 'foo',
+               }]
+             }
+           },
+           {
+             metadata: {
+               name: 'modified',
+               namespace: 'create',
+               uid: 'modified_uid',
+               labels: {},
+             },
+             spec: {
+               nodeName: 'aNodeName',
+               containers: [{
+                 name: 'foo',
+                 image: 'bar',
+               }, {
+                 name: 'bar',
+                 image: 'foo',
+               }]
+             }
+           }
+         ]
+       }
+       @created = {
          type: 'CREATED',
          object: {
-           'metadata' => {
-                'name' => 'created',
-                'namespace' => 'create',
-                'uid' => 'created_uid',
-                'labels' => {},
-                'resourceVersion' => '122'
-            },
-            'spec' => {
-                'nodeName' => 'aNodeName',
-                'containers' => [{
-                     'name' => 'foo',
-                     'image' => 'bar',
-                 }, {
-                     'name' => 'bar',
-                     'image' => 'foo',
-                 }]
-            }
+           metadata: {
+             name: 'created',
+             namespace: 'create',
+             uid: 'created_uid',
+             resourceVersion: '122',
+             labels: {},
+           },
+           spec: {
+             nodeName: 'aNodeName',
+             containers: [{
+               name: 'foo',
+               image: 'bar',
+             }, {
+               name: 'bar',
+               image: 'foo',
+             }]
+           }
          }
-       )
-       @modified = OpenStruct.new(
+       }
+       @modified = {
          type: 'MODIFIED',
          object: {
-           'metadata' => {
-                'name' => 'foo',
-                'namespace' => 'modified',
-                'uid' => 'modified_uid',
-                'labels' => {},
-                'resourceVersion' => '123'
-            },
-            'spec' => {
-                'nodeName' => 'aNodeName',
-                'containers' => [{
-                    'name' => 'foo',
-                    'image' => 'bar',
-                 }, {
-                    'name' => 'bar',
-                    'image' => 'foo',
-                 }]
-            },
-           'status' => {
-               'containerStatuses' => [
-                   {
-                       'name' => 'fabric8-console-container',
-                       'state' => {
-                           'running' => {
-                               'startedAt' => '2015-05-08T09:22:44Z'
-                           }
-                       },
-                       'lastState' => {},
-                       'ready' => true,
-                       'restartCount' => 0,
-                       'image' => 'fabric8/hawtio-kubernetes:latest',
-                       'imageID' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
-                       'containerID' => 'docker://49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+           metadata: {
+             name: 'foo',
+             namespace: 'modified',
+             uid: 'modified_uid',
+             resourceVersion: '123',
+             labels: {},
+           },
+           spec: {
+             nodeName: 'aNodeName',
+             containers: [{
+               name: 'foo',
+               image: 'bar',
+             }, {
+               name: 'bar',
+               image: 'foo',
+             }]
+           },
+           status: {
+             containerStatuses: [
+               {
+                 name: 'fabric8-console-container',
+                 state: {
+                   running: {
+                     startedAt: '2015-05-08T09:22:44Z'
                    }
-               ]
+                 },
+                 lastState: {},
+                 ready: true,
+                 restartCount: 0,
+                 image: 'fabric8/hawtio-kubernetes:latest',
+                 imageID: 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
+                 containerID: 'docker://49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+               }
+             ]
            }
          }
-       )
-       @deleted = OpenStruct.new(
+       }
+       @deleted = {
          type: 'DELETED',
          object: {
-           'metadata' => {
-                'name' => 'deleteme',
-                'namespace' => 'deleted',
-                'uid' => 'deleted_uid',
-                'resourceVersion' => '124'
-            }
+           metadata: {
+             name: 'deleteme',
+             namespace: 'deleted',
+             uid: 'deleted_uid',
+             resourceVersion: '124'
+           }
          }
-       )
-       @error = OpenStruct.new(
+       }
+       @error = {
          type: 'ERROR',
          object: {
-           'message' => 'some error message'
+           message: 'some error message'
          }
-       )
-       @gone = OpenStruct.new(
-           type: 'ERROR',
-           object: {
-               'code' => 410,
-               'kind' => 'Status',
-               'message' => 'too old resource version: 123 (391079)',
-               'metadata' => {
-                   'name' => 'gone',
-                   'namespace' => 'gone',
-                   'uid' => 'gone_uid'
-               },
-               'reason' => 'Gone'
-           }
-       )
+       }
+       @gone = {
+         type: 'ERROR',
+         object: {
+           code: 410,
+           kind: 'Status',
+           message: 'too old resource version: 123 (391079)',
+           metadata: {
+             name: 'gone',
+             namespace: 'gone',
+             uid: 'gone_uid'
+           },
+           reason: 'Gone'
+         }
+       }
      end
 
     test 'pod list caches pods' do

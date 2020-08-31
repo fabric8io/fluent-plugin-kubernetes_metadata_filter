@@ -234,9 +234,13 @@ module Fluent::Plugin
         end
 
         log.debug "Creating K8S client"
-        @client = Kubeclient::Client.new @kubernetes_url, @apiVersion,
-                                         ssl_options: ssl_options,
-                                         auth_options: auth_options
+        @client = Kubeclient::Client.new(
+          @kubernetes_url,
+          @apiVersion,
+          ssl_options: ssl_options,
+          auth_options: auth_options,
+          as: :parsed_symbolized
+        )
 
         begin
           @client.api_valid?

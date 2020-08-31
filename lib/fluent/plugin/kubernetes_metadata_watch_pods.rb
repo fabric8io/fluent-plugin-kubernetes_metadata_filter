@@ -100,12 +100,12 @@ module KubernetesMetadata
         options[:resource_version] = @last_seen_resource_version
       else
         pods = @client.get_pods(options)
-        pods.each do |pod|
-          cache_key = pod.metadata['uid']
+        pods[:items].each do |pod|
+          cache_key = pod[:metadata][:uid]
           @cache[cache_key] = parse_pod_metadata(pod)
           @stats.bump(:pod_cache_host_updates)
         end
-        options[:resource_version] = pods.resourceVersion
+        options[:resource_version] = pods[:metadata][:resourceVersion]
       end
       @client.watch_pods(options)
     end
@@ -122,20 +122,20 @@ module KubernetesMetadata
       watcher.each do |notice|
         # store version we processed to not reprocess it ... do not unset when there is no version in response
         version = ( # TODO: replace with &.dig once we are on ruby 2.5+
-          notice.object && notice.object['metadata'] && notice.object['metadata']['resourceVersion']
+          notice[:object] && notice[:object][:metadata] && notice[:object][:metadata][:resourceVersion]
         )
         @last_seen_resource_version = version if version
 
-        case notice.type
+        case notice[:type]
           when 'MODIFIED'
             reset_pod_watch_retry_stats
-            cache_key = notice.object['metadata']['uid']
+            cache_key = notice.dig(:object, :metadata, :uid)
             cached    = @cache[cache_key]
             if cached
-              @cache[cache_key] = parse_pod_metadata(notice.object)
+              @cache[cache_key] = parse_pod_metadata(notice[:object])
               @stats.bump(:pod_cache_watch_updates)
-            elsif ENV['K8S_NODE_NAME'] == notice.object['spec']['nodeName'] then
-              @cache[cache_key] = parse_pod_metadata(notice.object)
+            elsif ENV['K8S_NODE_NAME'] == notice[:object][:spec][:nodeName] then
+              @cache[cache_key] = parse_pod_metadata(notice[:object])
               @stats.bump(:pod_cache_host_updates)
             else
               @stats.bump(:pod_cache_watch_misses)
@@ -146,13 +146,13 @@ module KubernetesMetadata
             # deleted but still processing logs
             @stats.bump(:pod_cache_watch_delete_ignored)
           when 'ERROR'
-            if notice.object && notice.object['code'] == 410
+            if notice[:object] && notice[:object][:code] == 410
               @last_seen_resource_version = nil # requested resourceVersion was too old, need to reset
               @stats.bump(:pod_watch_gone_notices)
               raise GoneError
             else
               @stats.bump(:pod_watch_error_type_notices)
-              message = notice['object']['message'] if notice['object'] && notice['object']['message']
+              message = notice[:object][:message] if notice[:object] && notice[:object][:message]
               raise "Error while watching pods: #{message}"
             end
           else
