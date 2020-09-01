@@ -117,8 +117,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
               secret_dir #{dir}
             ")
             assert_equal(d.instance.kubernetes_url, "https://localhost:8443/api")
-            assert_false(d.instance.ca_file.present?)
-            assert_false(d.instance.bearer_token_file.present?)
+            assert_nil(d.instance.ca_file, nil)
+            assert_nil(d.instance.bearer_token_file)
           }
         ensure
           ENV['KUBERNETES_SERVICE_HOST'] = nil
