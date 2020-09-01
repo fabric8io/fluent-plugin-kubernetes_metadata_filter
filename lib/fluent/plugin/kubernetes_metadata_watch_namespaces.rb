@@ -16,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# TODO: this is mostly copy-paste from kubernetes_metadata_watch_pods.rb unify them
 require_relative 'kubernetes_metadata_common'
 
 module KubernetesMetadata
@@ -89,7 +90,7 @@ module KubernetesMetadata
     # starting from that resourceVersion.
     def get_namespaces_and_start_watcher
       options = {
-        resource_version: '0'  # Fetch from API server.
+        resource_version: '0'  # Fetch from API server cache instead of etcd quorum read
       }
       namespaces = @client.get_namespaces(options)
       namespaces[:items].each do |namespace|
@@ -97,7 +98,10 @@ module KubernetesMetadata
         @namespace_cache[cache_key] = parse_namespace_metadata(namespace)
         @stats.bump(:namespace_cache_host_updates)
       end
+
+      # continue watching from most recent resourceVersion
       options[:resource_version] = namespaces[:metadata][:resourceVersion]
+
       @client.watch_namespaces(options)
     end
 

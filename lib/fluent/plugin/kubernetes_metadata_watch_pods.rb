@@ -16,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# TODO: this is mostly copy-paste from kubernetes_metadata_watch_namespaces.rb unify them
 require_relative 'kubernetes_metadata_common'
 
 module KubernetesMetadata
@@ -91,7 +92,7 @@ module KubernetesMetadata
     # from that resourceVersion.
     def get_pods_and_start_watcher
       options = {
-        resource_version: '0'  # Fetch from API server.
+        resource_version: '0'  # Fetch from API server cache instead of etcd quorum read
       }
       if ENV['K8S_NODE_NAME']
         options[:field_selector] = 'spec.nodeName=' + ENV['K8S_NODE_NAME']
@@ -105,6 +106,8 @@ module KubernetesMetadata
           @cache[cache_key] = parse_pod_metadata(pod)
           @stats.bump(:pod_cache_host_updates)
         end
+
+        # continue watching from most recent resourceVersion
         options[:resource_version] = pods[:metadata][:resourceVersion]
       end
       @client.watch_pods(options)
