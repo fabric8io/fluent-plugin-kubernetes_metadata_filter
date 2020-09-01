@@ -14,21 +14,21 @@ missingdeps: &missingdeps
             sudo cp /tmp/sources.list /etc/apt/sources.list
             sudo apt-get update
             sudo apt-get install cmake libicu-dev libssl-dev
-  
+
 test: &test
   name: Test bundle
   command: bundle exec rake test
 
 executors:
-  ruby-2-4:
-    docker:
-      - image: circleci/ruby:2.4.6
   ruby-2-5:
     docker:
       - image: circleci/ruby:2.5.5
   ruby-2-6:
     docker:
       - image: circleci/ruby:2.6.3
+  ruby-2-7:
+    docker:
+      - image: circleci/ruby:2.7.1
 jobs:
   "ruby-test":
     parameters:
@@ -50,8 +50,8 @@ workflows:
   "test_multiple_ruby_versions":
     jobs:
       - ruby-test:
-          ruby-version: ruby-2-4
-      - ruby-test:
           ruby-version: ruby-2-5
       - ruby-test:
           ruby-version: ruby-2-6
+      - ruby-test:
+          ruby-version: ruby-2-7
