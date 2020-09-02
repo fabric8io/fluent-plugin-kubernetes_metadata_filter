@@ -278,6 +278,9 @@ module Fluent::Plugin
 
           namespace_thread = Thread.new(self) { |this| this.set_up_namespace_thread }
           namespace_thread.abort_on_exception = true
+
+          # wait for caches to be initialized to avoid of cache-misses right after booting
+          sleep 0.01 until pod_thread[:pod_watch_retry_count] && namespace_thread[:namespace_watch_retry_count]
         end
       end
       @time_fields = []
