@@ -29,6 +29,7 @@ module KubernetesMetadata
       # Fluent:ConfigError, so that users can inspect potential errors in
       # the configuration.
       pod_watcher = start_pod_watch
+
       Thread.current[:pod_watch_retry_backoff_interval] = @watch_retry_interval
       Thread.current[:pod_watch_retry_count] = 0
 
@@ -95,15 +96,18 @@ module KubernetesMetadata
       if ENV['K8S_NODE_NAME']
         options[:field_selector] = 'spec.nodeName=' + ENV['K8S_NODE_NAME']
       end
-      pods = @client.get_pods(options)
-      pods.each do |pod|
-        cache_key = pod.metadata['uid']
-        @cache[cache_key] = parse_pod_metadata(pod)
-        @stats.bump(:pod_cache_host_updates)
+      if @last_seen_resource_version
+        options[:resource_version] = @last_seen_resource_version
+      else
+        pods = @client.get_pods(options)
+        pods.each do |pod|
+          cache_key = pod.metadata['uid']
+          @cache[cache_key] = parse_pod_metadata(pod)
+          @stats.bump(:pod_cache_host_updates)
+        end
+        options[:resource_version] = pods.resourceVersion
       end
-      options[:resource_version] = pods.resourceVersion
-      watcher = @client.watch_pods(options)
-      watcher
+      @client.watch_pods(options)
     end
 
     # Reset pod watch retry count and backoff interval as there is a
@@ -116,6 +120,12 @@ module KubernetesMetadata
     # Process a watcher notice and potentially raise an exception.
     def process_pod_watcher_notices(watcher)
       watcher.each do |notice|
+        # store version we processed to not reprocess it ... do not unset when there is no version in response
+        version = ( # TODO: replace with &.dig once we are on ruby 2.5+
+          notice.object && notice.object['metadata'] && notice.object['metadata']['resourceVersion']
+        )
+        @last_seen_resource_version = version if version
+
         case notice.type
           when 'MODIFIED'
             reset_pod_watch_retry_stats
@@ -137,6 +147,7 @@ module KubernetesMetadata
             @stats.bump(:pod_cache_watch_delete_ignored)
           when 'ERROR'
             if notice.object && notice.object['code'] == 410
+              @last_seen_resource_version = nil # requested resourceVersion was too old, need to reset
               @stats.bump(:pod_watch_gone_notices)
               raise GoneError
             else

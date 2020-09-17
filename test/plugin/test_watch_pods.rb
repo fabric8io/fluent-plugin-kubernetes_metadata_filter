@@ -73,6 +73,7 @@ class DefaultPodWatchStrategyTest < WatchTest
                 'namespace' => 'create',
                 'uid' => 'created_uid',
                 'labels' => {},
+                'resourceVersion' => '122'
             },
             'spec' => {
                 'nodeName' => 'aNodeName',
@@ -94,6 +95,7 @@ class DefaultPodWatchStrategyTest < WatchTest
                 'namespace' => 'modified',
                 'uid' => 'modified_uid',
                 'labels' => {},
+                'resourceVersion' => '123'
             },
             'spec' => {
                 'nodeName' => 'aNodeName',
@@ -131,7 +133,8 @@ class DefaultPodWatchStrategyTest < WatchTest
            'metadata' => {
                 'name' => 'deleteme',
                 'namespace' => 'deleted',
-                'uid' => 'deleted_uid'
+                'uid' => 'deleted_uid',
+                'resourceVersion' => '124'
             }
          }
        )
@@ -180,6 +183,7 @@ class DefaultPodWatchStrategyTest < WatchTest
         end
       end
       ENV['K8S_NODE_NAME'] = orig_env_val
+      assert_equal('123', @last_seen_resource_version) # from @modified
     end
 
     test 'pod watch notice ignores CREATED' do
@@ -278,18 +282,20 @@ class DefaultPodWatchStrategyTest < WatchTest
     test 'pod watch raises a GoneError when a 410 Gone error is received' do
       @cache['gone_uid'] = {}
       @client.stub :watch_pods, [@gone] do
+        @last_seen_resource_version = '100'
         assert_raise KubernetesMetadata::Common::GoneError do
           process_pod_watcher_notices(start_pod_watch)
         end
         assert_equal(1, @stats[:pod_watch_gone_notices])
+        assert_nil @last_seen_resource_version # forced restart
       end
     end
 
     test 'pod watch retries when 410 Gone errors are encountered' do
       @client.stub :get_pods, @initial do
         @client.stub :watch_pods, [@created, @gone, @modified] do
-          # Force the infinite watch loop to exit after 3 seconds. Verifies that
-          # no unrecoverable error was thrown during this period of time.
+          # Force the infinite watch loop to exit after 3 seconds because the code sleeps 3 times.
+          # Verifies that no unrecoverable error was thrown during this period of time.
           assert_raise Timeout::Error.new('execution expired') do
             Timeout.timeout(3) do
               set_up_pod_thread
