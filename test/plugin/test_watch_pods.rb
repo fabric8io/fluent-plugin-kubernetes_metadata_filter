@@ -17,7 +17,6 @@
 # limitations under the License.
 #
 require_relative '../helper'
-require 'ostruct'
 require_relative 'watch_test'
 
 class DefaultPodWatchStrategyTest < WatchTest

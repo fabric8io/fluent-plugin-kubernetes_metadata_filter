@@ -17,7 +17,6 @@
 # limitations under the License.
 #
 require_relative '../helper'
-require 'ostruct'
 
 class WatchTest < Test::Unit::TestCase
 
