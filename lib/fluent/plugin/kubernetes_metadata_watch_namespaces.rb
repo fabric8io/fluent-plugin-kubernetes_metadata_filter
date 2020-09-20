@@ -45,7 +45,7 @@ module KubernetesMetadata
           @stats.bump(:namespace_watch_gone_errors)
           log.info("410 Gone encountered. Restarting namespace watch to reset resource versions.", e)
           namespace_watcher = nil
-        rescue Exception => e
+        rescue => e
           @stats.bump(:namespace_watch_failures)
           if Thread.current[:namespace_watch_retry_count] < @watch_retry_max_times
             # Instead of raising exceptions and crashing Fluentd, swallow
@@ -74,8 +74,8 @@ module KubernetesMetadata
     end
 
     def start_namespace_watch
-      return get_namespaces_and_start_watcher
-    rescue Exception => e
+      get_namespaces_and_start_watcher
+    rescue => e
       message = "start_namespace_watch: Exception encountered setting up " \
                 "namespace watch from Kubernetes API #{@apiVersion} endpoint " \
                 "#{@kubernetes_url}: #{e.message}"
@@ -98,8 +98,7 @@ module KubernetesMetadata
         @stats.bump(:namespace_cache_host_updates)
       end
       options[:resource_version] = namespaces.resourceVersion
-      watcher = @client.watch_namespaces(options)
-      watcher
+      @client.watch_namespaces(options)
     end
 
     # Reset namespace watch retry count and backoff interval as there is a

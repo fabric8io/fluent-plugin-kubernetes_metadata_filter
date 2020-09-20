@@ -47,7 +47,7 @@ module KubernetesMetadata
           @stats.bump(:pod_watch_gone_errors)
           log.info("410 Gone encountered. Restarting pod watch to reset resource versions.", e)
           pod_watcher = nil
-        rescue Exception => e
+        rescue => e
           @stats.bump(:pod_watch_failures)
           if Thread.current[:pod_watch_retry_count] < @watch_retry_max_times
             # Instead of raising exceptions and crashing Fluentd, swallow
@@ -77,7 +77,7 @@ module KubernetesMetadata
 
     def start_pod_watch
       get_pods_and_start_watcher
-    rescue Exception => e
+    rescue => e
       message = "start_pod_watch: Exception encountered setting up pod watch " \
                 "from Kubernetes API #{@apiVersion} endpoint " \
                 "#{@kubernetes_url}: #{e.message}"
