@@ -96,7 +96,7 @@ module Fluent::Plugin
       @stats.bump(:pod_cache_api_updates)
       log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}") if log.trace?
       @cache[metadata['pod_id']] = metadata
-    rescue Exception => e
+    rescue => e
       @stats.bump(:pod_cache_api_nil_error)
       log.debug "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
       {}
@@ -124,7 +124,7 @@ module Fluent::Plugin
       @stats.bump(:namespace_cache_api_updates)
       log.trace("parsed metadata for #{namespace_name}: #{metadata}") if log.trace?
       @namespace_cache[metadata['namespace_id']] = metadata
-    rescue Exception => kube_error
+    rescue => kube_error
       @stats.bump(:namespace_cache_api_nil_error)
       log.debug "Exception '#{kube_error}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
       {}
