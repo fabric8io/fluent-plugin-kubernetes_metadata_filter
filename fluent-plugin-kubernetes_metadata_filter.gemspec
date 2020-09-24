@@ -13,11 +13,8 @@ Gem::Specification.new do |gem|
   gem.license       = "Apache-2.0"
 
   gem.files         = `git ls-files`.split($/)
-  gem.executables   = gem.files.grep(%r{^bin/}) { |f| File.basename(f) }
-  gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
-  gem.require_paths = ["lib"]
 
-  gem.required_ruby_version = '>= 2.1.0'
+  gem.required_ruby_version = '>= 2.5.0'
 
   gem.add_runtime_dependency 'fluentd', ['>= 0.14.0', '< 1.12']
   gem.add_runtime_dependency "lru_redux"
