@@ -36,9 +36,6 @@ class WatchTest < Test::Unit::TestCase
     Thread.current[:namespace_watch_retry_count] = 0
 
     @client = OpenStruct.new
-    def @client.resourceVersion
-      '12345'
-    end
     def @client.watch_pods(options = {})
       []
     end
@@ -46,16 +43,13 @@ class WatchTest < Test::Unit::TestCase
       []
     end
     def @client.get_namespaces(options = {})
-      self
+      {items: [], metadata: {resourceVersion: '12345'}}
     end
     def @client.get_pods(options = {})
-      self
+      {items: [], metadata: {resourceVersion: '12345'}}
     end
 
-    @exception_raised = OpenStruct.new
-    def @exception_raised.each
-      raise Exception
-    end
+    @exception_raised = :blow_up_when_used
   end
 
   def watcher=(value)

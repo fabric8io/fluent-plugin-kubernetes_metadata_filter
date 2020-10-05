@@ -764,9 +764,13 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         'CONTAINER_ID_FULL' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459',
         'randomfield' => 'randomvalue'
       }
-      VCR.use_cassettes([{name: 'valid_kubernetes_api_server'}, {name: 'kubernetes_get_api_v1'}, {name: 'kubernetes_get_pod'},
-                         {name: 'kubernetes_get_namespace_default'},
-                         {name: 'metadata_from_tag_and_journald_fields'}]) do
+      VCR.use_cassettes([
+        {name: 'valid_kubernetes_api_server'},
+        {name: 'kubernetes_get_api_v1'},
+        {name: 'kubernetes_get_pod'},
+        {name: 'kubernetes_get_namespace_default'},
+        {name: 'metadata_from_tag_and_journald_fields'}
+      ]) do
         filtered = emit_with_tag(tag, msg, '
           kubernetes_url https://localhost:8443
           watch false
@@ -868,6 +872,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         assert_equal(expected_kube_metadata, filtered[0])
       end
     end
+
     test 'with CONTAINER_NAME that does not match' do
       tag = 'var.log.containers.junk4_junk5_junk6-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed450.log'
       msg = {
@@ -892,6 +897,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         assert_equal(expected_kube_metadata, filtered[0])
       end
     end
+
     test 'with CONTAINER_NAME starts with k8s_ that does not match' do
       tag = 'var.log.containers.junk4_junk5_junk6-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed450.log'
       msg = {

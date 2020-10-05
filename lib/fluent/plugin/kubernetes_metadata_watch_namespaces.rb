@@ -92,12 +92,12 @@ module KubernetesMetadata
         resource_version: '0'  # Fetch from API server.
       }
       namespaces = @client.get_namespaces(options)
-      namespaces.each do |namespace|
-        cache_key = namespace.metadata['uid']
+      namespaces[:items].each do |namespace|
+        cache_key = namespace[:metadata][:uid]
         @namespace_cache[cache_key] = parse_namespace_metadata(namespace)
         @stats.bump(:namespace_cache_host_updates)
       end
-      options[:resource_version] = namespaces.resourceVersion
+      options[:resource_version] = namespaces[:metadata][:resourceVersion]
       @client.watch_namespaces(options)
     end
 
@@ -111,13 +111,13 @@ module KubernetesMetadata
     # Process a watcher notice and potentially raise an exception.
     def process_namespace_watcher_notices(watcher)
       watcher.each do |notice|
-        case notice.type
+        case notice[:type]
           when 'MODIFIED'
             reset_namespace_watch_retry_stats
-            cache_key = notice.object['metadata']['uid']
+            cache_key = notice[:object][:metadata][:uid]
             cached    = @namespace_cache[cache_key]
             if cached
-              @namespace_cache[cache_key] = parse_namespace_metadata(notice.object)
+              @namespace_cache[cache_key] = parse_namespace_metadata(notice[:object])
               @stats.bump(:namespace_cache_watch_updates)
             else
               @stats.bump(:namespace_cache_watch_misses)
@@ -128,12 +128,12 @@ module KubernetesMetadata
             # deleted but still processing logs
             @stats.bump(:namespace_cache_watch_deletes_ignored)
           when 'ERROR'
-            if notice.object && notice.object['code'] == 410
+            if notice[:object] && notice[:object][:code] == 410
               @stats.bump(:namespace_watch_gone_notices)
               raise GoneError
             else
               @stats.bump(:namespace_watch_error_type_notices)
-              message = notice['object']['message'] if notice['object'] && notice['object']['message']
+              message = notice[:object][:message] if notice[:object] && notice[:object][:message]
               raise "Error while watching namespaces: #{message}"
             end
           else
