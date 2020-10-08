@@ -146,7 +146,7 @@ module Fluent::Plugin
       require 'lru_redux'
       @stats = KubernetesMetadata::Stats.new
 
-      if @de_dot && (@de_dot_separator =~ /\./).present?
+      if @de_dot && @de_dot_separator.include?(".")
         raise Fluent::ConfigError, "Invalid de_dot_separator: cannot be or contain '.'"
       end
 
@@ -173,7 +173,7 @@ module Fluent::Plugin
 
         env_host = ENV['KUBERNETES_SERVICE_HOST']
         env_port = ENV['KUBERNETES_SERVICE_PORT']
-        if env_host.present? && env_port.present?
+        if present?(env_host) && present?(env_port)
           if env_host =~ Resolv::IPv6::Regex
             # Brackets are needed around IPv6 addresses
             env_host = "[#{env_host}]"
@@ -191,22 +191,21 @@ module Fluent::Plugin
         ca_cert = File.join(@secret_dir, K8_POD_CA_CERT)
         pod_token = File.join(@secret_dir, K8_POD_TOKEN)
 
-        if !@ca_file.present? and File.exist?(ca_cert)
+        if !present?(@ca_file) and File.exist?(ca_cert)
           log.debug "Found CA certificate: #{ca_cert}"
           @ca_file = ca_cert
         end
 
-        if !@bearer_token_file.present? and File.exist?(pod_token)
+        if !present?(@bearer_token_file) and File.exist?(pod_token)
           log.debug "Found pod token: #{pod_token}"
           @bearer_token_file = pod_token
         end
       end
 
-      if @kubernetes_url.present?
-
+      if present?(@kubernetes_url)
         ssl_options = {
-            client_cert: @client_cert.present? ? OpenSSL::X509::Certificate.new(File.read(@client_cert)) : nil,
-            client_key:  @client_key.present? ? OpenSSL::PKey::RSA.new(File.read(@client_key)) : nil,
+            client_cert: present?(@client_cert) ? OpenSSL::X509::Certificate.new(File.read(@client_cert)) : nil,
+            client_key:  present?(@client_key) ? OpenSSL::PKey::RSA.new(File.read(@client_key)) : nil,
             ca_file:     @ca_file,
             verify_ssl:  @verify_ssl ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
         }
@@ -228,7 +227,7 @@ module Fluent::Plugin
 
         auth_options = {}
 
-        if @bearer_token_file.present?
+        if present?(@bearer_token_file)
           bearer_token = File.read(@bearer_token_file)
           auth_options[:bearer_token] = bearer_token
         end
@@ -281,7 +280,7 @@ module Fluent::Plugin
           'pod_name'        => pod_name
         }
       }
-      if @kubernetes_url.present?
+      if present?(@kubernetes_url)
         pod_metadata = get_pod_metadata(container_id, namespace_name, pod_name, create_time, batch_miss_cache)
 
         if (pod_metadata.include? 'containers') && (pod_metadata['containers'].include? container_id) && !@skip_container_metadata
@@ -372,5 +371,9 @@ module Fluent::Plugin
       end
     end
 
+    # copied from activesupport
+    def present?(object)
+      object.respond_to?(:empty?) ? !object.empty? : !!object
+    end
   end
 end
