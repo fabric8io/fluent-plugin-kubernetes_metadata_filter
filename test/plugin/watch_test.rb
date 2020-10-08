@@ -19,7 +19,6 @@
 require_relative '../helper'
 
 class WatchTest < Test::Unit::TestCase
-
   def thread_current_running?
     true
   end
@@ -36,17 +35,20 @@ class WatchTest < Test::Unit::TestCase
     Thread.current[:namespace_watch_retry_count] = 0
 
     @client = OpenStruct.new
-    def @client.watch_pods(options = {})
+    def @client.watch_pods(_options = {})
       []
     end
-    def @client.watch_namespaces(options = {})
+
+    def @client.watch_namespaces(_options = {})
       []
     end
-    def @client.get_namespaces(options = {})
-      {items: [], metadata: {resourceVersion: '12345'}}
+
+    def @client.get_namespaces(_options = {})
+      { items: [], metadata: { resourceVersion: '12345' } }
     end
-    def @client.get_pods(options = {})
-      {items: [], metadata: {resourceVersion: '12345'}}
+
+    def @client.get_pods(_options = {})
+      { items: [], metadata: { resourceVersion: '12345' } }
     end
 
     @exception_raised = :blow_up_when_used
@@ -59,8 +61,10 @@ class WatchTest < Test::Unit::TestCase
     logger = {}
     def logger.debug(message)
     end
+
     def logger.info(message, error)
     end
+
     def logger.error(message, error)
     end
     logger

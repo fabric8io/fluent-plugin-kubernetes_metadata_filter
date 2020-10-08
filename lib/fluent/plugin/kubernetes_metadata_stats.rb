@@ -19,17 +19,16 @@
 require 'lru_redux'
 module KubernetesMetadata
   class Stats
-
     def initialize
       @stats = ::LruRedux::TTL::ThreadSafeCache.new(1000, 3600)
     end
 
     def bump(key)
-        @stats[key] = @stats.getset(key) { 0 } + 1
+      @stats[key] = @stats.getset(key) { 0 } + 1
     end
 
     def set(key, value)
-       @stats[key] = value
+      @stats[key] = value
     end
 
     def [](key)
@@ -37,10 +36,9 @@ module KubernetesMetadata
     end
 
     def to_s
-      "stats - " + [].tap do |a|
-          @stats.each {|k,v| a << "#{k.to_s}: #{v}"}
+      'stats - ' + [].tap do |a|
+        @stats.each { |k, v| a << "#{k}: #{v}"}
       end.join(', ')
     end
-
   end
 end

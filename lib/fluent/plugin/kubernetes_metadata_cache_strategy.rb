@@ -27,25 +27,28 @@ module KubernetesMetadata
         metadata = @cache.fetch(ids[:pod_id]) do
           @stats.bump(:pod_cache_miss)
           m = fetch_pod_metadata(namespace_name, pod_name)
-          (m.nil? || m.empty?) ? {'pod_id'=>ids[:pod_id]} : m
+          m.nil? || m.empty? ? { 'pod_id' => ids[:pod_id] } : m
         end
         metadata.merge!(@namespace_cache.fetch(ids[:namespace_id]) do
           @stats.bump(:namespace_cache_miss)
           m = fetch_namespace_metadata(namespace_name) unless @skip_namespace_metadata
-          (m.nil? || m.empty?) ?  {'namespace_id'=>ids[:namespace_id]} : m
+          m.nil? || m.empty? ? { 'namespace_id' => ids[:namespace_id] } : m
         end)
       else
         # SLOW PATH
         @stats.bump(:id_cache_miss)
-        return batch_miss_cache["#{namespace_name}_#{pod_name}"] if batch_miss_cache.key?("#{namespace_name}_#{pod_name}")
+        if batch_miss_cache.key?("#{namespace_name}_#{pod_name}")
+          return batch_miss_cache["#{namespace_name}_#{pod_name}"]
+        end
+
         pod_metadata = fetch_pod_metadata(namespace_name, pod_name)
         if @skip_namespace_metadata
-          ids = { :pod_id=> pod_metadata['pod_id'] }
+          ids = { pod_id: pod_metadata['pod_id'] }
           @id_cache[key] = ids
           return pod_metadata
         end
         namespace_metadata = fetch_namespace_metadata(namespace_name)
-        ids = { :pod_id=> pod_metadata['pod_id'], :namespace_id => namespace_metadata['namespace_id'] }
+        ids = { pod_id: pod_metadata['pod_id'], namespace_id: namespace_metadata['namespace_id'] }
         if !ids[:pod_id].nil? && !ids[:namespace_id].nil?
           # pod found and namespace found
           metadata = pod_metadata
@@ -91,8 +94,7 @@ module KubernetesMetadata
 
       # remove namespace info that is only used for comparison
       metadata.delete('creation_timestamp')
-      metadata.delete_if{|k,v| v.nil?}
+      metadata.delete_if { |_k, v| v.nil?}
     end
-
   end
 end

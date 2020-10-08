@@ -65,16 +65,16 @@ def ipv6_enabled?
   begin
     TCPServer.open('::1', 0)
     true
-  rescue
+  rescue StandardError
     false
   end
 end
 
 # TEST_NAME='foo' ruby test_file.rb to run a single test case
-if ENV["TEST_NAME"]
+if ENV['TEST_NAME']
   (class << Test::Unit::TestCase; self; end).prepend(Module.new do
     def test(name)
-      super if name == ENV["TEST_NAME"]
+      super if name == ENV['TEST_NAME']
     end
   end)
 end

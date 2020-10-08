@@ -19,15 +19,13 @@
 require_relative '../helper'
 
 class KubernetesMetadataCacheStatsTest < Test::Unit::TestCase
+  test 'watch stats' do
+    require 'lru_redux'
+    stats = KubernetesMetadata::Stats.new
+    stats.bump(:missed)
+    stats.bump(:deleted)
+    stats.bump(:deleted)
 
-    test 'watch stats' do
-      require 'lru_redux'
-      stats = KubernetesMetadata::Stats.new
-      stats.bump(:missed)
-      stats.bump(:deleted)
-      stats.bump(:deleted)
-
-      assert_equal("stats - deleted: 2, missed: 1", stats.to_s)
-    end
-
+    assert_equal('stats - deleted: 2, missed: 1', stats.to_s)
+  end
 end

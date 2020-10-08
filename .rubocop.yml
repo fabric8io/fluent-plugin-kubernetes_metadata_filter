@@ -6,3 +6,6 @@ Style/EmptyMethod:
 
 Metrics:
   Enabled: false
+
+Style/SpecialGlobalVars:
+  Enabled: false
