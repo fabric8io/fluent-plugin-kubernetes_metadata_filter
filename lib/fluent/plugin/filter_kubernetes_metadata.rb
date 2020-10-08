@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #
 # Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
 # Kubernetes metadata
@@ -28,8 +30,8 @@ require 'resolv'
 
 module Fluent::Plugin
   class KubernetesMetadataFilter < Fluent::Plugin::Filter
-    K8_POD_CA_CERT = 'ca.crt'.freeze
-    K8_POD_TOKEN = 'token'.freeze
+    K8_POD_CA_CERT = 'ca.crt'
+    K8_POD_TOKEN = 'token'
 
     include KubernetesMetadata::CacheStrategy
     include KubernetesMetadata::Common
@@ -47,9 +49,11 @@ module Fluent::Plugin
     config_param :client_key, :string, default: nil
     config_param :ca_file, :string, default: nil
     config_param :verify_ssl, :bool, default: true
-    config_param :tag_to_kubernetes_name_regexp,
-                 :string,
-                 default: 'var\.log\.containers\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
+    config_param(
+      :tag_to_kubernetes_name_regexp,
+      :string,
+      default: 'var\.log\.containers\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
+    )
     config_param :bearer_token_file, :string, default: nil
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
     config_param :de_dot, :bool, default: true
@@ -63,9 +67,11 @@ module Fluent::Plugin
     # I would have included them as named groups, but you can't have named groups that are
     # non-capturing :P
     # parse format is defined here: https://github.com/kubernetes/kubernetes/blob/release-1.6/pkg/kubelet/dockertools/docker.go#L317
-    config_param :container_name_to_kubernetes_regexp,
-                 :string,
-                 default: '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'
+    config_param(
+      :container_name_to_kubernetes_regexp,
+      :string,
+      default: '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'
+    )
 
     config_param :annotation_match, :array, default: []
     config_param :stats_interval, :integer, default: 30
@@ -216,12 +222,13 @@ module Fluent::Plugin
           require 'openssl'
           ssl_store = OpenSSL::X509::Store.new
           ssl_store.set_default_paths
-          flagval = if defined? OpenSSL::X509::V_FLAG_PARTIAL_CHAIN
-                      OpenSSL::X509::V_FLAG_PARTIAL_CHAIN
-                    else
-                      # this version of ruby does not define OpenSSL::X509::V_FLAG_PARTIAL_CHAIN
-                      0x80000
-                    end
+          flagval =
+            if defined? OpenSSL::X509::V_FLAG_PARTIAL_CHAIN
+              OpenSSL::X509::V_FLAG_PARTIAL_CHAIN
+            else
+              # this version of ruby does not define OpenSSL::X509::V_FLAG_PARTIAL_CHAIN
+              0x80000
+            end
           ssl_store.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL | flagval
           ssl_options[:cert_store] = ssl_store
         end
@@ -249,10 +256,10 @@ module Fluent::Plugin
         end
 
         if @watch
-          pod_thread = Thread.new(self) { |this| this.set_up_pod_thread }
+          pod_thread = Thread.new(self, &:set_up_pod_thread)
           pod_thread.abort_on_exception = true
 
-          namespace_thread = Thread.new(self) { |this| this.set_up_namespace_thread }
+          namespace_thread = Thread.new(self, &:set_up_namespace_thread)
           namespace_thread.abort_on_exception = true
         end
       end
@@ -293,14 +300,14 @@ module Fluent::Plugin
     end
 
     def create_time_from_record(record, internal_time)
-      time_key = @time_fields.detect { |ii| record.has_key?(ii) }
+      time_key = @time_fields.detect { |ii| record.key?(ii) }
       time = record[time_key]
       if time.nil? || time.chop.empty?
         # `internal_time` is a Fluent::EventTime, it can't compare with Time.
         return Time.at(internal_time.to_f)
       end
 
-      if %w[_SOURCE_REALTIME_TIMESTAMP __REALTIME_TIMESTAMP].include?(time_key)
+      if ['_SOURCE_REALTIME_TIMESTAMP', '__REALTIME_TIMESTAMP'].include?(time_key)
         timei = time.to_i
         return Time.at(timei / 1_000_000, timei % 1_000_000)
       end
@@ -316,23 +323,28 @@ module Fluent::Plugin
       batch_miss_cache = {}
       es.each do |time, record|
         if tag_match_data && tag_metadata.nil?
-          tag_metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
-                                                 tag_match_data['docker_id'], create_time_from_record(record, time), batch_miss_cache)
+          tag_metadata = get_metadata_for_record(
+            tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
+            tag_match_data['docker_id'], create_time_from_record(record, time), batch_miss_cache
+          )
         end
         metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
         if (@use_journal || @use_journal.nil?) &&
            (j_metadata = get_metadata_for_journal_record(record, time, batch_miss_cache))
           metadata = j_metadata
         end
-        if @lookup_from_k8s_field && record.has_key?('kubernetes') && record.has_key?('docker') &&
+        if @lookup_from_k8s_field && record.key?('kubernetes') && record.key?('docker') &&
            record['kubernetes'].respond_to?(:has_key?) && record['docker'].respond_to?(:has_key?) &&
-           record['kubernetes'].has_key?('namespace_name') &&
-           record['kubernetes'].has_key?('pod_name') &&
-           record['kubernetes'].has_key?('container_name') &&
-           record['docker'].has_key?('container_id') &&
-           (k_metadata = get_metadata_for_record(record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
-                                                 record['kubernetes']['container_name'], record['docker']['container_id'],
-                                                 create_time_from_record(record, time), batch_miss_cache))
+           record['kubernetes'].key?('namespace_name') &&
+           record['kubernetes'].key?('pod_name') &&
+           record['kubernetes'].key?('container_name') &&
+           record['docker'].key?('container_id') &&
+           (k_metadata = get_metadata_for_record(
+             record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
+             record['kubernetes']['container_name'], record['docker']['container_id'],
+             create_time_from_record(record, time), batch_miss_cache
+           )
+           )
           metadata = k_metadata
         end
 
@@ -345,16 +357,18 @@ module Fluent::Plugin
 
     def get_metadata_for_journal_record(record, time, batch_miss_cache)
       metadata = nil
-      if record.has_key?('CONTAINER_NAME') && record.has_key?('CONTAINER_ID_FULL')
+      if record.key?('CONTAINER_NAME') && record.key?('CONTAINER_ID_FULL')
         metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
-          get_metadata_for_record(match_data['namespace'], match_data['pod_name'], match_data['container_name'],
-                                  record['CONTAINER_ID_FULL'], create_time_from_record(record, time), batch_miss_cache)
+          get_metadata_for_record(
+            match_data['namespace'], match_data['pod_name'], match_data['container_name'],
+            record['CONTAINER_ID_FULL'], create_time_from_record(record, time), batch_miss_cache
+          )
         end
         unless metadata
           log.debug "Error: could not match CONTAINER_NAME from record #{record}"
           @stats.bump(:container_name_match_failed)
         end
-      elsif record.has_key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
+      elsif record.key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
         log.debug "Error: no container name and id in record #{record}"
         @stats.bump(:container_name_id_missing)
       end

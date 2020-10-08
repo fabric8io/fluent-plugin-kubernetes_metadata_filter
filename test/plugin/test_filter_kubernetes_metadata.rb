@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #
 # Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
 # Kubernetes metadata
@@ -26,7 +28,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     @time = Fluent::Engine.now
   end
 
-  DEFAULT_TAG = 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log'.freeze
+  DEFAULT_TAG = 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log'
 
   def create_driver(conf = '')
     Test::Driver::Filter.new(Plugin::KubernetesMetadataFilter).configure(conf)
@@ -124,7 +126,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
   end
 
   sub_test_case 'filter_stream' do
-    def emit(msg={}, config='
+    def emit(msg = {}, config = '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -133,10 +135,10 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       d.run(default_tag: DEFAULT_TAG) do
         d.feed(@time, msg)
       end
-      d.filtered.map { |e| e.last}
+      d.filtered.map(&:last)
     end
 
-    def emit_with_tag(tag, msg={}, config='
+    def emit_with_tag(tag, msg = {}, config = '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
@@ -145,7 +147,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       d.run(default_tag: tag) do
         d.feed(@time, msg)
       end
-      d.filtered.map { |e| e.last}
+      d.filtered.map(&:last)
     end
 
     test 'nil event stream' do
@@ -364,7 +366,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     test 'with docker & inaccessible kubernetes metadata' do
       stub_request(:any, 'https://localhost:8443/api').to_return(
         'body' => {
-          'versions' => %w[v1beta3 v1]
+          'versions' => ['v1beta3', 'v1']
         }.to_json
       )
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc').to_timeout
@@ -388,7 +390,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     test 'with dot in pod name' do
       stub_request(:any, 'https://localhost:8443/api').to_return(
         'body' => {
-          'versions' => %w[v1beta3 v1]
+          'versions' => ['v1beta3', 'v1']
         }.to_json
       )
       stub_request(:any, 'https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller.98rqc').to_timeout
@@ -408,7 +410,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
 
     test 'with docker metadata, non-kubernetes' do
       filtered = emit_with_tag('non-kubernetes', {}, '')
-      assert_false(filtered[0].has_key?(:kubernetes))
+      assert_false(filtered[0].key?(:kubernetes))
     end
 
     test 'ignores invalid json in log field' do
@@ -615,7 +617,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
               'component' => 'k8s-test'
             }
           }
-        }.merge(msg) { |key, oldval, newval| (key == 'kubernetes') || (key == 'docker') ? oldval : newval}
+        }.merge(msg) { |key, oldval, newval| (key == 'kubernetes') || (key == 'docker') ? oldval : newval }
         assert_equal(expected_kube_metadata, es[0])
       end
     end
@@ -661,7 +663,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
               'component' => 'journald-test'
             }
           }
-        }.merge(msg) { |key, oldval, newval| (key == 'kubernetes') || (key == 'docker') ? oldval : newval}
+        }.merge(msg) { |key, oldval, newval| (key == 'kubernetes') || (key == 'docker') ? oldval : newval }
         assert_equal(expected_kube_metadata, es[0])
       end
     end
@@ -708,7 +710,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
               'component' => 'fabric8Console'
             }
           }
-        }.merge(msg) { |key, oldval, newval| (key == 'kubernetes') || (key == 'docker') ? oldval : newval}
+        }.merge(msg) { |key, oldval, newval| (key == 'kubernetes') || (key == 'docker') ? oldval : newval }
         assert_equal(expected_kube_metadata, es[0])
       end
     end
@@ -933,7 +935,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         d.run do
           d.feed(DEFAULT_TAG, msgpack_stream)
         end
-        filtered = d.filtered.map { |e| e.last}
+        filtered = d.filtered.map(&:last)
 
         expected_kube_metadata = {
           'time' => '2015-05-08T09:22:01Z',

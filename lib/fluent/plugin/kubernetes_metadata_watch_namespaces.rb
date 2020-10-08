@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #
 # Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
 # Kubernetes metadata
@@ -75,9 +77,10 @@ module KubernetesMetadata
     def start_namespace_watch
       get_namespaces_and_start_watcher
     rescue StandardError => e
-      message = 'start_namespace_watch: Exception encountered setting up ' \
-                "namespace watch from Kubernetes API #{@apiVersion} endpoint " \
-                "#{@kubernetes_url}: #{e.message}"
+      message =
+        'start_namespace_watch: Exception encountered setting up ' \
+        "namespace watch from Kubernetes API #{@apiVersion} endpoint " \
+        "#{@kubernetes_url}: #{e.message}"
       message += " (#{e.response})" if e.respond_to?(:response)
       log.debug(message)
 
@@ -117,7 +120,7 @@ module KubernetesMetadata
         when 'MODIFIED'
           reset_namespace_watch_retry_stats
           cache_key = notice[:object][:metadata][:uid]
-          cached    = @namespace_cache[cache_key]
+          cached = @namespace_cache[cache_key]
           if cached
             @namespace_cache[cache_key] = parse_namespace_metadata(notice[:object])
             @stats.bump(:namespace_cache_watch_updates)

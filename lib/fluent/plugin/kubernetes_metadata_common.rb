@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #
 # Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
 # Kubernetes metadata
@@ -68,17 +70,18 @@ module KubernetesMetadata
         pod_object[:status][:containerStatuses].each do |container_status|
           # get plain container id (eg. docker://hash -> hash)
           container_id = container_status[:containerID].sub(%r{^[-_a-zA-Z0-9]+://}, '')
-          container_meta[container_id] = if @skip_container_metadata
-                                           {
-                                             'name' => container_status[:name]
-                                           }
-                                         else
-                                           {
-                                             'name' => container_status[:name],
-                                             'image' => container_status[:image],
-                                             'image_id' => container_status[:imageID]
-                                           }
-                                         end
+          container_meta[container_id] =
+            if @skip_container_metadata
+              {
+                'name' => container_status[:name]
+              }
+            else
+              {
+                'name' => container_status[:name],
+                'image' => container_status[:image],
+                'image_id' => container_status[:imageID]
+              }
+            end
         end
       rescue StandardError
         log.debug("parsing container meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]} ")

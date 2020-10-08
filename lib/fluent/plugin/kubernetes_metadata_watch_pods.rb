@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #
 # Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
 # Kubernetes metadata
@@ -68,7 +70,7 @@ module KubernetesMetadata
             'connection might have been closed. Retried ' \
             "#{@watch_retry_max_times} times yet still failing. Restarting."
           log.error(message, e)
-          raise Fluent::UnrecoverableError.new(message)
+          raise Fluent::UnrecoverableError, message
         end
       end
     end
@@ -76,9 +78,10 @@ module KubernetesMetadata
     def start_pod_watch
       get_pods_and_start_watcher
     rescue StandardError => e
-      message = 'start_pod_watch: Exception encountered setting up pod watch ' \
-                "from Kubernetes API #{@apiVersion} endpoint " \
-                "#{@kubernetes_url}: #{e.message}"
+      message =
+        'start_pod_watch: Exception encountered setting up pod watch ' \
+        "from Kubernetes API #{@apiVersion} endpoint " \
+        "#{@kubernetes_url}: #{e.message}"
       message += " (#{e.response})" if e.respond_to?(:response)
       log.debug(message)
 
@@ -120,15 +123,15 @@ module KubernetesMetadata
       watcher.each do |notice|
         # store version we processed to not reprocess it ... do not unset when there is no version in response
         version = ( # TODO: replace with &.dig once we are on ruby 2.5+
-          notice[:object] && notice[:object][:metadata] && notice[:object][:metadata][:resourceVersion]
-        )
+        notice[:object] && notice[:object][:metadata] && notice[:object][:metadata][:resourceVersion]
+      )
         @last_seen_resource_version = version if version
 
         case notice[:type]
         when 'MODIFIED'
           reset_pod_watch_retry_stats
           cache_key = notice.dig(:object, :metadata, :uid)
-          cached    = @cache[cache_key]
+          cached = @cache[cache_key]
           if cached
             @cache[cache_key] = parse_pod_metadata(notice[:object])
             @stats.bump(:pod_cache_watch_updates)

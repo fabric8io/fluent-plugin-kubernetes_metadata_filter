@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'bundler/setup'
 require 'bundler/gem_tasks'
 require 'rake/testtask'
@@ -7,7 +9,7 @@ task test: [:base_test]
 
 RuboCop::RakeTask.new
 
-task default: %i[test build rubocop]
+task default: [:test, :build, :rubocop]
 
 desc 'Run test_unit based test'
 Rake::TestTask.new(:base_test) do |t|

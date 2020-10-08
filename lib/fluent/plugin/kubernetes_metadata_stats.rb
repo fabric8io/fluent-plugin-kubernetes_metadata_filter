@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #
 # Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
 # Kubernetes metadata
@@ -37,7 +39,7 @@ module KubernetesMetadata
 
     def to_s
       'stats - ' + [].tap do |a|
-        @stats.each { |k, v| a << "#{k}: #{v}"}
+        @stats.each { |k, v| a << "#{k}: #{v}" }
       end.join(', ')
     end
   end

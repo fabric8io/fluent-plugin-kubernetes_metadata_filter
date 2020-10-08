@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 #
 # Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
 # Kubernetes metadata
@@ -37,9 +39,7 @@ module KubernetesMetadata
       else
         # SLOW PATH
         @stats.bump(:id_cache_miss)
-        if batch_miss_cache.key?("#{namespace_name}_#{pod_name}")
-          return batch_miss_cache["#{namespace_name}_#{pod_name}"]
-        end
+        return batch_miss_cache["#{namespace_name}_#{pod_name}"] if batch_miss_cache.key?("#{namespace_name}_#{pod_name}")
 
         pod_metadata = fetch_pod_metadata(namespace_name, pod_name)
         if @skip_namespace_metadata
@@ -62,7 +62,7 @@ module KubernetesMetadata
               # namespace is older then record for pod
               ids[:pod_id] = key
               metadata = @cache.fetch(ids[:pod_id]) do
-                m = { 'pod_id' => ids[:pod_id] }
+                { 'pod_id' => ids[:pod_id] }
               end
             end
             metadata.merge!(namespace_metadata)
@@ -94,7 +94,7 @@ module KubernetesMetadata
 
       # remove namespace info that is only used for comparison
       metadata.delete('creation_timestamp')
-      metadata.delete_if { |_k, v| v.nil?}
+      metadata.delete_if { |_k, v| v.nil? }
     end
   end
 end
