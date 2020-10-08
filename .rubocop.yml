@@ -1,0 +1,8 @@
+AllCops:
+  TargetRubyVersion: 2.5 # keep in sync with .circleci/config.yml and gemspec
+
+Style/EmptyMethod:
+  Enabled: false
+
+Metrics:
+  Enabled: false

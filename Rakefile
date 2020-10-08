@@ -1,10 +1,13 @@
+require 'bundler/setup'
 require 'bundler/gem_tasks'
 require 'rake/testtask'
-require 'bump/tasks'
+require 'rubocop/rake_task'
 
 task :test => [:base_test]
 
-task :default => [:test, :build]
+RuboCop::RakeTask.new
+
+task :default => [:test, :build, :rubocop]
 
 desc 'Run test_unit based test'
 Rake::TestTask.new(:base_test) do |t|

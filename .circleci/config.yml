@@ -17,7 +17,7 @@ missingdeps: &missingdeps
 
 test: &test
   name: Test bundle
-  command: bundle exec rake test
+  command: bundle exec rake --trace
 
 executors:
   ruby-2-5:
@@ -42,9 +42,9 @@ jobs:
       - run: *install
       - run: *test
       - store_test_results:
-            path: coverage
+          path: coverage
       - store_artifacts:
-            path: coverage
+          path: coverage
 
 workflows:
   "test_multiple_ruby_versions":
