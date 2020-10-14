@@ -48,7 +48,7 @@ module KubernetesMetadata
           namespace_watcher = nil
         rescue => e
           @stats.bump(:namespace_watch_failures)
-          if Thread.current[:namespace_watch_retry_count] < @watch_retry_max_times
+          if @watch_retry_max_times == -1 || Thread.current[:namespace_watch_retry_count] < @watch_retry_max_times
             # Instead of raising exceptions and crashing Fluentd, swallow
             # the exception and reset the watcher.
             log.info(
@@ -58,7 +58,7 @@ module KubernetesMetadata
               "seconds and resetting the namespace watcher.", e)
             sleep(Thread.current[:namespace_watch_retry_backoff_interval])
             Thread.current[:namespace_watch_retry_count] += 1
-            Thread.current[:namespace_watch_retry_backoff_interval] *= @watch_retry_exponential_backoff_base
+            Thread.current[:namespace_watch_retry_backoff_interval] *= @watch_retry_exponential_backoff_base unless @watch_retry_max_times == -1
             namespace_watcher = nil
           else
             # Since retries failed for many times, log as errors instead
