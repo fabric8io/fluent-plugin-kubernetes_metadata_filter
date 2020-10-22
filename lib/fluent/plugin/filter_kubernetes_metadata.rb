@@ -308,39 +308,39 @@ module Fluent::Plugin
       return Time.parse(time)
     end
 
-    def filter_stream(tag, es)
-      return es if (es.respond_to?(:empty?) && es.empty?) || !es.is_a?(Fluent::EventStream)
-      new_es = Fluent::MultiEventStream.new
+    def filter(tag, time, record)
       tag_match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled) unless @use_journal
       tag_metadata = nil
       batch_miss_cache = {}
-      es.each do |time, record|
-        if tag_match_data && tag_metadata.nil?
-          tag_metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
-            tag_match_data['docker_id'], create_time_from_record(record, time), batch_miss_cache)
-        end
-        metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
-        if (@use_journal || @use_journal.nil?) &&
-          (j_metadata = get_metadata_for_journal_record(record, time, batch_miss_cache))
-          metadata = j_metadata
-        end
-        if @lookup_from_k8s_field && record.has_key?('kubernetes') && record.has_key?('docker') &&
-          record['kubernetes'].respond_to?(:has_key?) && record['docker'].respond_to?(:has_key?) &&
-          record['kubernetes'].has_key?('namespace_name') &&
-          record['kubernetes'].has_key?('pod_name') &&
-          record['kubernetes'].has_key?('container_name') &&
-          record['docker'].has_key?('container_id') &&
-          (k_metadata = get_metadata_for_record(record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
-            record['kubernetes']['container_name'], record['docker']['container_id'],
-            create_time_from_record(record, time), batch_miss_cache))
-            metadata = k_metadata
-        end
 
-        record = record.merge(metadata) if metadata
-        new_es.add(time, record)
+      if tag_match_data && tag_metadata.nil?
+        tag_metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
+          tag_match_data['docker_id'], create_time_from_record(record, time), batch_miss_cache)
       end
+
+      metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
+
+      if (@use_journal || @use_journal.nil?) &&
+        (j_metadata = get_metadata_for_journal_record(record, time, batch_miss_cache))
+        metadata = j_metadata
+      end
+
+      if @lookup_from_k8s_field && record.has_key?('kubernetes') && record.has_key?('docker') &&
+        record['kubernetes'].respond_to?(:has_key?) && record['docker'].respond_to?(:has_key?) &&
+        record['kubernetes'].has_key?('namespace_name') &&
+        record['kubernetes'].has_key?('pod_name') &&
+        record['kubernetes'].has_key?('container_name') &&
+        record['docker'].has_key?('container_id') &&
+        (k_metadata = get_metadata_for_record(record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
+          record['kubernetes']['container_name'], record['docker']['container_id'],
+          create_time_from_record(record, time), batch_miss_cache))
+          metadata = k_metadata
+      end
+
+      record = record.merge(metadata) if metadata
       dump_stats
-      new_es
+
+      record
     end
 
     def get_metadata_for_journal_record(record, time, batch_miss_cache)
