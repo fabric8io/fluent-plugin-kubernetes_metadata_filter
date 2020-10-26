@@ -110,7 +110,10 @@ module KubernetesMetadata
         # continue watching from most recent resourceVersion
         options[:resource_version] = pods[:metadata][:resourceVersion]
       end
-      @client.watch_pods(options)
+
+      watcher = @client.watch_pods(options)
+      reset_pod_watch_retry_stats
+      watcher
     end
 
     # Reset pod watch retry count and backoff interval as there is a
