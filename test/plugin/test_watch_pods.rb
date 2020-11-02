@@ -234,19 +234,35 @@ class DefaultPodWatchStrategyTest < WatchTest
       end
     end
 
+    test 'pod watch raises Fluent::UnrecoverableError when cannot re-establish connection to k8s API server' do
+      # Stub start_pod_watch to simulate initial successful connection to API server
+      stub(self).start_pod_watch
+      # Stub watch_pods to simluate not being able to set up watch connection to API server
+      stub(@client).watch_pods { raise }
+      @client.stub :get_pods, @initial do
+        assert_raise Fluent::UnrecoverableError do
+          set_up_pod_thread
+        end
+      end
+      assert_equal(3, @stats[:pod_watch_failures])
+      assert_equal(2, Thread.current[:pod_watch_retry_count])
+      assert_equal(4, Thread.current[:pod_watch_retry_backoff_interval])
+      assert_nil(@stats[:pod_watch_error_type_notices])
+    end
+
     test 'pod watch resets watch retry count when exceptions are encountered and connection to k8s API server is re-established' do
       @client.stub :get_pods, @initial do
         @client.stub :watch_pods, [[@created, @exception_raised]] do
-          # Force the infinite watch loop to exit after 3 seconds. Verifies that
-          # no unrecoverable error was thrown during this period of time.
-          assert_raise Timeout::Error.new('execution expired') do
-            Timeout.timeout(3) do
-              set_up_pod_thread
+            # Force the infinite watch loop to exit after 3 seconds. Verifies that
+            # no unrecoverable error was thrown during this period of time.
+            assert_raise Timeout::Error.new('execution expired') do
+              Timeout.timeout(3) do
+                set_up_pod_thread
+              end
             end
-          end
-          assert_operator(@stats[:pod_watch_failures], :>=, 3)
-          assert_operator(Thread.current[:pod_watch_retry_count], :<=, 1)
-          assert_operator(Thread.current[:pod_watch_retry_backoff_interval], :<=, 1)
+            assert_operator(@stats[:pod_watch_failures], :>=, 3)
+            assert_operator(Thread.current[:pod_watch_retry_count], :<=, 1)
+            assert_operator(Thread.current[:pod_watch_retry_backoff_interval], :<=, 1)
         end
       end
     end
