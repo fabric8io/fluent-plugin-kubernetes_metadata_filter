@@ -30,8 +30,10 @@ module KubernetesMetadata
           (m.nil? || m.empty?) ? {'pod_id'=>ids[:pod_id]} : m
         end
         metadata.merge!(@namespace_cache.fetch(ids[:namespace_id]) do
-          @stats.bump(:namespace_cache_miss)
-          m = fetch_namespace_metadata(namespace_name) unless @skip_namespace_metadata
+          m = unless @skip_namespace_metadata
+            @stats.bump(:namespace_cache_miss)
+            fetch_namespace_metadata(namespace_name) 
+          end
           (m.nil? || m.empty?) ?  {'namespace_id'=>ids[:namespace_id]} : m
         end)
       else
