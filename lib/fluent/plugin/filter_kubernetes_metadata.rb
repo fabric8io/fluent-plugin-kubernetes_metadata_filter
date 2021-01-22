@@ -22,6 +22,7 @@
 require_relative 'kubernetes_metadata_cache_strategy'
 require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
+require_relative 'kubernetes_metadata_util'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
 
@@ -35,6 +36,7 @@ module Fluent::Plugin
 
     include KubernetesMetadata::CacheStrategy
     include KubernetesMetadata::Common
+    include KubernetesMetadata::Util
     include KubernetesMetadata::WatchNamespaces
     include KubernetesMetadata::WatchPods
 
@@ -292,21 +294,6 @@ module Fluent::Plugin
         metadata['kubernetes'].delete('containers')
       end
       metadata
-    end
-
-    def create_time_from_record(record, internal_time)
-      time_key = @time_fields.detect { |ii| record.key?(ii) }
-      time = record[time_key]
-      if time.nil? || time.chop.empty?
-        # `internal_time` is a Fluent::EventTime, it can't compare with Time.
-        return Time.at(internal_time.to_f)
-      end
-
-      if ['_SOURCE_REALTIME_TIMESTAMP', '__REALTIME_TIMESTAMP'].include?(time_key)
-        timei = time.to_i
-        return Time.at(timei / 1_000_000, timei % 1_000_000)
-      end
-      Time.parse(time)
     end
 
     def filter_stream(tag, es)
