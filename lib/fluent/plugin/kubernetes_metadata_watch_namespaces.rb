@@ -102,7 +102,9 @@ module KubernetesMetadata
       # continue watching from most recent resourceVersion
       options[:resource_version] = namespaces[:metadata][:resourceVersion]
 
-      @client.watch_namespaces(options)
+      watcher = @client.watch_namespaces(options)
+      reset_namespace_watch_retry_stats
+      watcher
     end
 
     # Reset namespace watch retry count and backoff interval as there is a

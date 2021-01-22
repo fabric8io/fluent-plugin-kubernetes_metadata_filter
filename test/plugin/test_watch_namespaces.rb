@@ -148,30 +148,52 @@ class WatchNamespacesTestTest < WatchTest
       end
     end
 
-    test 'namespace watch retries when exceptions are encountered' do
+    test 'namespace watch raises Fluent::UnrecoverableError when cannot re-establish connection to k8s API server' do
+      # Stub start_namespace_watch to simulate initial successful connection to API server
+      stub(self).start_namespace_watch
+      # Stub watch_namespaces to simluate not being able to set up watch connection to API server
+      stub(@client).watch_namespaces { raise }
+      @client.stub :get_namespaces, @initial do
+        assert_raise Fluent::UnrecoverableError do
+          set_up_namespace_thread
+        end
+      end
+      assert_equal(3, @stats[:namespace_watch_failures])
+      assert_equal(2, Thread.current[:namespace_watch_retry_count])
+      assert_equal(4, Thread.current[:namespace_watch_retry_backoff_interval])
+      assert_nil(@stats[:namespace_watch_error_type_notices])
+    end
+
+    test 'namespace watch resets watch retry count when exceptions are encountered and connection to k8s API server is re-established' do
       @client.stub :get_namespaces, @initial do
         @client.stub :watch_namespaces, [[@created, @exception_raised]] do
-          assert_raise Fluent::UnrecoverableError do
-            set_up_namespace_thread
+          # Force the infinite watch loop to exit after 3 seconds. Verifies that
+          # no unrecoverable error was thrown during this period of time.
+          assert_raise Timeout::Error.new('execution expired') do
+            Timeout.timeout(3) do
+              set_up_namespace_thread
+            end
           end
-          assert_equal(3, @stats[:namespace_watch_failures])
-          assert_equal(2, Thread.current[:namespace_watch_retry_count])
-          assert_equal(4, Thread.current[:namespace_watch_retry_backoff_interval])
-          assert_nil(@stats[:namespace_watch_error_type_notices])
+          assert_operator(@stats[:namespace_watch_failures], :>=, 3)
+          assert_operator(Thread.current[:namespace_watch_retry_count], :<=, 1)
+          assert_operator(Thread.current[:namespace_watch_retry_backoff_interval], :<=, 1)
         end
       end
     end
 
-    test 'namespace watch retries when error is received' do
+    test 'namespace watch resets watch retry count when error is received and connection to k8s API server is re-established' do
       @client.stub :get_namespaces, @initial do
         @client.stub :watch_namespaces, [@error] do
-          assert_raise Fluent::UnrecoverableError do
-            set_up_namespace_thread
+          # Force the infinite watch loop to exit after 3 seconds. Verifies that
+          # no unrecoverable error was thrown during this period of time.
+          assert_raise Timeout::Error.new('execution expired') do
+            Timeout.timeout(3) do
+              set_up_namespace_thread
+            end
           end
-          assert_equal(3, @stats[:namespace_watch_failures])
-          assert_equal(2, Thread.current[:namespace_watch_retry_count])
-          assert_equal(4, Thread.current[:namespace_watch_retry_backoff_interval])
-          assert_equal(3, @stats[:namespace_watch_error_type_notices])
+          assert_operator(@stats[:namespace_watch_failures], :>=, 3)
+          assert_operator(Thread.current[:namespace_watch_retry_count], :<=, 1)
+          assert_operator(Thread.current[:namespace_watch_retry_backoff_interval], :<=, 1)
         end
       end
     end
