@@ -1,10 +1,15 @@
+# frozen_string_literal: true
+
+require 'bundler/setup'
 require 'bundler/gem_tasks'
 require 'rake/testtask'
 require 'bump/tasks'
+require 'rubocop/rake_task'
 
-task :test => [:base_test]
+task test: [:base_test]
+task default: [:test, :build, :rubocop]
 
-task :default => [:test, :build]
+RuboCop::RakeTask.new
 
 desc 'Run test_unit based test'
 Rake::TestTask.new(:base_test) do |t|
@@ -13,7 +18,6 @@ Rake::TestTask.new(:base_test) do |t|
   #  $ bundle exec rake base_test TEST=test/test_*.rb
   t.libs << 'test'
   t.test_files = Dir['test/**/test_*.rb'].sort
-  #t.verbose = true
   t.warning = false
 end
 
@@ -23,15 +27,15 @@ task :headers do
   require 'copyright_header'
 
   args = {
-    :license => 'Apache-2.0',
-    :copyright_software => 'Fluentd Kubernetes Metadata Filter Plugin',
-    :copyright_software_description => 'Enrich Fluentd events with Kubernetes metadata',
-    :copyright_holders => ['Red Hat, Inc.'],
-    :copyright_years => ['2015-2017'],
-    :add_path => 'lib:test',
-    :output_dir => '.'
+    license: 'Apache-2.0',
+    copyright_software: 'Fluentd Kubernetes Metadata Filter Plugin',
+    copyright_software_description: 'Enrich Fluentd events with Kubernetes metadata',
+    copyright_holders: ['Red Hat, Inc.'],
+    copyright_years: ['2015-2021'],
+    add_path: 'lib:test',
+    output_dir: '.'
   }
 
-  command_line = CopyrightHeader::CommandLine.new( args )
+  command_line = CopyrightHeader::CommandLine.new(args)
   command_line.execute
 end

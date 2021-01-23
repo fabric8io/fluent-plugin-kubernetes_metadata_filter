@@ -17,7 +17,7 @@ missingdeps: &missingdeps
 
 test: &test
   name: Test bundle
-  command: bundle exec rake test
+  command: bundle exec rake test --trace
 
 executors:
   ruby-2-5:
