@@ -1,0 +1,57 @@
+AllCops:
+  TargetRubyVersion: 2.5 # keep in sync with .circleci/config.yml and gemspec
+  NewCops: enable
+
+Style/EmptyMethod:
+  Enabled: false
+
+Metrics:
+  Enabled: false
+
+# not safe ... needs require 'English'
+Style/SpecialGlobalVars:
+  Enabled: false
+
+Layout/LineLength:
+  Max: 205 # TODO: lower
+
+Style/Documentation:
+  Enabled: false
+
+Naming/AccessorMethodName:
+  Enabled: false
+
+Naming/MethodParameterName:
+  Enabled: false
+
+Style/IfInsideElse:
+  Enabled: false
+
+Style/GuardClause:
+  Enabled: false
+
+Lint/NestedMethodDefinition:
+  Enabled: false
+
+# TODO: fix
+Style/StringConcatenation:
+  Enabled: false
+
+Style/NumericPredicate:
+  EnforcedStyle: comparison
+
+Style/IfUnlessModifier:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+# TODO: enable ... somehow breaks tests
+Style/HashEachMethods:
+  Enabled: false
+
+Style/WordArray:
+  EnforcedStyle: brackets
+
+Style/SymbolArray:
+  EnforcedStyle: brackets
