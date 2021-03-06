@@ -92,6 +92,7 @@ module KubernetesMetadata
         'namespace_name' => pod_object[:metadata][:namespace],
         'pod_id' => pod_object[:metadata][:uid],
         'pod_name' => pod_object[:metadata][:name],
+        'pod_ip' => pod_object[:status][:podIP],
         'containers' => syms_to_strs(container_meta),
         'host' => pod_object[:spec][:nodeName]
       }

@@ -45,6 +45,9 @@ class DefaultPodWatchStrategyTest < WatchTest
               name: 'bar',
               image: 'foo'
             }]
+          },
+          status: {
+            podIP: '172.17.0.8'
           }
         },
         {
@@ -63,6 +66,9 @@ class DefaultPodWatchStrategyTest < WatchTest
               name: 'bar',
               image: 'foo'
             }]
+          },
+          status: {
+            podIP: '172.17.0.8'
           }
         }
       ]
@@ -86,6 +92,9 @@ class DefaultPodWatchStrategyTest < WatchTest
             name: 'bar',
             image: 'foo'
           }]
+        },
+        status: {
+          podIP: '172.17.0.8'
         }
       }
     }
@@ -110,6 +119,7 @@ class DefaultPodWatchStrategyTest < WatchTest
           }]
         },
         status: {
+          podIP: '172.17.0.8',
           containerStatuses: [
             {
               name: 'fabric8-console-container',
