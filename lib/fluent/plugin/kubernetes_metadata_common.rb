@@ -26,6 +26,34 @@ module KubernetesMetadata
       end
     end
 
+    def fetch_pod_metadata(namespace_name, pod_name)
+      log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
+      pod_object = @client.get_pod(pod_name, namespace_name)
+      log.trace("raw metadata for #{namespace_name}/#{pod_name}: #{pod_object}") if log.trace?
+      metadata = cache_pod_metadata(pod_object)
+      @stats.bump(:pod_cache_api_updates)
+      log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}") if log.trace?
+      metadata
+    rescue StandardError => e
+      @stats.bump(:pod_cache_api_nil_error)
+      log.debug "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
+      {}
+    end
+
+    def fetch_namespace_metadata(namespace_name)
+      log.trace("fetching namespace metadata: #{namespace_name}") if log.trace?
+      namespace_object = @client.get_namespace(namespace_name)
+      log.trace("raw metadata for #{namespace_name}: #{namespace_object}") if log.trace?
+      metadata = cache_namespace_metadata(namespace_object)
+      log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}") if log.trace?
+      @stats.bump(:namespace_cache_api_updates)
+      metadata
+    rescue StandardError => e
+      @stats.bump(:namespace_cache_api_nil_error)
+      log.debug "Exception '#{e}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
+      {}
+    end
+
     def match_annotations(annotations)
       result = {}
       @annotations_regexps.each do |regexp|

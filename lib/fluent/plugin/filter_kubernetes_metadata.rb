@@ -19,7 +19,6 @@
 # limitations under the License.
 #
 
-require_relative 'kubernetes_metadata_cache_strategy'
 require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
 require_relative 'kubernetes_metadata_util'
@@ -34,7 +33,6 @@ module Fluent::Plugin
     K8_POD_CA_CERT = 'ca.crt'
     K8_POD_TOKEN = 'token'
 
-    include KubernetesMetadata::CacheStrategy
     include KubernetesMetadata::Common
     include KubernetesMetadata::Util
     include KubernetesMetadata::WatchNamespaces
@@ -45,6 +43,18 @@ module Fluent::Plugin
     config_param :kubernetes_url, :string, default: nil
     config_param :cache_size, :integer, default: 1000
     config_param :cache_ttl, :integer, default: 60 * 60
+
+    # cache_strategy controls the caching behavior of the plugin by providing the following strategies:
+    # - :simple caches metadata using a combination of namespace and podname.  This is the same mechanism
+    #           used by the kubernetes api server to distinguish resources on the cluster, control rbac, etc
+    #           The implication is for short lived kubernetes namespaces where the name is being reused,
+    #           pods labels may be reused across invocations. The "orphaned" parameters are ignored
+    #           for this cache setting
+    # - :unique caches metadata using UUIDs of the pod and namespace.  It attempts to associate kubernetes metadata
+    #           uniquly by UUID regardless if the namespace or pod still exist on the cluster.  It is possible
+    #           to be processing logs after the resources are deleted.
+    config_param :cache_strategy, :enum, list: [:simple, :unique], default: :unique
+
     config_param :watch, :bool, default: true
     config_param :apiVersion, :string, default: 'v1'
     config_param :client_cert, :string, default: nil
@@ -92,20 +102,6 @@ module Fluent::Plugin
     # The maximum number of times to retry pod and namespace watches.
     config_param :watch_retry_max_times, :integer, default: 10
 
-    def fetch_pod_metadata(namespace_name, pod_name)
-      log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
-      pod_object = @client.get_pod(pod_name, namespace_name)
-      log.trace("raw metadata for #{namespace_name}/#{pod_name}: #{pod_object}") if log.trace?
-      metadata = parse_pod_metadata(pod_object)
-      @stats.bump(:pod_cache_api_updates)
-      log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}") if log.trace?
-      @cache[metadata['pod_id']] = metadata
-    rescue StandardError => e
-      @stats.bump(:pod_cache_api_nil_error)
-      log.debug "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
-      {}
-    end
-
     def dump_stats
       @curr_time = Time.now
       return if @curr_time.to_i - @prev_time.to_i < @stats_interval
@@ -119,20 +115,6 @@ module Fluent::Plugin
         log.trace("      pod cache: #{@cache.to_a}")
         log.trace("namespace cache: #{@namespace_cache.to_a}")
       end
-    end
-
-    def fetch_namespace_metadata(namespace_name)
-      log.trace("fetching namespace metadata: #{namespace_name}") if log.trace?
-      namespace_object = @client.get_namespace(namespace_name)
-      log.trace("raw metadata for #{namespace_name}: #{namespace_object}") if log.trace?
-      metadata = parse_namespace_metadata(namespace_object)
-      @stats.bump(:namespace_cache_api_updates)
-      log.trace("parsed metadata for #{namespace_name}: #{metadata}") if log.trace?
-      @namespace_cache[metadata['namespace_id']] = metadata
-    rescue StandardError => e
-      @stats.bump(:namespace_cache_api_nil_error)
-      log.debug "Exception '#{e}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
-      {}
     end
 
     def initialize
@@ -168,6 +150,15 @@ module Fluent::Plugin
 
       # Use the namespace UID as the key to fetch a hash containing namespace metadata
       @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+
+      if @cache_strategy == :simple
+        require_relative 'kubernetes_metadata_simple_cache_strategy'
+        extend KubernetesMetadata::SimpleCacheStrategy
+      else
+        require_relative 'kubernetes_metadata_cache_strategy'
+        extend KubernetesMetadata::CacheStrategy
+      end
+        
 
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
       @container_name_to_kubernetes_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_regexp)

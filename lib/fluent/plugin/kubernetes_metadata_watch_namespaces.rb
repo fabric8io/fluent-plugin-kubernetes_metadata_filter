@@ -19,10 +19,12 @@
 # limitations under the License.
 #
 # TODO: this is mostly copy-paste from kubernetes_metadata_watch_pods.rb unify them
+require_relative 'kubernetes_metadata_cache_strategy'
 require_relative 'kubernetes_metadata_common'
 
 module KubernetesMetadata
   module WatchNamespaces
+    include ::KubernetesMetadata::CacheStrategy
     include ::KubernetesMetadata::Common
 
     def set_up_namespace_thread
@@ -94,8 +96,7 @@ module KubernetesMetadata
       }
       namespaces = @client.get_namespaces(options)
       namespaces[:items].each do |namespace|
-        cache_key = namespace[:metadata][:uid]
-        @namespace_cache[cache_key] = parse_namespace_metadata(namespace)
+        cache_namespace_metadata(namespace)
         @stats.bump(:namespace_cache_host_updates)
       end
 
@@ -120,10 +121,9 @@ module KubernetesMetadata
         case notice[:type]
         when 'MODIFIED'
           reset_namespace_watch_retry_stats
-          cache_key = notice[:object][:metadata][:uid]
-          cached    = @namespace_cache[cache_key]
-          if cached
-            @namespace_cache[cache_key] = parse_namespace_metadata(notice[:object])
+          namespace = notice[:object]
+          if is_namespace_cached?(namespace)
+            cache_namespace_metadata(namespace)
             @stats.bump(:namespace_cache_watch_updates)
           else
             @stats.bump(:namespace_cache_watch_misses)

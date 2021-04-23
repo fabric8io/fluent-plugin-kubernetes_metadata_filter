@@ -19,10 +19,12 @@
 # limitations under the License.
 #
 # TODO: this is mostly copy-paste from kubernetes_metadata_watch_namespaces.rb unify them
+require_relative 'kubernetes_metadata_cache_strategy'
 require_relative 'kubernetes_metadata_common'
 
 module KubernetesMetadata
   module WatchPods
+    include ::KubernetesMetadata::CacheStrategy
     include ::KubernetesMetadata::Common
 
     def set_up_pod_thread
@@ -101,8 +103,7 @@ module KubernetesMetadata
       else
         pods = @client.get_pods(options)
         pods[:items].each do |pod|
-          cache_key = pod[:metadata][:uid]
-          @cache[cache_key] = parse_pod_metadata(pod)
+          cache_pod_metadata(pod)
           @stats.bump(:pod_cache_host_updates)
         end
 
@@ -134,13 +135,12 @@ module KubernetesMetadata
         case notice[:type]
         when 'MODIFIED'
           reset_pod_watch_retry_stats
-          cache_key = notice.dig(:object, :metadata, :uid)
-          cached    = @cache[cache_key]
-          if cached
-            @cache[cache_key] = parse_pod_metadata(notice[:object])
+          pod = notice[:object]
+          if is_pod_cached?(pod)
+            cache_pod_metadata(pod)
             @stats.bump(:pod_cache_watch_updates)
           elsif ENV['K8S_NODE_NAME'] == notice[:object][:spec][:nodeName]
-            @cache[cache_key] = parse_pod_metadata(notice[:object])
+            cache_pod_metadata(pod)
             @stats.bump(:pod_cache_host_updates)
           else
             @stats.bump(:pod_cache_watch_misses)
