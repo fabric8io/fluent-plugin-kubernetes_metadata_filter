@@ -20,6 +20,27 @@
 #
 module KubernetesMetadata
   module CacheStrategy
+
+    def is_pod_cached?(pod)
+      return false if pod.nil?
+      @cache.has_key?(pod.dig(:metadata,:uid))
+    end
+    
+    def is_namespace_cached?(namespace)
+      return false if namespace.nil?
+      @namespace_cache.has_key?(namespace.dig(:metadata,:uid))
+    end
+
+    def cache_pod_metadata(pod)
+      cache_key = pod[:metadata][:uid]
+      @cache[cache_key] = parse_pod_metadata(pod)
+    end
+
+    def cache_namespace_metadata(namespace)
+        cache_key = namespace[:metadata][:uid]
+        @namespace_cache[cache_key] = parse_namespace_metadata(namespace)
+    end
+
     def get_pod_metadata(key, namespace_name, pod_name, record_create_time, batch_miss_cache)
       metadata = {}
       ids = @id_cache[key]
@@ -30,12 +51,14 @@ module KubernetesMetadata
         return batch_miss_cache["#{namespace_name}_#{pod_name}"] if batch_miss_cache.key?("#{namespace_name}_#{pod_name}")
 
         pod_metadata = fetch_pod_metadata(namespace_name, pod_name)
+        @cache[pod_metadata['pod_id']] = pod_metadata unless pod_metadata.nil? || pod_metadata.empty?
         if @skip_namespace_metadata
           ids = { pod_id: pod_metadata['pod_id'] }
           @id_cache[key] = ids
           return pod_metadata
         end
         namespace_metadata = fetch_namespace_metadata(namespace_name)
+        @namespace_cache[namespace_metadata['namespace_id']] = namespace_metadata unless namespace_metadata.nil? || namespace_metadata.empty?
         ids = { pod_id: pod_metadata['pod_id'], namespace_id: namespace_metadata['namespace_id'] }
         if !ids[:pod_id].nil? && !ids[:namespace_id].nil?
           # pod found and namespace found

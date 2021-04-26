@@ -34,10 +34,27 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     Test::Driver::Filter.new(Plugin::KubernetesMetadataFilter).configure(conf)
   end
 
+  sub_test_case 'configure cache_strategy' do
+    test 'simple' do
+      d = create_driver('
+        cache_strategy simple
+      ')
+      assert_equal(:simple, d.instance.cache_strategy)
+    end
+    
+    test 'unique' do
+      d = create_driver('
+        cache_strategy unique
+      ')
+      assert_equal(:unique, d.instance.cache_strategy)
+    end
+  end
+
   sub_test_case 'configure' do
     test 'check default' do
       d = create_driver
       assert_equal(1000, d.instance.cache_size)
+      assert_equal(:unique, d.instance.cache_strategy)
     end
 
     test 'kubernetes url' do
