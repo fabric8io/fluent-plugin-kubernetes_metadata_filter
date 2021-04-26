@@ -253,6 +253,10 @@ module Fluent::Plugin
         end
 
         if @watch
+          if ENV['K8S_NODE_NAME'].nil? || ENV['K8S_NODE_NAME'].strip.empty?
+            log.warn("!! The environment variable 'K8S_NODE_NAME' is not set to the node name which can affect the API server and watch efficiency !!")
+          end
+
           pod_thread = Thread.new(self, &:set_up_pod_thread)
           pod_thread.abort_on_exception = true
 
