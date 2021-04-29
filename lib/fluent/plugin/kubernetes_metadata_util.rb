@@ -38,3 +38,16 @@ module KubernetesMetadata
     end
   end
 end
+
+#https://stackoverflow.com/questions/5622435/how-do-i-convert-a-ruby-class-name-to-a-underscore-delimited-symbol
+class String
+  def underscore
+    word = self.dup
+    word.gsub!(/::/, '_')
+    word.gsub!(/([A-Z]+)([A-Z][a-z])/,'\1_\2')
+    word.gsub!(/([a-z\d])([A-Z])/,'\1_\2')
+    word.tr!("-", "_")
+    word.downcase!
+    word
+  end
+end
