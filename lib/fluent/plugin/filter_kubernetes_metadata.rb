@@ -94,7 +94,10 @@ module Fluent::Plugin
 
     def fetch_pod_metadata(namespace_name, pod_name)
       log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
-      pod_object = @client.get_pod(pod_name, namespace_name)
+      options = {
+        resource_version: '0' # Fetch from API server cache instead of etcd quorum read
+      }
+      pod_object = @client.get_pod(pod_name, namespace_name, options)
       log.trace("raw metadata for #{namespace_name}/#{pod_name}: #{pod_object}") if log.trace?
       metadata = parse_pod_metadata(pod_object)
       @stats.bump(:pod_cache_api_updates)
@@ -123,7 +126,10 @@ module Fluent::Plugin
 
     def fetch_namespace_metadata(namespace_name)
       log.trace("fetching namespace metadata: #{namespace_name}") if log.trace?
-      namespace_object = @client.get_namespace(namespace_name)
+      options = {
+        resource_version: '0' # Fetch from API server cache instead of etcd quorum read
+      }
+      namespace_object = @client.get_namespace(namespace_name, nil, options)
       log.trace("raw metadata for #{namespace_name}: #{namespace_object}") if log.trace?
       metadata = parse_namespace_metadata(namespace_object)
       @stats.bump(:namespace_cache_api_updates)
