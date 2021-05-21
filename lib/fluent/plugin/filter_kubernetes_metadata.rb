@@ -85,6 +85,11 @@ module Fluent::Plugin
     config_param :skip_container_metadata, :bool, default: false
     config_param :skip_master_url, :bool, default: false
     config_param :skip_namespace_metadata, :bool, default: false
+
+    # A classname in the form of Test::APIAdapter which will try
+    # to be resolved from a relative named file 'test_api_adapter'
+    config_param :test_api_adapter, :string, default: nil
+
     # The time interval in seconds for retry backoffs when watch connections fail.
     config_param :watch_retry_interval, :integer, default: 1
     # The base number of exponential backoff for retries.
@@ -251,6 +256,12 @@ module Fluent::Plugin
           auth_options: auth_options,
           as: :parsed_symbolized
         )
+
+        if @test_api_adapter
+          log.info "Extending client with test api adaper #{@test_api_adapter}"
+          require_relative @test_api_adapter.underscore
+          @client.extend(eval(@test_api_adapter))
+        end
 
         begin
           @client.api_valid?
