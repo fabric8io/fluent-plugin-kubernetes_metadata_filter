@@ -40,6 +40,12 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       assert_equal(1000, d.instance.cache_size)
     end
 
+    test 'check test_api_adapter' do
+      d = create_driver('test_api_adapter KubernetesMetadata::TestApiAdapter')
+      assert_equal('KubernetesMetadata::TestApiAdapter', d.instance.test_api_adapter)
+    end
+
+
     test 'kubernetes url' do
       VCR.use_cassette('valid_kubernetes_api_server') do
         d = create_driver('
