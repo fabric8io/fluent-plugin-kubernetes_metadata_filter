@@ -151,21 +151,12 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         ')
       d = create_driver(config)
       d.run(default_tag: tag) do
-        d.feed(@time, msg)
+        d.feed(msg)
       end
-      d.filtered.map(&:last)
+      d.filtered_records
     end
 
-    test 'nil event stream' do
-      # not certain how this is possible but adding test to properly
-      # guard against this condition we have seen - test for nil,
-      # empty, no empty method, not an event stream
-      plugin = create_driver.instance
-      plugin.filter_stream('tag', nil)
-      plugin.filter_stream('tag', Fluent::MultiEventStream.new)
-    end
-
-    test 'inability to connect to the api server handles exception and doensnt block pipeline' do
+    test 'inability to connect to the api server handles exception and does not block pipeline' do
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }]) do
         driver = create_driver('
           kubernetes_url https://localhost:8443
