@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fluent-plugin-kubernetes_metadata_filter (2.7.0)
+    fluent-plugin-kubernetes_metadata_filter (2.7.1)
       fluentd (>= 0.14.0, < 1.14)
       kubeclient (< 5)
       lru_redux
@@ -16,7 +16,7 @@ GEM
     charlock_holmes (0.7.7)
     codeclimate-test-reporter (0.6.0)
       simplecov (>= 0.7.1, < 1.0.0)
-    concurrent-ruby (1.1.8)
+    concurrent-ruby (1.1.9)
     cool.io (1.7.1)
     copyright-header (1.0.22)
       github-linguist
@@ -54,7 +54,7 @@ GEM
       http-form_data (~> 2.2)
       http-parser (~> 1.2.0)
     http-accept (1.7.0)
-    http-cookie (1.0.3)
+    http-cookie (1.0.4)
       domain_name (~> 0.5)
     http-form_data (2.3.0)
     http-parser (1.2.3)
