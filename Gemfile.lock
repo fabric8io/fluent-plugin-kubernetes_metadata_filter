@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     fluent-plugin-kubernetes_metadata_filter (2.7.2)
-      fluentd (>= 0.14.0, < 1.14)
+      fluentd (>= 0.14.0, < 1.15)
       kubeclient (< 5)
       lru_redux
 
