@@ -69,6 +69,8 @@ class WatchTest < Test::Unit::TestCase
 
     def logger.error(message, error)
     end
+    def logger.warn(message)
+    end
     logger
   end
 end

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fluent-plugin-kubernetes_metadata_filter (2.8.0)
+    fluent-plugin-kubernetes_metadata_filter (2.8.1)
       fluentd (>= 0.14.0, < 1.15)
       kubeclient (>= 4.0.0, < 5.0.0)
       lru_redux
@@ -26,7 +26,7 @@ GEM
     domain_name (0.5.20190701)
       unf (>= 0.0.5, < 1.0.0)
     escape_utils (1.2.1)
-    ffi (1.15.3)
+    ffi (1.15.4)
     ffi-compiler (1.0.1)
       ffi (>= 1.0.0)
       rake
@@ -70,7 +70,7 @@ GEM
     lru_redux (1.1.0)
     mime-types (3.3.1)
       mime-types-data (~> 3.2015)
-    mime-types-data (3.2021.0704)
+    mime-types-data (3.2021.0901)
     mini_mime (1.0.2)
     minitest (4.7.5)
     msgpack (1.4.2)
@@ -126,7 +126,7 @@ GEM
       tzinfo (>= 1.0.0)
     unf (0.1.4)
       unf_ext
-    unf_ext (0.0.7.7)
+    unf_ext (0.0.8)
     unicode-display_width (2.0.0)
     vcr (6.0.0)
     webmock (3.11.1)

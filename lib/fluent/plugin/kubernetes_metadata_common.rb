@@ -84,8 +84,8 @@ module KubernetesMetadata
                                            }
                                          end
         end
-      rescue StandardError
-        log.debug("parsing container meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]} ")
+      rescue StandardError=>e
+        log.warn("parsing container meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]}: #{e}")
       end
 
       kubernetes_metadata = {
