@@ -432,9 +432,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       assert_equal(msg, filtered[0])
     end
 
-    test 'with kubernetes dotted labels, de_dot enabled' do
+    test 'with kubernetes dotted and slashed labels, de_dot and de_slash enabled' do
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' },
-                         { name: 'kubernetes_docker_metadata_dotted_labels' }]) do
+                         { name: 'kubernetes_docker_metadata_dotted_slashed_labels' }]) do
         filtered = emit({}, '
           kubernetes_url https://localhost:8443
           watch false
@@ -452,14 +452,14 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
             'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
             'namespace_labels' => {
-              'kubernetes_io/namespacetest' => 'somevalue'
+              'kubernetes_io__namespacetest' => 'somevalue'
             },
             'namespace_name' => 'default',
             'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'pod_ip' => '172.17.0.8',
             'master_url' => 'https://localhost:8443',
             'labels' => {
-              'kubernetes_io/test' => 'somevalue'
+              'kubernetes_io__test' => 'somevalue'
             }
           }
         }
@@ -467,14 +467,15 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       end
     end
 
-    test 'with kubernetes dotted labels, de_dot disabled' do
+    test 'with kubernetes dotted and slashed labels, de_dot and de_slash disabled' do
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' },
-                         { name: 'kubernetes_docker_metadata_dotted_labels' }]) do
+                         { name: 'kubernetes_docker_metadata_dotted_slashed_labels' }]) do
         filtered = emit({}, '
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
           de_dot false
+          de_slash false
         ')
         expected_kube_metadata = {
           'docker' => {
@@ -506,7 +507,15 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     test 'invalid de_dot_separator config' do
       assert_raise Fluent::ConfigError do
         create_driver('
-          de_dot_separator contains.
+          de_dot_separator contains .
+        ')
+      end
+    end
+
+    test 'invalid de_slash_separator config' do
+      assert_raise Fluent::ConfigError do
+        create_driver('
+          de_slash_separator contains /
         ')
       end
     end
