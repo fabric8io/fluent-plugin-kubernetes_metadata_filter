@@ -47,6 +47,10 @@ module KubernetesMetadata
         de_dot!(labels) unless @skip_labels
         de_dot!(annotations)
       end
+      if @de_slash
+        de_slash!(labels) unless @skip_labels
+        de_slash!(annotations)
+      end
       kubernetes_metadata = {
         'namespace_id' => namespace_object[:metadata][:uid],
         'creation_timestamp' => namespace_object[:metadata][:creationTimestamp]
@@ -64,6 +68,10 @@ module KubernetesMetadata
       if @de_dot
         de_dot!(labels) unless @skip_labels
         de_dot!(annotations)
+      end
+      if @de_slash
+        de_slash!(labels) unless @skip_labels
+        de_slash!(annotations)
       end
 
       # collect container information
