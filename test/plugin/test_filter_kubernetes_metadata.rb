@@ -439,6 +439,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
+          de_dot true
+          de_slash true
         ')
         expected_kube_metadata = {
           'docker' => {
@@ -507,7 +509,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     test 'invalid de_dot_separator config' do
       assert_raise Fluent::ConfigError do
         create_driver('
-          de_dot_separator contains .
+          de_dot true
+          de_dot_separator contains.
         ')
       end
     end
@@ -515,7 +518,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     test 'invalid de_slash_separator config' do
       assert_raise Fluent::ConfigError do
         create_driver('
-          de_slash_separator contains /
+          de_slash true
+          de_slash_separator contains/
         ')
       end
     end

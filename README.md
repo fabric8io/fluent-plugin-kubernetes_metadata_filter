@@ -47,7 +47,7 @@ This must used named capture groups for `container_name`, `pod_name` & `namespac
 * `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
 * `de_dot` - replace dots in labels and annotations with configured `de_dot_separator`, required for Datadog and ElasticSearch 2.x compatibility (default: `true`)
 * `de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
-* `de_slash` - replace slashes in labels and annotations with configured `de_slash_separator`, required for Datadog compatibility (default: `true`)
+* `de_slash` - replace slashes in labels and annotations with configured `de_slash_separator`, required for Datadog compatibility (default: `false`)
 * `de_slash_separator` - separator to use if `de_slash` is enabled (default: `__`)
 * *DEPRECATED* `use_journal` - If false, messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.  If unset (the default), the plugin will use the `CONTAINER_NAME` and `CONTAINER_ID_FULL` fields
 if available, otherwise, will use the tag in the `tag_to_kubernetes_name_regexp` format.

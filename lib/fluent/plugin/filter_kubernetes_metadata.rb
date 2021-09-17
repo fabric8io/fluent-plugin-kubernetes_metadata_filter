@@ -58,7 +58,7 @@ module Fluent::Plugin
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
     config_param :de_dot, :bool, default: true
     config_param :de_dot_separator, :string, default: '_'
-    config_param :de_slash, :bool, default: true
+    config_param :de_slash, :bool, default: false
     config_param :de_slash_separator, :string, default: '__'
     # if reading from the journal, the record will contain the following fields in the following
     # format:
