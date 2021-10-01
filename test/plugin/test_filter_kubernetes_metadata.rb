@@ -165,6 +165,43 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       plugin.filter_stream('tag', Fluent::MultiEventStream.new)
     end
 
+    sub_test_case 'parsing_pod_metadata' do
+      test 'when container_status is missing from the pod status' do
+        VCR.use_cassettes(
+          [
+            { name: 'valid_kubernetes_api_server' },
+            { name: 'kubernetes_get_api_v1' },
+            { name: 'kubernetes_get_namespace_default' },
+            { name: 'kubernetes_get_pod_container_init' }
+          ]) do
+          filtered = emit({}, '
+            kubernetes_url https://localhost:8443
+            watch false
+            cache_size 1
+          ')
+          expected_kube_metadata = {
+            'docker' => {
+              'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+            },
+            'kubernetes' => {
+              'container_name'=>'fabric8-console-container',
+              'host' => 'jimmi-redhat.localnet',
+              'pod_name' => 'fabric8-console-controller-98rqc',
+              'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
+              'namespace_name' => 'default',
+              'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
+              'pod_ip' => '172.17.0.8',
+              'master_url' => 'https://localhost:8443',
+              'labels' => {
+                'component' => 'fabric8Console'
+              }
+            }
+          }
+          assert_equal(expected_kube_metadata, filtered[0])
+        end
+      end
+    end
+
     test 'inability to connect to the api server handles exception and doensnt block pipeline' do
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }]) do
         driver = create_driver('
