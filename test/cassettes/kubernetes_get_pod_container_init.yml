@@ -1,0 +1,145 @@
+#
+# Fluentd Kubernetes Metadata Filter Plugin - Enrich Fluentd events with
+# Kubernetes metadata
+#
+# Copyright 2015 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+---
+http_interactions:
+- request:
+    method: get
+    uri: https://localhost:8443/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc
+    body:
+      encoding: US-ASCII
+      string: ''
+    headers:
+      Accept:
+      - "*/*; q=0.5, application/xml"
+      Accept-Encoding:
+      - gzip, deflate
+      User-Agent:
+      - Ruby
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 08 May 2015 10:35:37 GMT
+      Transfer-Encoding:
+      - chunked
+    body:
+      encoding: UTF-8
+      string: |-
+        {
+          "kind": "Pod",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "fabric8-console-controller-98rqc",
+            "generateName": "fabric8-console-controller-",
+            "namespace": "default",
+            "selfLink": "/api/v1/namespaces/default/pods/fabric8-console-controller-98rqc",
+            "uid": "c76927af-f563-11e4-b32d-54ee7527188d",
+            "resourceVersion": "122",
+            "creationTimestamp": "2015-05-08T09:22:42Z",
+            "labels": {
+              "component": "fabric8Console"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "openshift-cert-secrets",
+                "hostPath": null,
+                "emptyDir": null,
+                "gcePersistentDisk": null,
+                "gitRepo": null,
+                "secret": {
+                  "secretName": "openshift-cert-secrets"
+                },
+                "nfs": null,
+                "iscsi": null,
+                "glusterfs": null
+              }
+            ],
+            "containers": [
+              {
+                "name": "fabric8-console-container",
+                "image": "fabric8/hawtio-kubernetes:latest",
+                "ports": [
+                  {
+                    "containerPort": 9090,
+                    "protocol": "TCP"
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "OAUTH_CLIENT_ID",
+                    "value": "fabric8-console"
+                  },
+                  {
+                    "name": "OAUTH_AUTHORIZE_URI",
+                    "value": "https://localhost:8443/oauth/authorize"
+                  }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                  {
+                    "name": "openshift-cert-secrets",
+                    "readOnly": true,
+                    "mountPath": "/etc/secret-volume"
+                  }
+                ],
+                "terminationMessagePath": "/dev/termination-log",
+                "imagePullPolicy": "IfNotPresent",
+                "capabilities": {}
+              }
+            ],
+            "restartPolicy": "Always",
+            "dnsPolicy": "ClusterFirst",
+            "nodeName": "jimmi-redhat.localnet"
+          },
+          "status": {
+            "phase": "Running",
+            "Condition": [
+              {
+                "type": "Ready",
+                "status": "True"
+              }
+            ],
+            "hostIP": "172.17.42.1",
+            "podIP": "172.17.0.8",
+            "containerStatuses": [
+              {
+                "name": "fabric8-console-container",
+                "state": {
+                  "waiting": {
+                    "reason": "ContainerCreating"
+                  }
+                },
+                "lastState": {},
+                "ready": true,
+                "restartCount": 0,
+                "image": "fabric8/hawtio-kubernetes:latest",
+                "imageID": ""
+              }
+            ]
+          }
+        }
+    http_version: 
+  recorded_at: Fri, 08 May 2015 10:35:37 GMT
+recorded_with: VCR 2.9.3
