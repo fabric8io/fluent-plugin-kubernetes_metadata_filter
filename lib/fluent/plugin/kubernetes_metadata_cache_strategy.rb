@@ -24,8 +24,6 @@ module KubernetesMetadata
       metadata = {}
       ids = @id_cache[key]
       if ids.nil?
-        # FAST PATH
-        # Cache hit, fetch metadata from the cache
         @stats.bump(:id_cache_miss)
         return batch_miss_cache["#{namespace_name}_#{pod_name}"] if batch_miss_cache.key?("#{namespace_name}_#{pod_name}")
 
@@ -65,7 +63,7 @@ module KubernetesMetadata
               @stats.bump(:id_cache_orphaned_record)
             end
             if @allow_orphans
-              log.trace("orphaning message for: #{namespace_name}/#{pod_name} ") if log.trace?
+              log.trace("orphaning message for: #{namespace_name}/#{pod_name} ")
               metadata = {
                 'orphaned_namespace' => namespace_name,
                 'namespace_name' => @orphaned_namespace_name,

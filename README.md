@@ -76,7 +76,7 @@ payload.  The following configuration options are removed:
 
 One way of preserving JSON logs can be through the [parser plugin](https://docs.fluentd.org/filter/parser)
 
-**NOTE** As of this release, the use of `use_journal` is **DEPRECATED**.  If this setting is not present, the plugin will
+**NOTE** As of release v2.1.4, the use of `use_journal` is **DEPRECATED**.  If this setting is not present, the plugin will
 attempt to figure out the source of the metadata fields from the following:
 - If `lookup_from_k8s_field true` (the default) and the following fields are present in the record:
 `docker.container_id`, `kubernetes.namespace_name`, `kubernetes.pod_name`, `kubernetes.container_name`,

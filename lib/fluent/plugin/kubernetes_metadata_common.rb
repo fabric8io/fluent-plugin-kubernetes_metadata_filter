@@ -78,9 +78,9 @@ module KubernetesMetadata
       container_meta = {}
       begin
         pod_object[:status][:containerStatuses].each do |container_status|
-          # get plain container id (eg. docker://hash -> hash)
-          container_id = container_status[:containerID] ? container_status[:containerID].sub(%r{^[-_a-zA-Z0-9]+://}, '') : container_status[:name]
-          container_meta[container_id] = if @skip_container_metadata
+          container_id = (container_status[:containerID]||"").sub(%r{^[-_a-zA-Z0-9]+://}, '')
+          key = container_status[:name]
+          container_meta[key] = if @skip_container_metadata
                                            {
                                              'name' => container_status[:name]
                                            }
@@ -88,7 +88,8 @@ module KubernetesMetadata
                                            {
                                              'name' => container_status[:name],
                                              'image' => container_status[:image],
-                                             'image_id' => container_status[:imageID]
+                                             'image_id' => container_status[:imageID],
+                                             :containerID => container_id
                                            }
                                          end
         end if pod_object[:status] && pod_object[:status][:containerStatuses]
