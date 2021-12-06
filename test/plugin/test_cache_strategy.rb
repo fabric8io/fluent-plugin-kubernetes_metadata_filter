@@ -44,7 +44,7 @@ class TestCacheStrategy
 
   def log
     logger = {}
-    def logger.trace?
+    def logger.on_trace
       true
     end
 

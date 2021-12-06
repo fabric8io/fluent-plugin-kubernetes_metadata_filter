@@ -51,9 +51,17 @@ module Fluent::Plugin
     config_param :client_key, :string, default: nil
     config_param :ca_file, :string, default: nil
     config_param :verify_ssl, :bool, default: true
-    config_param :tag_to_kubernetes_name_regexp,
-                 :string,
-                 default: 'var\.log\.containers\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
+
+    REGEX_VAR_LOG_PODS = '(?<prefix>var\.log\.pods)\.(?<namespace>[^_]+)_(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<pod_uuid>[a-z0-9-]*)\.(?<container_name>.+)\..*\.log$'
+    REGEX_VAR_LOG_CONTAINERS = '(?<prefix>var\.log\.containers)\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
+
+    #tag_to_kubernetes_name_regexp which must include named capture groups:
+    #  namespace            - The namespace in which the pod is deployed
+    #  pod_name             - The pod name
+    #  container_name       - The name of the container
+    #  pod_uuid (/var/log/pods) | docker_id (/var/log/containers) - Unique identifier used in caching of either pod_uuid or the container hash
+    config_param :tag_to_kubernetes_name_regexp, :string, default: "(#{REGEX_VAR_LOG_PODS}|#{REGEX_VAR_LOG_CONTAINERS})"
+
     config_param :bearer_token_file, :string, default: nil
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
     config_param :de_dot, :bool, default: true
@@ -100,15 +108,15 @@ module Fluent::Plugin
     config_param :watch_retry_max_times, :integer, default: 10
 
     def fetch_pod_metadata(namespace_name, pod_name)
-      log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}") if log.trace?
+      log.trace("fetching pod metadata: #{namespace_name}/#{pod_name}")
       options = {
         resource_version: '0' # Fetch from API server cache instead of etcd quorum read
       }
       pod_object = @client.get_pod(pod_name, namespace_name, options)
-      log.trace("raw metadata for #{namespace_name}/#{pod_name}: #{pod_object}") if log.trace?
+      log.trace("raw metadata for #{namespace_name}/#{pod_name}: #{pod_object}")
       metadata = parse_pod_metadata(pod_object)
       @stats.bump(:pod_cache_api_updates)
-      log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}") if log.trace?
+      log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}")
       @cache[metadata['pod_id']] = metadata
     rescue StandardError => e
       @stats.bump(:pod_cache_api_nil_error)
@@ -132,15 +140,15 @@ module Fluent::Plugin
     end
 
     def fetch_namespace_metadata(namespace_name)
-      log.trace("fetching namespace metadata: #{namespace_name}") if log.trace?
+      log.trace("fetching namespace metadata: #{namespace_name}")
       options = {
         resource_version: '0' # Fetch from API server cache instead of etcd quorum read
       }
       namespace_object = @client.get_namespace(namespace_name, nil, options)
-      log.trace("raw metadata for #{namespace_name}: #{namespace_object}") if log.trace?
+      log.trace("raw metadata for #{namespace_name}: #{namespace_object}")
       metadata = parse_namespace_metadata(namespace_object)
       @stats.bump(:namespace_cache_api_updates)
-      log.trace("parsed metadata for #{namespace_name}: #{metadata}") if log.trace?
+      log.trace("parsed metadata for #{namespace_name}: #{metadata}")
       @namespace_cache[metadata['namespace_id']] = metadata
     rescue StandardError => e
       @stats.bump(:namespace_cache_api_nil_error)
@@ -155,10 +163,6 @@ module Fluent::Plugin
 
     def configure(conf)
       super
-
-      def log.trace?
-        level == Fluent::Log::LEVEL_TRACE
-      end
 
       require 'kubeclient'
       require 'lru_redux'
@@ -187,6 +191,7 @@ module Fluent::Plugin
       @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
 
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
+      
       @container_name_to_kubernetes_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_regexp)
 
       # Use Kubernetes default service account if we're in a pod.
@@ -300,40 +305,47 @@ module Fluent::Plugin
       end
     end
 
-    def get_metadata_for_record(namespace_name, pod_name, container_name, container_id, create_time, batch_miss_cache)
+    def get_metadata_for_record(source, namespace_name, pod_name, container_name, cache_key, create_time, batch_miss_cache)
       metadata = {
-        'docker' => { 'container_id' => container_id },
+        'docker' => { 'container_id' => "" },
         'kubernetes' => {
           'container_name' => container_name,
           'namespace_name' => namespace_name,
           'pod_name' => pod_name
         }
       }
+      metadata['docker']['container_id'] = cache_key unless source == 'var.log.pods'
+      container_cache_key = container_name
       if present?(@kubernetes_url)
-        pod_metadata = get_pod_metadata(container_id, namespace_name, pod_name, create_time, batch_miss_cache)
-
-        if (pod_metadata.include? 'containers') && (pod_metadata['containers'].include? container_id) && !@skip_container_metadata
-          metadata['kubernetes']['container_image'] = pod_metadata['containers'][container_id]['image']
-          metadata['kubernetes']['container_image_id'] = pod_metadata['containers'][container_id]['image_id']
+        pod_metadata = get_pod_metadata(cache_key, namespace_name, pod_name, create_time, batch_miss_cache)
+        if (pod_metadata.include? 'containers') && (pod_metadata['containers'].include? container_cache_key) && !@skip_container_metadata
+          metadata['kubernetes']['container_image'] = pod_metadata['containers'][container_cache_key]['image']
+          metadata['kubernetes']['container_image_id'] = pod_metadata['containers'][container_cache_key]['image_id'] unless pod_metadata['containers'][container_cache_key]['image_id'].empty?
+          metadata['docker']['container_id'] = pod_metadata['containers'][container_cache_key]['containerID'] unless pod_metadata['containers'][container_cache_key]['containerID'].empty?
         end
 
         metadata['kubernetes'].merge!(pod_metadata) if pod_metadata
         metadata['kubernetes'].delete('containers')
       end
+      metadata.delete('docker') if metadata['docker'] && (metadata['docker']['container_id'].nil? || metadata['docker']['container_id'].empty?)
       metadata
     end
 
     def filter_stream(tag, es)
       return es if (es.respond_to?(:empty?) && es.empty?) || !es.is_a?(Fluent::EventStream)
-
       new_es = Fluent::MultiEventStream.new
       tag_match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled) unless @use_journal
       tag_metadata = nil
       batch_miss_cache = {}
       es.each do |time, record|
         if tag_match_data && tag_metadata.nil?
-          tag_metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
-                                                 tag_match_data['docker_id'], create_time_from_record(record, time), batch_miss_cache)
+          cache_key =  if tag_match_data.names.include?('pod_uuid') && !tag_match_data['pod_uuid'].nil?
+            tag_match_data['pod_uuid']
+          else
+            tag_match_data['docker_id']
+          end 
+          tag_metadata = get_metadata_for_record(tag_match_data['prefix'], tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
+                                                 cache_key, create_time_from_record(record, time), batch_miss_cache)
         end
         metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
         if (@use_journal || @use_journal.nil?) &&
@@ -346,12 +358,11 @@ module Fluent::Plugin
            record['kubernetes'].key?('pod_name') &&
            record['kubernetes'].key?('container_name') &&
            record['docker'].key?('container_id') &&
-           (k_metadata = get_metadata_for_record(record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
+           (k_metadata = get_metadata_for_record(tag_match_data['prefix'], record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
                                                  record['kubernetes']['container_name'], record['docker']['container_id'],
                                                  create_time_from_record(record, time), batch_miss_cache))
           metadata = k_metadata
         end
-
         record = record.merge(metadata) if metadata
         new_es.add(time, record)
       end
@@ -363,8 +374,8 @@ module Fluent::Plugin
       metadata = nil
       if record.key?('CONTAINER_NAME') && record.key?('CONTAINER_ID_FULL')
         metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
-          get_metadata_for_record(match_data['namespace'], match_data['pod_name'], match_data['container_name'],
-                                  record['CONTAINER_ID_FULL'], create_time_from_record(record, time), batch_miss_cache)
+          get_metadata_for_record(match_data['name_prefix'], match_data['namespace'], match_data['pod_name'], match_data['container_name'],
+            record['CONTAINER_ID_FULL'], create_time_from_record(record, time), batch_miss_cache)
         end
         unless metadata
           log.debug "Error: could not match CONTAINER_NAME from record #{record}"
