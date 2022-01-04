@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fluent-plugin-kubernetes_metadata_filter (2.9.3)
+    fluent-plugin-kubernetes_metadata_filter (2.9.4)
       fluentd (>= 0.14.0, < 1.15)
       kubeclient (>= 4.0.0, < 5.0.0)
       lru_redux
@@ -155,4 +155,4 @@ DEPENDENCIES
   yajl-ruby
 
 BUNDLED WITH
-   2.2.19
+   2.3.4
