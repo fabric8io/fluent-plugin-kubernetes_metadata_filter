@@ -52,8 +52,8 @@ module Fluent::Plugin
     config_param :ca_file, :string, default: nil
     config_param :verify_ssl, :bool, default: true
 
-    REGEX_VAR_LOG_PODS = '(?<prefix>var\.log\.pods)\.(?<namespace>[^_]+)_(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<pod_uuid>[a-z0-9-]*)\.(?<container_name>.+)\..*\.log$'
-    REGEX_VAR_LOG_CONTAINERS = '(?<prefix>var\.log\.containers)\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
+    REGEX_VAR_LOG_PODS = '(var\.log\.pods)\.(?<namespace>[^_]+)_(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<pod_uuid>[a-z0-9-]*)\.(?<container_name>.+)\..*\.log$'
+    REGEX_VAR_LOG_CONTAINERS = '(var\.log\.containers)\.(?<pod_name>[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*)_(?<namespace>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$'
 
     #tag_to_kubernetes_name_regexp which must include named capture groups:
     #  namespace            - The namespace in which the pod is deployed
@@ -305,7 +305,7 @@ module Fluent::Plugin
       end
     end
 
-    def get_metadata_for_record(source, namespace_name, pod_name, container_name, cache_key, create_time, batch_miss_cache)
+    def get_metadata_for_record(namespace_name, pod_name, container_name, cache_key, create_time, batch_miss_cache, docker_id)
       metadata = {
         'docker' => { 'container_id' => "" },
         'kubernetes' => {
@@ -314,7 +314,7 @@ module Fluent::Plugin
           'pod_name' => pod_name
         }
       }
-      metadata['docker']['container_id'] = cache_key unless source == 'var.log.pods'
+      metadata['docker']['container_id'] = docker_id unless docker_id.nil?
       container_cache_key = container_name
       if present?(@kubernetes_url)
         pod_metadata = get_pod_metadata(cache_key, namespace_name, pod_name, create_time, batch_miss_cache)
@@ -344,8 +344,9 @@ module Fluent::Plugin
           else
             tag_match_data['docker_id']
           end 
-          tag_metadata = get_metadata_for_record(tag_match_data['prefix'], tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
-                                                 cache_key, create_time_from_record(record, time), batch_miss_cache)
+          docker_id = tag_match_data.names.include?('docker_id') ? tag_match_data['docker_id'] : nil
+          tag_metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
+                                                 cache_key, create_time_from_record(record, time), batch_miss_cache, docker_id)
         end
         metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
         if (@use_journal || @use_journal.nil?) &&
@@ -358,9 +359,9 @@ module Fluent::Plugin
            record['kubernetes'].key?('pod_name') &&
            record['kubernetes'].key?('container_name') &&
            record['docker'].key?('container_id') &&
-           (k_metadata = get_metadata_for_record(tag_match_data['prefix'], record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
+           (k_metadata = get_metadata_for_record(record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
                                                  record['kubernetes']['container_name'], record['docker']['container_id'],
-                                                 create_time_from_record(record, time), batch_miss_cache))
+                                                 create_time_from_record(record, time), batch_miss_cache, record['docker']['container_id']))
           metadata = k_metadata
         end
         record = record.merge(metadata) if metadata
@@ -374,8 +375,8 @@ module Fluent::Plugin
       metadata = nil
       if record.key?('CONTAINER_NAME') && record.key?('CONTAINER_ID_FULL')
         metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
-          get_metadata_for_record(match_data['name_prefix'], match_data['namespace'], match_data['pod_name'], match_data['container_name'],
-            record['CONTAINER_ID_FULL'], create_time_from_record(record, time), batch_miss_cache)
+          get_metadata_for_record(match_data['namespace'], match_data['pod_name'], match_data['container_name'],
+            record['CONTAINER_ID_FULL'], create_time_from_record(record, time), batch_miss_cache, record['CONTAINER_ID_FULL'])
         end
         unless metadata
           log.debug "Error: could not match CONTAINER_NAME from record #{record}"
