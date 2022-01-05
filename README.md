@@ -41,14 +41,14 @@ Configuration options for fluent.conf are:
 * `client_key` - path to a client key file to authenticate to the API server
 * `bearer_token_file` - path to a file containing the bearer token to use for authentication
 * `tag_to_kubernetes_name_regexp` - the regular expression used to extract kubernetes metadata (pod name, container name, namespace) from the current fluentd tag.
-This must used named capture groups for `container_name`, `pod_name` & `namespace` default: See [code](https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter/blob/master/lib/fluent/plugin/filter_kubernetes_metadata.rb#L52)
+This must use named capture groups for `container_name`, `pod_name`, `namespace`, and either `pod_uuid (/var/log/pods)` or `docker_id (/var/log/containers)`
 * `cache_size` - size of the cache of Kubernetes metadata to reduce requests to the API server (default: `1000`)
 * `cache_ttl` - TTL in seconds of each cached element. Set to negative value to disable TTL eviction (default: `3600` - 1 hour)
 * `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
-* `de_dot` - replace dots in labels and annotations with configured `de_dot_separator`, required for Datadog and ElasticSearch 2.x compatibility (default: `true`)
-* `de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
-* `de_slash` - replace slashes in labels and annotations with configured `de_slash_separator`, required for Datadog compatibility (default: `false`)
-* `de_slash_separator` - separator to use if `de_slash` is enabled (default: `__`)
+* *DEPRECATED*`de_dot` - replace dots in labels and annotations with configured `de_dot_separator`, required for Datadog and ElasticSearch 2.x compatibility (default: `true`)
+* *DEPRECATED*`de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
+* *DEPRECATED*`de_slash` - replace slashes in labels and annotations with configured `de_slash_separator`, required for Datadog compatibility (default: `false`)
+* *DEPRECATED*`de_slash_separator` - separator to use if `de_slash` is enabled (default: `__`)
 * *DEPRECATED* `use_journal` - If false, messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.  If unset (the default), the plugin will use the `CONTAINER_NAME` and `CONTAINER_ID_FULL` fields
 if available, otherwise, will use the tag in the `tag_to_kubernetes_name_regexp` format.
 * `container_name_to_kubernetes_regexp` - The regular expression used to extract the k8s metadata encoded in the journal `CONTAINER_NAME` field default: See [code](https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter/blob/master/lib/fluent/plugin/filter_kubernetes_metadata.rb#L68)
@@ -68,23 +68,6 @@ when true (default: `true`)
 * `skip_namespace_metadata` - Skip the namespace_id field from the metadata. The fetch_namespace_metadata function will be skipped. The plugin will be faster and cpu consumption will be less.
 * `watch_retry_interval` - The time interval in seconds for retry backoffs when watch connections fail. (default: `10`)
 
-**NOTE:** As of the release 2.1.x of this plugin, it no longer supports parsing the source message into JSON and attaching it to the
-payload.  The following configuration options are removed:
-
-* `merge_json_log`
-* `preserve_json_log`
-
-One way of preserving JSON logs can be through the [parser plugin](https://docs.fluentd.org/filter/parser)
-
-**NOTE** As of release v2.1.4, the use of `use_journal` is **DEPRECATED**.  If this setting is not present, the plugin will
-attempt to figure out the source of the metadata fields from the following:
-- If `lookup_from_k8s_field true` (the default) and the following fields are present in the record:
-`docker.container_id`, `kubernetes.namespace_name`, `kubernetes.pod_name`, `kubernetes.container_name`,
-then the plugin will use those values as the source to use to lookup the metadata
-- If `use_journal true`, or `use_journal` is unset, and the fields `CONTAINER_NAME` and `CONTAINER_ID_FULL` are present in the record,
-then the plugin will parse those values using `container_name_to_kubernetes_regexp` and use those as the source to lookup the metadata
-- Otherwise, if the tag matches `tag_to_kubernetes_name_regexp`, the plugin will parse the tag and use those values to
-lookup the metdata
 
 Reading from the JSON formatted log files with `in_tail` and wildcard filenames while respecting the CRI-o log format with the same config you need the fluent-plugin "multi-format-parser":
 
@@ -154,22 +137,7 @@ Reading from the systemd journal (requires the fluentd `fluent-plugin-systemd` a
   @type stdout
 </match>
 ```
-## Log content as JSON
-In former versions this plugin parsed the value of the key log as JSON. In the current version this feature was removed, to avoid duplicate features in the fluentd plugin ecosystem. It can parsed with the parser plugin like this:
-```
-<filter kubernetes.**>
-  @type parser
-  key_name log
-  <parse>
-    @type json
-    json_parser json
-  </parse>
-  replace_invalid_sequence true
-  reserve_data true # this preserves unparsable log lines
-  emit_invalid_record_to_error false # In case of unparsable log lines keep the error log clean
-  reserve_time # the time was already parsed in the source, we don't want to overwrite it with current time.
-</filter>
-```
+
 
 ## Environment variables for Kubernetes
 
