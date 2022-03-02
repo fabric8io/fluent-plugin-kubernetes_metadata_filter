@@ -26,7 +26,7 @@ module KubernetesMetadata
       def api_valid?
         true
       end
-      def get_namespace(namespace_name)
+      def get_namespace(namespace_name, unused, options)
         return {
           metadata: {
             name: namespace_name,
@@ -38,7 +38,7 @@ module KubernetesMetadata
         }
       end
 
-      def get_pod(pod_name, namespace_name)
+      def get_pod(pod_name, namespace_name, options)
         return {
           metadata: {
             name: pod_name,
