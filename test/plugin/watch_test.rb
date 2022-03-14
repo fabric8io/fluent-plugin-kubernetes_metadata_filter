@@ -36,6 +36,9 @@ class WatchTest < Test::Unit::TestCase
     Thread.current[:pod_watch_retry_count] = 0
     Thread.current[:namespace_watch_retry_count] = 0
 
+    def periodically_recreate_k8s_client
+    end
+
     @client = OpenStruct.new
     def @client.watch_pods(_options = {})
       []
