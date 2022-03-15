@@ -212,6 +212,9 @@ module Fluent::Plugin
         log.debug "Sleeping for #{token_read_period}"
         sleep(token_read_period)
         log.debug "Recreating k8s client"
+        # This will be enough with kubeclient 5
+        # @client.instance_variable_set(:@faraday_client, nil)
+        # until then
         create_k8s_client
       end
     end
