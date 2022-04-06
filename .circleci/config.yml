@@ -4,7 +4,8 @@ install: &install
   name: Install bundle
   command: |
             gem install bundler
-            bundle install --path vendor/bundle
+            bundle config set --local vendor/bundle
+            bundle install
 
 missingdeps: &missingdeps
   name: Install missing dependecies
