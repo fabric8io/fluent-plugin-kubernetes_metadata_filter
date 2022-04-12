@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fluent-plugin-kubernetes_metadata_filter (2.9.5)
+    fluent-plugin-kubernetes_metadata_filter (2.10.0)
       fluentd (>= 0.14.0, < 1.15)
       kubeclient (>= 4.0.0, < 5.0.0)
       lru_redux
@@ -16,7 +16,7 @@ GEM
     charlock_holmes (0.7.7)
     codeclimate-test-reporter (0.6.0)
       simplecov (>= 0.7.1, < 1.0.0)
-    concurrent-ruby (1.1.9)
+    concurrent-ruby (1.1.10)
     cool.io (1.7.1)
     copyright-header (1.0.22)
       github-linguist
@@ -30,7 +30,7 @@ GEM
     ffi-compiler (1.0.1)
       ffi (>= 1.0.0)
       rake
-    fluentd (1.14.5)
+    fluentd (1.14.6)
       bundler
       cool.io (>= 1.4.5, < 2.0.0)
       http_parser.rb (>= 0.5.1, < 0.9.0)
@@ -73,7 +73,7 @@ GEM
     mime-types-data (3.2022.0105)
     mini_mime (1.1.2)
     minitest (4.7.5)
-    msgpack (1.4.5)
+    msgpack (1.5.1)
     multi_json (1.15.0)
     netrc (0.11.0)
     parallel (1.21.0)
@@ -122,7 +122,7 @@ GEM
       test-unit (>= 2.5.2)
     tzinfo (2.0.4)
       concurrent-ruby (~> 1.0)
-    tzinfo-data (1.2021.5)
+    tzinfo-data (1.2022.1)
       tzinfo (>= 1.0.0)
     unf (0.1.4)
       unf_ext

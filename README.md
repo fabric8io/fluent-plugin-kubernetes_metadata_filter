@@ -17,6 +17,7 @@ that rely on the authenticity of the namespace for proper log isolation.
 
 | fluent-plugin-kubernetes_metadata_filter  | fluentd | ruby |
 |-------------------|---------|------|
+| >= 2.10.0 | >= v1.10.0 | >= 2.6 |
 | >= 2.5.0 | >= v1.10.0 | >= 2.5 |
 | >= 2.0.0 | >= v0.14.20 | >= 2.1 |
 |  < 2.0.0 | >= v0.12.0 | >= 1.9 |
