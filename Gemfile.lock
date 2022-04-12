@@ -134,7 +134,7 @@ GEM
       crack (>= 0.3.2)
       hashdiff (>= 0.4.0, < 2.0.0)
     webrick (1.7.0)
-    yajl-ruby (1.4.1)
+    yajl-ruby (1.4.2)
 
 PLATFORMS
   ruby
