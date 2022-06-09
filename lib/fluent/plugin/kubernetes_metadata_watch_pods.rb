@@ -48,29 +48,37 @@ module KubernetesMetadata
         log.info('410 Gone encountered. Restarting pod watch to reset resource versions.', e)
         pod_watcher = nil
       rescue StandardError => e
-        @stats.bump(:pod_watch_failures)
-        if Thread.current[:pod_watch_retry_count] < @watch_retry_max_times
-          # Instead of raising exceptions and crashing Fluentd, swallow
-          # the exception and reset the watcher.
-          log.info(
-            'Exception encountered parsing pod watch event. The ' \
-            'connection might have been closed. Sleeping for ' \
-            "#{Thread.current[:pod_watch_retry_backoff_interval]} " \
-            'seconds and resetting the pod watcher.', e
-          )
-          sleep(Thread.current[:pod_watch_retry_backoff_interval])
-          Thread.current[:pod_watch_retry_count] += 1
-          Thread.current[:pod_watch_retry_backoff_interval] *= @watch_retry_exponential_backoff_base
+        if e.message == "Unauthorized"
+          @client = nil
+          # recreate client to refresh token
+          log.info("Encountered 'Unauthorized' exception in watch, recreating client to refresh token")
+          create_client()
           pod_watcher = nil
         else
-          # Since retries failed for many times, log as errors instead
-          # of info and raise exceptions and trigger Fluentd to restart.
-          message =
-            'Exception encountered parsing pod watch event. The ' \
-            'connection might have been closed. Retried ' \
-            "#{@watch_retry_max_times} times yet still failing. Restarting."
-          log.error(message, e)
-          raise Fluent::UnrecoverableError, message
+          @stats.bump(:pod_watch_failures)
+          if Thread.current[:pod_watch_retry_count] < @watch_retry_max_times
+            # Instead of raising exceptions and crashing Fluentd, swallow
+            # the exception and reset the watcher.
+            log.info(
+              'Exception encountered parsing pod watch event. The ' \
+              'connection might have been closed. Sleeping for ' \
+              "#{Thread.current[:pod_watch_retry_backoff_interval]} " \
+              'seconds and resetting the pod watcher.', e
+            )
+            sleep(Thread.current[:pod_watch_retry_backoff_interval])
+            Thread.current[:pod_watch_retry_count] += 1
+            Thread.current[:pod_watch_retry_backoff_interval] *= @watch_retry_exponential_backoff_base
+            pod_watcher = nil
+          else
+            # Since retries failed for many times, log as errors instead
+            # of info and raise exceptions and trigger Fluentd to restart.
+            message =
+              'Exception encountered parsing pod watch event. The ' \
+              'connection might have been closed. Retried ' \
+              "#{@watch_retry_max_times} times yet still failing. Restarting."
+            log.error(message, e)
+            raise Fluent::UnrecoverableError, message
+          end
         end
       end
     end
