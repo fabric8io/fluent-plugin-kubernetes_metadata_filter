@@ -118,17 +118,21 @@ module Fluent::Plugin
       @stats.bump(:pod_cache_api_updates)
       log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}")
       @cache[metadata['pod_id']] = metadata
-    rescue StandardError => e
-      @stats.bump(:pod_cache_api_nil_error)
-      log.debug "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
-      if e.message == "Unauthorized"
-        @client = nil
-        # recreate client to refresh token
-        log.info("Re-creating Kubernetes API Client to refresh auth bearer token.")
-        create_client()
+      rescue KubeException => e
+        if e.error_code == 401
+          # recreate client to refresh token
+          log.info("Encountered '401 Unauthorized' exception, recreating client to refresh token")
+          create_client()
+        else
+          log.error "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
+          @stats.bump(:pod_cache_api_nil_error)
+        end
+        {}
+      rescue StandardError => e
+        @stats.bump(:pod_cache_api_nil_error)
+        log.error "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
+        {}
       end
-      {}
-    end
 
     def dump_stats
       @curr_time = Time.now
@@ -156,16 +160,20 @@ module Fluent::Plugin
       @stats.bump(:namespace_cache_api_updates)
       log.trace("parsed metadata for #{namespace_name}: #{metadata}")
       @namespace_cache[metadata['namespace_id']] = metadata
-    rescue StandardError => e
-      @stats.bump(:namespace_cache_api_nil_error)
-      log.debug "Exception '#{e}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
-      if e.message == "Unauthorized"
-        @client = nil
-        # recreate client to refresh token
-        log.info("Re-creating Kubernetes API Client to refresh auth bearer token.")
-        create_client()
-      end
-      {}
+      rescue KubeException => e
+        if e.error_code == 401
+          # recreate client to refresh token
+          log.info("Encountered '401 Unauthorized' exception, recreating client to refresh token")
+          create_client()
+        else
+          log.error "Exception '#{e}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
+          @stats.bump(:namespace_cache_api_nil_error)
+        end
+        {}
+      rescue StandardError => e
+        @stats.bump(:namespace_cache_api_nil_error)
+        log.error "Exception '#{e}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
+        {}
     end
 
     def initialize
@@ -311,6 +319,7 @@ module Fluent::Plugin
 
     def create_client()
       log.debug 'Creating K8S client'
+      @client = nil
       @client = Kubeclient::Client.new(
         @kubernetes_url,
         @apiVersion,
