@@ -5,7 +5,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |gem|
   gem.name          = 'fluent-plugin-kubernetes_metadata_filter'
-  gem.version       = '2.11.0'
+  gem.version       = '2.11.1'
   gem.authors       = ['OpenShift Cluster Logging','Jimmi Dyson']
   gem.email         = ['team-logging@redhat.com','jimmidyson@gmail.com']
   gem.description   = 'Filter plugin to add Kubernetes metadata'
