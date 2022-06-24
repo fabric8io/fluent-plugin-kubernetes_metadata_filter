@@ -355,44 +355,36 @@ module Fluent::Plugin
       metadata
     end
 
-    def filter_stream(tag, es)
-      return es if (es.respond_to?(:empty?) && es.empty?) || !es.is_a?(Fluent::EventStream)
-      new_es = Fluent::MultiEventStream.new
+    def filter(tag, time, record)
       tag_match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled) unless @use_journal
-      tag_metadata = nil
       batch_miss_cache = {}
-      es.each do |time, record|
-        if tag_match_data && tag_metadata.nil?
-          cache_key =  if tag_match_data.names.include?('pod_uuid') && !tag_match_data['pod_uuid'].nil?
-            tag_match_data['pod_uuid']
-          else
-            tag_match_data['docker_id']
-          end 
-          docker_id = tag_match_data.names.include?('docker_id') ? tag_match_data['docker_id'] : nil
-          tag_metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
-                                                 cache_key, create_time_from_record(record, time), batch_miss_cache, docker_id)
-        end
-        metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
-        if (@use_journal || @use_journal.nil?) &&
-           (j_metadata = get_metadata_for_journal_record(record, time, batch_miss_cache))
-          metadata = j_metadata
-        end
-        if @lookup_from_k8s_field && record.key?('kubernetes') && record.key?('docker') &&
-           record['kubernetes'].respond_to?(:has_key?) && record['docker'].respond_to?(:has_key?) &&
-           record['kubernetes'].key?('namespace_name') &&
-           record['kubernetes'].key?('pod_name') &&
-           record['kubernetes'].key?('container_name') &&
-           record['docker'].key?('container_id') &&
-           (k_metadata = get_metadata_for_record(record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
-                                                 record['kubernetes']['container_name'], record['docker']['container_id'],
-                                                 create_time_from_record(record, time), batch_miss_cache, record['docker']['container_id']))
-          metadata = k_metadata
-        end
-        record = record.merge(metadata) if metadata
-        new_es.add(time, record)
+      if tag_match_data
+        cache_key =  if tag_match_data.names.include?('pod_uuid') && !tag_match_data['pod_uuid'].nil?
+          tag_match_data['pod_uuid']
+        else
+          tag_match_data['docker_id']
+        end 
+        docker_id = tag_match_data.names.include?('docker_id') ? tag_match_data['docker_id'] : nil
+        tag_metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
+                                                cache_key, create_time_from_record(record, time), batch_miss_cache, docker_id)
       end
-      dump_stats
-      new_es
+      metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
+      if (@use_journal || @use_journal.nil?) &&
+          (j_metadata = get_metadata_for_journal_record(record, time, batch_miss_cache))
+        metadata = j_metadata
+      end
+      if @lookup_from_k8s_field && record.key?('kubernetes') && record.key?('docker') &&
+          record['kubernetes'].respond_to?(:has_key?) && record['docker'].respond_to?(:has_key?) &&
+          record['kubernetes'].key?('namespace_name') &&
+          record['kubernetes'].key?('pod_name') &&
+          record['kubernetes'].key?('container_name') &&
+          record['docker'].key?('container_id') &&
+          (k_metadata = get_metadata_for_record(record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
+                                                record['kubernetes']['container_name'], record['docker']['container_id'],
+                                                create_time_from_record(record, time), batch_miss_cache, record['docker']['container_id']))
+        metadata = k_metadata
+      end
+      metadata ? record.merge(metadata) : record
     end
 
     def get_metadata_for_journal_record(record, time, batch_miss_cache)
