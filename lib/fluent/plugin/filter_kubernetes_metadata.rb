@@ -118,11 +118,21 @@ module Fluent::Plugin
       @stats.bump(:pod_cache_api_updates)
       log.trace("parsed metadata for #{namespace_name}/#{pod_name}: #{metadata}")
       @cache[metadata['pod_id']] = metadata
-    rescue StandardError => e
-      @stats.bump(:pod_cache_api_nil_error)
-      log.debug "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
-      {}
-    end
+      rescue KubeException => e
+        if e.error_code == 401
+          # recreate client to refresh token
+          log.info("Encountered '401 Unauthorized' exception, recreating client to refresh token")
+          create_client()
+        else
+          log.error "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
+          @stats.bump(:pod_cache_api_nil_error)
+        end
+        {}
+      rescue StandardError => e
+        @stats.bump(:pod_cache_api_nil_error)
+        log.error "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
+        {}
+      end
 
     def dump_stats
       @curr_time = Time.now
@@ -150,15 +160,27 @@ module Fluent::Plugin
       @stats.bump(:namespace_cache_api_updates)
       log.trace("parsed metadata for #{namespace_name}: #{metadata}")
       @namespace_cache[metadata['namespace_id']] = metadata
-    rescue StandardError => e
-      @stats.bump(:namespace_cache_api_nil_error)
-      log.debug "Exception '#{e}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
-      {}
+      rescue KubeException => e
+        if e.error_code == 401
+          # recreate client to refresh token
+          log.info("Encountered '401 Unauthorized' exception, recreating client to refresh token")
+          create_client()
+        else
+          log.error "Exception '#{e}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
+          @stats.bump(:namespace_cache_api_nil_error)
+        end
+        {}
+      rescue StandardError => e
+        @stats.bump(:namespace_cache_api_nil_error)
+        log.error "Exception '#{e}' encountered fetching namespace metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
+        {}
     end
 
     def initialize
       super
       @prev_time = Time.now
+      @ssl_options = {}
+      @auth_options = {}
     end
 
     def configure(conf)
@@ -230,7 +252,7 @@ module Fluent::Plugin
       end
 
       if present?(@kubernetes_url)
-        ssl_options = {
+        @ssl_options = {
           client_cert: present?(@client_cert) ? OpenSSL::X509::Certificate.new(File.read(@client_cert)) : nil,
           client_key: present?(@client_key) ? OpenSSL::PKey::RSA.new(File.read(@client_key)) : nil,
           ca_file: @ca_file,
@@ -249,24 +271,14 @@ module Fluent::Plugin
                       0x80000
                     end
           ssl_store.flags = OpenSSL::X509::V_FLAG_CRL_CHECK_ALL | flagval
-          ssl_options[:cert_store] = ssl_store
+          @ssl_options[:cert_store] = ssl_store
         end
-
-        auth_options = {}
 
         if present?(@bearer_token_file)
-          bearer_token = File.read(@bearer_token_file)
-          auth_options[:bearer_token] = bearer_token
+          @auth_options[:bearer_token_file] = @bearer_token_file
         end
 
-        log.debug 'Creating K8S client'
-        @client = Kubeclient::Client.new(
-          @kubernetes_url,
-          @apiVersion,
-          ssl_options: ssl_options,
-          auth_options: auth_options,
-          as: :parsed_symbolized
-        )
+        create_client()
 
         if @test_api_adapter
           log.info "Extending client with test api adaper #{@test_api_adapter}"
@@ -303,6 +315,18 @@ module Fluent::Plugin
       rescue RegexpError => e
         log.error "Error: invalid regular expression in annotation_match: #{e}"
       end
+    end
+
+    def create_client()
+      log.debug 'Creating K8S client'
+      @client = nil
+      @client = Kubeclient::Client.new(
+        @kubernetes_url,
+        @apiVersion,
+        ssl_options: @ssl_options,
+        auth_options: @auth_options,
+        as: :parsed_symbolized
+      )
     end
 
     def get_metadata_for_record(namespace_name, pod_name, container_name, cache_key, create_time, batch_miss_cache, docker_id)
