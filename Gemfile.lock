@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fluent-plugin-kubernetes_metadata_filter (2.10.0)
+    fluent-plugin-kubernetes_metadata_filter (2.11.0)
       fluentd (>= 0.14.0, < 1.15)
       kubeclient (>= 4.0.0, < 5.0.0)
       lru_redux
@@ -54,13 +54,13 @@ GEM
       http-form_data (~> 2.2)
       http-parser (~> 1.2.0)
     http-accept (1.7.0)
-    http-cookie (1.0.4)
+    http-cookie (1.0.5)
       domain_name (~> 0.5)
     http-form_data (2.3.0)
     http-parser (1.2.3)
       ffi-compiler (>= 1.0, < 2.0)
     http_parser.rb (0.8.0)
-    jsonpath (1.1.0)
+    jsonpath (1.1.2)
       multi_json
     kubeclient (4.9.3)
       http (>= 3.0, < 5.0)
@@ -73,7 +73,7 @@ GEM
     mime-types-data (3.2022.0105)
     mini_mime (1.1.2)
     minitest (4.7.5)
-    msgpack (1.5.1)
+    msgpack (1.5.2)
     multi_json (1.15.0)
     netrc (0.11.0)
     parallel (1.21.0)
@@ -105,7 +105,7 @@ GEM
       parser (>= 3.0.1.1)
     ruby-progressbar (1.11.0)
     rugged (1.2.0)
-    serverengine (2.2.5)
+    serverengine (2.3.0)
       sigdump (~> 0.2.2)
     sigdump (0.2.4)
     simplecov (0.21.2)
@@ -126,7 +126,7 @@ GEM
       tzinfo (>= 1.0.0)
     unf (0.1.4)
       unf_ext
-    unf_ext (0.0.8.1)
+    unf_ext (0.0.8.2)
     unicode-display_width (2.1.0)
     vcr (6.0.0)
     webmock (3.14.0)
@@ -155,4 +155,4 @@ DEPENDENCIES
   yajl-ruby
 
 BUNDLED WITH
-   2.3.4
+   2.3.16
