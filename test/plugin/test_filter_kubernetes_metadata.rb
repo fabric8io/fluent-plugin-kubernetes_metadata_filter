@@ -156,15 +156,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       d.filtered.map(&:last)
     end
 
-    test 'nil event stream' do
-      # not certain how this is possible but adding test to properly
-      # guard against this condition we have seen - test for nil,
-      # empty, no empty method, not an event stream
-      plugin = create_driver.instance
-      plugin.filter_stream('tag', nil)
-      plugin.filter_stream('tag', Fluent::MultiEventStream.new)
-    end
-
     sub_test_case 'parsing_pod_metadata when container_status is missing from the pod status' do
       test 'using the tag_to_kubernetes_name_regexp for /var/log/containers ' do
         VCR.use_cassettes(
