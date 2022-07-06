@@ -15,7 +15,7 @@ Gem::Specification.new do |gem|
 
   gem.files         = `git ls-files`.split($/)
 
-  gem.required_ruby_version = '>= 2.5.0'
+  gem.required_ruby_version = '>= 2.6.0'
 
   gem.add_runtime_dependency 'fluentd', ['>= 0.14.0', '< 1.16']
   gem.add_runtime_dependency 'kubeclient', ['>= 4.0.0', '< 5.0.0']
