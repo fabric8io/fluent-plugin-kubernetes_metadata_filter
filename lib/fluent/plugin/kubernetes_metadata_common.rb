@@ -43,14 +43,7 @@ module KubernetesMetadata
       labels = syms_to_strs(namespace_object[:metadata][:labels].to_h) unless @skip_labels
 
       annotations = match_annotations(syms_to_strs(namespace_object[:metadata][:annotations].to_h))
-      if @de_dot
-        de_dot!(labels) unless @skip_labels
-        de_dot!(annotations)
-      end
-      if @de_slash
-        de_slash!(labels) unless @skip_labels
-        de_slash!(annotations)
-      end
+
       kubernetes_metadata = {
         'namespace_id' => namespace_object[:metadata][:uid],
         'creation_timestamp' => namespace_object[:metadata][:creationTimestamp]
@@ -65,14 +58,6 @@ module KubernetesMetadata
       labels = syms_to_strs(pod_object[:metadata][:labels].to_h) unless @skip_labels
 
       annotations = match_annotations(syms_to_strs(pod_object[:metadata][:annotations].to_h))
-      if @de_dot
-        de_dot!(labels) unless @skip_labels
-        de_dot!(annotations)
-      end
-      if @de_slash
-        de_slash!(labels) unless @skip_labels
-        de_slash!(annotations)
-      end
 
       # collect container information
       container_meta = {}

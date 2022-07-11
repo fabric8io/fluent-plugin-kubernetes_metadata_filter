@@ -494,98 +494,6 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       assert_equal(msg, filtered[0])
     end
 
-    test 'with kubernetes dotted and slashed labels, de_dot and de_slash enabled' do
-      VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' },
-                         { name: 'kubernetes_docker_metadata_dotted_slashed_labels' }]) do
-        filtered = emit({}, '
-          kubernetes_url https://localhost:8443
-          watch false
-          cache_size 1
-          de_dot true
-          de_slash true
-        ')
-        expected_kube_metadata = {
-          'docker' => {
-            'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
-          },
-          'kubernetes' => {
-            'host' => 'jimmi-redhat.localnet',
-            'pod_name' => 'fabric8-console-controller-98rqc',
-            'container_name' => 'fabric8-console-container',
-            'container_image' => 'fabric8/hawtio-kubernetes:latest',
-            'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
-            'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
-            'namespace_labels' => {
-              'kubernetes_io__namespacetest' => 'somevalue'
-            },
-            'namespace_name' => 'default',
-            'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
-            'pod_ip' => '172.17.0.8',
-            'master_url' => 'https://localhost:8443',
-            'labels' => {
-              'kubernetes_io__test' => 'somevalue'
-            }
-          }
-        }
-        assert_equal(expected_kube_metadata, filtered[0])
-      end
-    end
-
-    test 'with kubernetes dotted and slashed labels, de_dot and de_slash disabled' do
-      VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' },
-                         { name: 'kubernetes_docker_metadata_dotted_slashed_labels' }]) do
-        filtered = emit({}, '
-          kubernetes_url https://localhost:8443
-          watch false
-          cache_size 1
-          de_dot false
-          de_slash false
-        ')
-        expected_kube_metadata = {
-          'docker' => {
-            'container_id' => '49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
-          },
-          'kubernetes' => {
-            'host' => 'jimmi-redhat.localnet',
-            'pod_name' => 'fabric8-console-controller-98rqc',
-            'container_name' => 'fabric8-console-container',
-            'container_image' => 'fabric8/hawtio-kubernetes:latest',
-            'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
-            'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
-            'namespace_labels' => {
-              'kubernetes.io/namespacetest' => 'somevalue'
-            },
-            'namespace_name' => 'default',
-            'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
-            'pod_ip' => '172.17.0.8',
-            'master_url' => 'https://localhost:8443',
-            'labels' => {
-              'kubernetes.io/test' => 'somevalue'
-            }
-          }
-        }
-        assert_equal(expected_kube_metadata, filtered[0])
-      end
-    end
-
-    test 'invalid de_dot_separator config' do
-      assert_raise Fluent::ConfigError do
-        create_driver('
-          de_dot true
-          de_dot_separator contains.
-        ')
-      end
-    end
-
-    test 'invalid de_slash_separator config' do
-      assert_raise Fluent::ConfigError do
-        create_driver('
-          de_slash true
-          de_slash_separator contains/
-        ')
-      end
-    end
-
     test 'with records from journald and docker & kubernetes metadata' do
       # with use_journal true should ignore tags and use CONTAINER_NAME and CONTAINER_ID_FULL
       tag = 'var.log.containers.junk1_junk2_junk3-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed450.log'
@@ -835,8 +743,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
               'component' => 'fabric8Console'
             },
             'annotations' => {
-              'custom_field1' => 'hello_kitty',
-              'field_two' => 'value'
+              'custom.field1' => 'hello_kitty',
+              'field.two' => 'value'
             }
           }
         }
@@ -918,8 +826,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
               'component' => 'fabric8Console'
             },
             'annotations' => {
-              'custom_field1' => 'hello_kitty',
-              'field_two' => 'value'
+              'custom.field1' => 'hello_kitty',
+              'field.two' => 'value'
             },
             'namespace_annotations' => {
               'workspaceId' => 'myWorkspaceName'

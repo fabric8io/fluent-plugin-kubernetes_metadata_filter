@@ -64,10 +64,7 @@ module Fluent::Plugin
 
     config_param :bearer_token_file, :string, default: nil
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
-    config_param :de_dot, :bool, default: true
-    config_param :de_dot_separator, :string, default: '_'
-    config_param :de_slash, :bool, default: false
-    config_param :de_slash_separator, :string, default: '__'
+
     # if reading from the journal, the record will contain the following fields in the following
     # format:
     # CONTAINER_NAME=k8s_$containername.$containerhash_$podname_$namespacename_$poduuid_$rand32bitashex
@@ -189,14 +186,6 @@ module Fluent::Plugin
       require 'kubeclient'
       require 'lru_redux'
       @stats = KubernetesMetadata::Stats.new
-
-      if @de_dot && @de_dot_separator.include?('.')
-        raise Fluent::ConfigError, "Invalid de_dot_separator: cannot be or contain '.'"
-      end
-
-      if @de_slash && @de_slash_separator.include?('/')
-        raise Fluent::ConfigError, "Invalid de_slash_separator: cannot be or contain '/'"
-      end
 
       if @cache_ttl < 0
         log.info 'Setting the cache TTL to :none because it was <= 0'
@@ -403,26 +392,6 @@ module Fluent::Plugin
         @stats.bump(:container_name_id_missing)
       end
       metadata
-    end
-
-    def de_dot!(h)
-      h.keys.each do |ref|
-        next unless h[ref] && ref =~ /\./
-
-        v = h.delete(ref)
-        newref = ref.to_s.gsub('.', @de_dot_separator)
-        h[newref] = v
-      end
-    end
-
-    def de_slash!(h)
-      h.keys.each do |ref|
-        next unless h[ref] && ref =~ /\//
-
-        v = h.delete(ref)
-        newref = ref.to_s.gsub('/', @de_slash_separator)
-        h[newref] = v
-      end
     end
 
     # copied from activesupport
