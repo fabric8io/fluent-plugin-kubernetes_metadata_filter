@@ -18,26 +18,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-module KubernetesMetadata
-  module Util
-    def create_time_from_record(record, internal_time)
-      time_key = @time_fields.detect { |ii| record.key?(ii) }
-      time = record[time_key]
-      if time.nil? || time.is_a?(String) && time.chop.empty?
-        # `internal_time` is a Fluent::EventTime, it can't compare with Time.
-        return Time.at(internal_time.to_f)
-      end
-
-      if ['_SOURCE_REALTIME_TIMESTAMP', '__REALTIME_TIMESTAMP'].include?(time_key)
-        timei = time.to_i
-        return Time.at(timei / 1_000_000, timei % 1_000_000)
-      end
-      return Time.at(time) if time.is_a?(Numeric)
-
-      Time.parse(time)
-    end
-  end
-end
 
 #https://stackoverflow.com/questions/5622435/how-do-i-convert-a-ruby-class-name-to-a-underscore-delimited-symbol
 class String

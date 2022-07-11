@@ -22,7 +22,6 @@
 require_relative 'kubernetes_metadata_cache_strategy'
 require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
-require_relative 'kubernetes_metadata_util'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
 
@@ -36,7 +35,6 @@ module Fluent::Plugin
 
     include KubernetesMetadata::CacheStrategy
     include KubernetesMetadata::Common
-    include KubernetesMetadata::Util
     include KubernetesMetadata::WatchNamespaces
     include KubernetesMetadata::WatchPods
 
@@ -278,8 +276,6 @@ module Fluent::Plugin
           namespace_thread.abort_on_exception = true
         end
       end
-      @time_fields = []
-      @time_fields.push('@timestamp') if @lookup_from_k8s_field
 
       @annotations_regexps = []
       @annotation_match.each do |regexp|
@@ -338,7 +334,7 @@ module Fluent::Plugin
         end 
         docker_id = tag_match_data.names.include?('docker_id') ? tag_match_data['docker_id'] : nil
         tag_metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
-                                                cache_key, create_time_from_record(record, time), batch_miss_cache, docker_id)
+                                                cache_key, time, batch_miss_cache, docker_id)
       end
       metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
       if @lookup_from_k8s_field && record.key?('kubernetes') && record.key?('docker') &&
@@ -349,7 +345,7 @@ module Fluent::Plugin
           record['docker'].key?('container_id') &&
           (k_metadata = get_metadata_for_record(record['kubernetes']['namespace_name'], record['kubernetes']['pod_name'],
                                                 record['kubernetes']['container_name'], record['docker']['container_id'],
-                                                create_time_from_record(record, time), batch_miss_cache, record['docker']['container_id']))
+                                                time, batch_miss_cache, record['docker']['container_id']))
         metadata = k_metadata
       end
       metadata ? record.merge(metadata) : record

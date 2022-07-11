@@ -20,7 +20,7 @@
 #
 module KubernetesMetadata
   module CacheStrategy
-    def get_pod_metadata(key, namespace_name, pod_name, record_create_time, batch_miss_cache)
+    def get_pod_metadata(key, namespace_name, pod_name, time, batch_miss_cache)
       metadata = {}
       ids = @id_cache[key]
       if ids.nil?
@@ -44,7 +44,7 @@ module KubernetesMetadata
             # pod not found, but namespace found
             @stats.bump(:id_cache_pod_not_found_namespace)
             ns_time = Time.parse(namespace_metadata['creation_timestamp'])
-            if ns_time <= record_create_time
+            if ns_time <= Time.at(time.to_f)
               # namespace is older then record for pod
               ids[:pod_id] = key
               metadata = @cache.fetch(ids[:pod_id]) do
