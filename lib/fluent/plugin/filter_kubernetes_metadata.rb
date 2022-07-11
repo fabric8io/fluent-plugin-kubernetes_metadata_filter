@@ -65,19 +65,6 @@ module Fluent::Plugin
     config_param :bearer_token_file, :string, default: nil
     config_param :secret_dir, :string, default: '/var/run/secrets/kubernetes.io/serviceaccount'
 
-    # if reading from the journal, the record will contain the following fields in the following
-    # format:
-    # CONTAINER_NAME=k8s_$containername.$containerhash_$podname_$namespacename_$poduuid_$rand32bitashex
-    # CONTAINER_FULL_ID=dockeridassha256hexvalue
-    config_param :use_journal, :bool, default: nil
-    # Field 2 is the container_hash, field 5 is the pod_id, and field 6 is the pod_randhex
-    # I would have included them as named groups, but you can't have named groups that are
-    # non-capturing :P
-    # parse format is defined here: https://github.com/kubernetes/kubernetes/blob/release-1.6/pkg/kubelet/dockertools/docker.go#L317
-    config_param :container_name_to_kubernetes_regexp,
-                 :string,
-                 default: '^(?<name_prefix>[^_]+)_(?<container_name>[^\._]+)(\.(?<container_hash>[^_]+))?_(?<pod_name>[^_]+)_(?<namespace>[^_]+)_[^_]+_[^_]+$'
-
     config_param :annotation_match, :array, default: []
     config_param :stats_interval, :integer, default: 30
     config_param :allow_orphans, :bool, default: true
@@ -203,8 +190,6 @@ module Fluent::Plugin
 
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
       
-      @container_name_to_kubernetes_regexp_compiled = Regexp.compile(@container_name_to_kubernetes_regexp)
-
       # Use Kubernetes default service account if we're in a pod.
       if @kubernetes_url.nil?
         log.debug 'Kubernetes URL is not set - inspecting environ'
@@ -294,8 +279,6 @@ module Fluent::Plugin
         end
       end
       @time_fields = []
-      @time_fields.push('_SOURCE_REALTIME_TIMESTAMP', '__REALTIME_TIMESTAMP') if @use_journal || @use_journal.nil?
-      @time_fields.push('time') unless @use_journal
       @time_fields.push('@timestamp') if @lookup_from_k8s_field
 
       @annotations_regexps = []
@@ -345,7 +328,7 @@ module Fluent::Plugin
     end
 
     def filter(tag, time, record)
-      tag_match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled) unless @use_journal
+      tag_match_data = tag.match(@tag_to_kubernetes_name_regexp_compiled)
       batch_miss_cache = {}
       if tag_match_data
         cache_key =  if tag_match_data.names.include?('pod_uuid') && !tag_match_data['pod_uuid'].nil?
@@ -358,10 +341,6 @@ module Fluent::Plugin
                                                 cache_key, create_time_from_record(record, time), batch_miss_cache, docker_id)
       end
       metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
-      if (@use_journal || @use_journal.nil?) &&
-          (j_metadata = get_metadata_for_journal_record(record, time, batch_miss_cache))
-        metadata = j_metadata
-      end
       if @lookup_from_k8s_field && record.key?('kubernetes') && record.key?('docker') &&
           record['kubernetes'].respond_to?(:has_key?) && record['docker'].respond_to?(:has_key?) &&
           record['kubernetes'].key?('namespace_name') &&
@@ -374,24 +353,6 @@ module Fluent::Plugin
         metadata = k_metadata
       end
       metadata ? record.merge(metadata) : record
-    end
-
-    def get_metadata_for_journal_record(record, time, batch_miss_cache)
-      metadata = nil
-      if record.key?('CONTAINER_NAME') && record.key?('CONTAINER_ID_FULL')
-        metadata = record['CONTAINER_NAME'].match(@container_name_to_kubernetes_regexp_compiled) do |match_data|
-          get_metadata_for_record(match_data['namespace'], match_data['pod_name'], match_data['container_name'],
-            record['CONTAINER_ID_FULL'], create_time_from_record(record, time), batch_miss_cache, record['CONTAINER_ID_FULL'])
-        end
-        unless metadata
-          log.debug "Error: could not match CONTAINER_NAME from record #{record}"
-          @stats.bump(:container_name_match_failed)
-        end
-      elsif record.key?('CONTAINER_NAME') && record['CONTAINER_NAME'].start_with?('k8s_')
-        log.debug "Error: no container name and id in record #{record}"
-        @stats.bump(:container_name_id_missing)
-      end
-      metadata
     end
 
     # copied from activesupport

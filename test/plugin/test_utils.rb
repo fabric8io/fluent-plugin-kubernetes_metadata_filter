@@ -47,10 +47,4 @@ class KubernetesMetadataCacheStatsTest < Test::Unit::TestCase
     assert_equal(exp_time.to_i, create_time_from_record(record, @internal_time).to_i)
   end
 
-  test '#create_time_from_record when timefields include journal time fields' do
-    @time_fields = ['_SOURCE_REALTIME_TIMESTAMP']
-    exp_time = Time.now
-    record = { '_SOURCE_REALTIME_TIMESTAMP' => exp_time.to_i.to_s }
-    assert_equal(Time.at(exp_time.to_i / 1_000_000, exp_time.to_i % 1_000_000).to_i, create_time_from_record(record, @internal_time).to_i)
-  end
 end
