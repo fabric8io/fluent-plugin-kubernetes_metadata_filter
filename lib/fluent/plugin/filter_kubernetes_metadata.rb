@@ -333,10 +333,9 @@ module Fluent::Plugin
           tag_match_data['docker_id']
         end 
         docker_id = tag_match_data.names.include?('docker_id') ? tag_match_data['docker_id'] : nil
-        tag_metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
+        metadata = get_metadata_for_record(tag_match_data['namespace'], tag_match_data['pod_name'], tag_match_data['container_name'],
                                                 cache_key, time, batch_miss_cache, docker_id)
       end
-      metadata = Marshal.load(Marshal.dump(tag_metadata)) if tag_metadata
       if @lookup_from_k8s_field && record.key?('kubernetes') && record.key?('docker') &&
           record['kubernetes'].respond_to?(:has_key?) && record['docker'].respond_to?(:has_key?) &&
           record['kubernetes'].key?('namespace_name') &&
