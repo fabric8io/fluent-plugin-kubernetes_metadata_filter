@@ -170,7 +170,12 @@ module Fluent::Plugin
 
       require 'kubeclient'
       require 'lru_redux'
+
       @stats = KubernetesMetadata::Stats.new
+      if @stats_interval <= 0
+        @stats = KubernetesMetadata::NoOpStats.new
+        self.define_singleton_method(:dump_stats) {}
+      end
 
       if @cache_ttl < 0
         log.info 'Setting the cache TTL to :none because it was <= 0'
@@ -347,6 +352,7 @@ module Fluent::Plugin
                                                 time, batch_miss_cache, record['docker']['container_id']))
         metadata = k_metadata
       end
+      dump_stats
       metadata ? record.merge(metadata) : record
     end
 

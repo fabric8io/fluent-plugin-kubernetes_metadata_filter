@@ -43,4 +43,20 @@ module KubernetesMetadata
       end.join(', ')
     end
   end
+  class NoOpStats
+    def initialize
+    end
+
+    def bump(key)
+    end
+
+    def set(key, value)
+    end
+
+    def [](key)
+    end
+
+    def to_s
+    end
+  end
 end

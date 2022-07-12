@@ -58,6 +58,7 @@ when true (default: `true`)
 * `skip_container_metadata` - Skip some of the container data of the metadata. The metadata will not contain the container_image and container_image_id fields.
 * `skip_master_url` - Skip the master_url field from the metadata.
 * `skip_namespace_metadata` - Skip the namespace_id field from the metadata. The fetch_namespace_metadata function will be skipped. The plugin will be faster and cpu consumption will be less.
+* `stats_interval` - The interval to display cache stats (default: 30s).  Set to 0 to disable stats collection and logging
 * `watch_retry_interval` - The time interval in seconds for retry backoffs when watch connections fail. (default: `10`)
 
 

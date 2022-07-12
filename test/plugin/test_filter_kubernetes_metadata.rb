@@ -41,6 +41,24 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       assert_equal(1000, d.instance.cache_size)
     end
 
+    sub_test_case 'stats_interval' do
+
+      test 'enables stats when greater than zero' do
+        d = create_driver('stats_interval 1')
+        assert_equal(1, d.instance.stats_interval)
+        d.instance.dump_stats
+        assert_false(d.instance.instance_variable_get("@curr_time").nil?)
+      end
+      
+      test 'disables stats when <= zero' do
+        d = create_driver('stats_interval 0')
+        assert_equal(0, d.instance.stats_interval)
+         d.instance.dump_stats
+        assert_nil(d.instance.instance_variable_get("@curr_time"))
+      end
+
+    end
+
     test 'check test_api_adapter' do
       d = create_driver('test_api_adapter KubernetesMetadata::TestApiAdapter')
       assert_equal('KubernetesMetadata::TestApiAdapter', d.instance.test_api_adapter)
@@ -620,6 +638,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
           kubernetes_url https://localhost:8443
           watch false
           cache_size 1
+          stats_interval 0
         ')
         d.run do
           d.feed(VAR_LOG_CONTAINER_TAG, msgpack_stream)
