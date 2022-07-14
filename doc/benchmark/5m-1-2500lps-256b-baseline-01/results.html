@@ -1,0 +1,127 @@
+
+<html>
+<div>
+  <div><b>Options</b><div>
+  <div>Image: quay.io/openshift-logging/fluentd:1.14.6</div>
+  <div>Total Log Stressors: 1</div>
+  <div>Lines Per Second: 2500</div>
+  <div>Run Duration: 5m</div>
+  <div>Payload Source: synthetic</div>
+</div>
+<div>
+  Latency of logs collected based on the time the log was generated and ingested
+</div>
+<table border="1">
+  <tr>
+    <th>Total</th>
+    <th>Size</th>
+    <th>Elapsed</th>
+    <th>Mean</th>
+    <th>Min</th>
+    <th>Max</th>
+    <th>Median</th>
+  </tr>
+  <tr>
+    <th>Msg</th>
+    <th></th>
+    <th>(s)</th>
+    <th>(s)</th>
+    <th>(s)</th>
+    <th>(s)</th>
+    <th>(s)</th>
+  </tr>
+  <tr>
+   <td>705733</td>
+   <td>256</td>
+   <td>5m0s</td>
+   <td>16.929</td>
+   <td>1.826</td>
+   <td>36.399</td>
+   <td>14.956</td>
+  </tr>
+</table>
+  <div>
+    <img src="cpu.png">
+  </div>
+  <div>
+    <img src="mem.png">
+  </div>
+  <div>
+    <img src="latency.png">
+  </div>
+  <div>
+    <img src="loss.png">
+  </div>
+  <div>
+	<table border="1">
+	  <tr>
+		<th>Stream</th>
+		<th>Min Seq</th>
+		<th>Max Seq</th>
+		<th>Purged</th>
+		<th>Collected</th>
+		<th>Percent Collected</th>
+	  </tr>
+	  <tr>
+      <tr><td>functional.0.0000000000000000DBCED7977B8F643F</td><td>0</td><td>716850</td><td>0</td><td>705733</td><td>98.4%</td><tr>
+    </table>
+  </div>
+  <div>
+    <code style="display:block;white-space:pre-wrap">
+    
+&lt;system&gt;
+  log_level debug
+&lt;/system&gt;
+
+&lt;source&gt;
+  @type tail
+  @id container-input
+  path /var/log/pods/testhack-clwn63sc_*/loader-*/*
+  exclude_path [&#34;/var/log/pods/**/*/*.gz&#34;,&#34;/var/log/pods/**/*/*.tmp&#34;]
+  pos_file &#34;/var/lib/fluentd/pos/containers-app&#34;
+  refresh_interval 5
+  rotate_wait 5
+  tag kubernetes.*
+  read_from_head &#34;true&#34;
+  &lt;parse&gt;
+    @type regexp
+    expression /^(?&lt;@timestamp&gt;[^\s]+) (?&lt;stream&gt;stdout|stderr) (?&lt;logtag&gt;[F|P]) (?&lt;message&gt;.*)$/
+    time_format &#39;%Y-%m-%dT%H:%M:%S.%N%:z&#39;
+    keep_time_key true
+  &lt;/parse&gt;
+&lt;/source&gt;
+
+&lt;filter kubernetes.**&gt;
+	@type concat
+	key message
+	partial_key logtag
+	partial_value P
+	separator &#39;&#39;
+&lt;/filter&gt;
+
+&lt;match **&gt;
+	@type forward
+	heartbeat_type none
+	keepalive true
+	
+	&lt;buffer&gt;
+	  flush_mode interval
+	  flush_interval 5s
+	  flush_at_shutdown true
+	  flush_thread_count 2
+	  retry_type exponential_backoff
+	  retry_wait 1s
+	  retry_max_interval 60s
+	  retry_forever true
+	  overflow_action block
+	&lt;/buffer&gt;
+	
+	&lt;server&gt;
+	  host 0.0.0.0
+	  port 24224
+	&lt;/server&gt;
+&lt;/match&gt;
+
+	</code>
+  </div>
+</html>
