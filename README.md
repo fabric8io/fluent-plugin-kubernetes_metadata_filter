@@ -7,8 +7,7 @@
 
 The Kubernetes metadata plugin filter enriches container log records with pod and namespace metadata.
 
-This plugin derives basic metadata about the container that emitted a given log record using the source of the log record. Records from journald provide metadata about the
-container environment as named fields. Records from JSON files encode metadata about the container in the file name.  The initial metadata derived from the source is used
+This plugin derives basic metadata about the container that emitted a given log record using the source of the log record. Records from kubernetes containers encode metadata about the container in the file name.  The initial metadata derived from the source is used
 to lookup additional metadata about the container's associated pod and namespace (e.g. UUIDs, labels, annotations) when the kubernetes_url is configured.  If the plugin cannot
 authoritatively determine the namespace of the container emitting a log record, it will use an 'orphan' namespace ID in the metadata. This behaviors supports multi-tenant systems
 that rely on the authenticity of the namespace for proper log isolation.
@@ -46,14 +45,6 @@ This must use named capture groups for `container_name`, `pod_name`, `namespace`
 * `cache_size` - size of the cache of Kubernetes metadata to reduce requests to the API server (default: `1000`)
 * `cache_ttl` - TTL in seconds of each cached element. Set to negative value to disable TTL eviction (default: `3600` - 1 hour)
 * `watch` - set up a watch on pods on the API server for updates to metadata (default: `true`)
-* *DEPRECATED*`de_dot` - replace dots in labels and annotations with configured `de_dot_separator`, required for Datadog and ElasticSearch 2.x compatibility (default: `true`)
-* *DEPRECATED*`de_dot_separator` - separator to use if `de_dot` is enabled (default: `_`)
-* *DEPRECATED*`de_slash` - replace slashes in labels and annotations with configured `de_slash_separator`, required for Datadog compatibility (default: `false`)
-* *DEPRECATED*`de_slash_separator` - separator to use if `de_slash` is enabled (default: `__`)
-* *DEPRECATED* `use_journal` - If false, messages are expected to be formatted and tagged as if read by the fluentd in\_tail plugin with wildcard filename.  If true, messages are expected to be formatted as if read from the systemd journal.  The `MESSAGE` field has the full message.  The `CONTAINER_NAME` field has the encoded k8s metadata (see below).  The `CONTAINER_ID_FULL` field has the full container uuid.  This requires docker to use the `--log-driver=journald` log driver.  If unset (the default), the plugin will use the `CONTAINER_NAME` and `CONTAINER_ID_FULL` fields
-if available, otherwise, will use the tag in the `tag_to_kubernetes_name_regexp` format.
-* `container_name_to_kubernetes_regexp` - The regular expression used to extract the k8s metadata encoded in the journal `CONTAINER_NAME` field default: See [code](https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter/blob/master/lib/fluent/plugin/filter_kubernetes_metadata.rb#L68)
-  * This corresponds to the definition [in the source](https://github.com/kubernetes/kubernetes/blob/release-1.6/pkg/kubelet/dockertools/docker.go#L317)
 * `annotation_match` - Array of regular expressions matching annotation field names. Matched annotations are added to a log record.
 * `allow_orphans` - Modify the namespace and namespace id to the values of `orphaned_namespace_name` and `orphaned_namespace_id`
 when true (default: `true`)
@@ -67,10 +58,11 @@ when true (default: `true`)
 * `skip_container_metadata` - Skip some of the container data of the metadata. The metadata will not contain the container_image and container_image_id fields.
 * `skip_master_url` - Skip the master_url field from the metadata.
 * `skip_namespace_metadata` - Skip the namespace_id field from the metadata. The fetch_namespace_metadata function will be skipped. The plugin will be faster and cpu consumption will be less.
+* `stats_interval` - The interval to display cache stats (default: 30s).  Set to 0 to disable stats collection and logging
 * `watch_retry_interval` - The time interval in seconds for retry backoffs when watch connections fail. (default: `10`)
 
 
-Reading from the JSON formatted log files with `in_tail` and wildcard filenames while respecting the CRI-o log format with the same config you need the fluent-plugin "multi-format-parser":
+Reading from a JSON formatted log files with `in_tail` and wildcard filenames while respecting the CRI-o log format with the same config you need the fluent-plugin "multi-format-parser":
 
 ```
 fluent-gem install fluent-plugin-multi-format-parser
@@ -110,35 +102,6 @@ The config block could look like this:
   @type stdout
 </match>
 ```
-
-Reading from the systemd journal (requires the fluentd `fluent-plugin-systemd` and `systemd-journal` plugins, and requires docker to use the `--log-driver=journald` log driver):
-```
-<source>
-  @type systemd
-  path /run/log/journal
-  pos_file journal.pos
-  tag journal
-  read_from_head true
-</source>
-
-# probably want to use something like fluent-plugin-rewrite-tag-filter to
-# retag entries from k8s
-<match journal>
-  @type rewrite_tag_filter
-  rewriterule1 CONTAINER_NAME ^k8s_ kubernetes.journal.container
-  ...
-</match>
-
-<filter kubernetes.**>
-  @type kubernetes_metadata
-  use_journal true
-</filter>
-
-<match **>
-  @type stdout
-</match>
-```
-
 
 ## Environment variables for Kubernetes
 
@@ -197,18 +160,6 @@ Then output becomes as belows
     }
   }
 }
-```
-
-If using journal input, from docker configured with `--log-driver=journald`, the input looks like the `journalctl -o export` format:
-```
-# The stream identification is encoded into the PRIORITY field as an
-# integer: 6, or github.com/coreos/go-systemd/journal.Info, marks stdout,
-# while 3, or github.com/coreos/go-systemd/journal.Err, marks stderr.
-PRIORITY=6
-CONTAINER_ID=b6cbb6e73c0a
-CONTAINER_ID_FULL=b6cbb6e73c0ad63ab820e4baa97cdc77cec729930e38a714826764ac0491341a
-CONTAINER_NAME=k8s_registry.a49f5318_docker-registry-1-hhoj0_default_ae3a9bdc-1f66-11e6-80a2-fa163e2fff3a_799e4035
-MESSAGE=172.17.0.1 - - [21/May/2016:16:52:05 +0000] "GET /healthz HTTP/1.1" 200 0 "" "Go-http-client/1.1"
 ```
 
 ## Contributing
