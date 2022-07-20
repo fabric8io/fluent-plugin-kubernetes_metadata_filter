@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fluent-plugin-kubernetes_metadata_filter (3.0.0)
+    fluent-plugin-kubernetes_metadata_filter (3.0.1)
       fluentd (>= 0.14.0, < 1.16)
       kubeclient (>= 4.0.0, < 5.0.0)
       lru_redux
@@ -120,7 +120,7 @@ GEM
     test-unit-rr (1.0.5)
       rr (>= 1.1.1)
       test-unit (>= 2.5.2)
-    tzinfo (2.0.4)
+    tzinfo (2.0.5)
       concurrent-ruby (~> 1.0)
     tzinfo-data (1.2022.1)
       tzinfo (>= 1.0.0)

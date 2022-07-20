@@ -22,6 +22,7 @@
 require_relative 'kubernetes_metadata_cache_strategy'
 require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
+require_relative 'kubernetes_metadata_util'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
 
