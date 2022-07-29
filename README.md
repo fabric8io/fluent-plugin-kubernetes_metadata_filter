@@ -60,6 +60,8 @@ when true (default: `true`)
 * `skip_namespace_metadata` - Skip the namespace_id field from the metadata. The fetch_namespace_metadata function will be skipped. The plugin will be faster and cpu consumption will be less.
 * `stats_interval` - The interval to display cache stats (default: 30s).  Set to 0 to disable stats collection and logging
 * `watch_retry_interval` - The time interval in seconds for retry backoffs when watch connections fail. (default: `10`)
+* `open_timeout` - The time in seconds to wait for a connection to kubernetes service. (default: `3`)
+* `read_timeout` - The time in seconds to wait for a read from kubernetes service. (default: `10`)
 
 
 Reading from a JSON formatted log files with `in_tail` and wildcard filenames while respecting the CRI-o log format with the same config you need the fluent-plugin "multi-format-parser":
