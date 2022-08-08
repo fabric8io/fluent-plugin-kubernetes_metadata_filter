@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    fluent-plugin-kubernetes_metadata_filter (3.0.1)
+    fluent-plugin-kubernetes_metadata_filter (3.1.0)
       fluentd (>= 0.14.0, < 1.16)
       kubeclient (>= 4.0.0, < 5.0.0)
       lru_redux
@@ -30,7 +30,7 @@ GEM
     ffi-compiler (1.0.1)
       ffi (>= 1.0.0)
       rake
-    fluentd (1.15.0)
+    fluentd (1.15.1)
       bundler
       cool.io (>= 1.4.5, < 2.0.0)
       http_parser.rb (>= 0.5.1, < 0.9.0)
@@ -73,7 +73,7 @@ GEM
     mime-types-data (3.2022.0105)
     mini_mime (1.1.2)
     minitest (4.7.5)
-    msgpack (1.5.3)
+    msgpack (1.5.4)
     multi_json (1.15.0)
     netrc (0.11.0)
     parallel (1.22.1)
