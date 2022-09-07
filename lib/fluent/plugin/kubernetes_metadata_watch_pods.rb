@@ -52,7 +52,7 @@ module KubernetesMetadata
           # recreate client to refresh token
           log.info("Encountered '401 Unauthorized' exception in watch, recreating client to refresh token")
           create_client()
-          namespace_watcher = nil
+          pod_watcher = nil
         else
           # treat all other errors the same as StandardError, log, swallow and reset
           @stats.bump(:pod_watch_failures)
