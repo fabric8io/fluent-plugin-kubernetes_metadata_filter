@@ -331,6 +331,11 @@ module Fluent::Plugin
         metadata['kubernetes'].merge!(pod_metadata) if pod_metadata
         metadata['kubernetes'].delete('containers')
       end
+      metadata['kubernetes'].tap do |kube|
+        kube.each_pair do |k,v|
+          kube[k.dup] = v.dup
+        end
+      end
       metadata.delete('docker') if metadata['docker'] && (metadata['docker']['container_id'].nil? || metadata['docker']['container_id'].empty?)
       metadata
     end
