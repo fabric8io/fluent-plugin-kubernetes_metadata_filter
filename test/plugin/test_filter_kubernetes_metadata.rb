@@ -373,6 +373,23 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
       end
     end
 
+    test 'kubernetes metadata is cloned so it further processing does not modify the cache' do
+
+      VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }, { name: 'kubernetes_get_pod' }, { name: 'kubernetes_get_namespace_default' }]) do
+
+        d = create_driver('
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1')
+        d.run(default_tag: VAR_LOG_POD_TAG) do
+          d.feed(@time, { 'time' => '2015-05-08T09:22:01Z' })
+          d.feed(@time, { 'time' => '2015-05-08T09:22:01Z' })
+        end
+        filtered = d.filtered.map(&:last)
+        assert_not_equal(filtered[0]['kubernetes']['labels'].object_id, filtered[1]['kubernetes']['labels'].object_id, "Exp. meta to be cloned")
+      end
+    end
+
     test 'with docker & kubernetes metadata & namespace_id enabled' do
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }, { name: 'kubernetes_get_pod' },
                          { name: 'kubernetes_get_namespace_default', options: { allow_playback_repeats: true } }]) do
