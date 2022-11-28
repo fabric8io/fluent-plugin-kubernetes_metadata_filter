@@ -108,6 +108,9 @@ module Fluent::Plugin
           # recreate client to refresh token
           log.info("Encountered '401 Unauthorized' exception, recreating client to refresh token")
           create_client()
+        elsif e.error_code == 404
+          log.debug "Encountered '404 Not Found' exception, pod not found"
+          @stats.bump(:pod_cache_api_nil_error)
         else
           log.error "Exception '#{e}' encountered fetching pod metadata from Kubernetes API #{@apiVersion} endpoint #{@kubernetes_url}"
           @stats.bump(:pod_cache_api_nil_error)
