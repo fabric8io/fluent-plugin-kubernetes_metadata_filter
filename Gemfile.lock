@@ -30,7 +30,7 @@ GEM
     ffi-compiler (1.0.1)
       ffi (>= 1.0.0)
       rake
-    fluentd (1.15.2)
+    fluentd (1.15.3)
       bundler
       cool.io (>= 1.4.5, < 2.0.0)
       http_parser.rb (>= 0.5.1, < 0.9.0)
@@ -122,7 +122,7 @@ GEM
       test-unit (>= 2.5.2)
     tzinfo (2.0.5)
       concurrent-ruby (~> 1.0)
-    tzinfo-data (1.2022.4)
+    tzinfo-data (1.2022.6)
       tzinfo (>= 1.0.0)
     unf (0.1.4)
       unf_ext
