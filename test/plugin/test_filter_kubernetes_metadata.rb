@@ -49,7 +49,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         d.instance.dump_stats
         assert_false(d.instance.instance_variable_get("@curr_time").nil?)
       end
-      
+
       test 'disables stats when <= zero' do
         d = create_driver('stats_interval 0')
         assert_equal(0, d.instance.stats_interval)
@@ -199,6 +199,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
               'pod_name' => 'fabric8-console-controller-98rqc',
               'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
               'namespace_name' => 'default',
+              'namespace_labels' => {
+                'tenant' => 'test'
+              },
               'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
               'pod_ip' => '172.17.0.8',
               'master_url' => 'https://localhost:8443',
@@ -231,6 +234,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
               'pod_name' => 'fabric8-console-controller-98rqc',
               'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
               'namespace_name' => 'default',
+              'namespace_labels' => {
+                'tenant' => 'test'
+              },
               'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
               'pod_ip' => '172.17.0.8',
               'master_url' => 'https://localhost:8443',
@@ -330,6 +336,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
             'namespace_name' => 'default',
             'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
+            'namespace_labels' => {
+              'tenant' => 'test'
+            },
             'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'pod_ip' => '172.17.0.8',
             'master_url' => 'https://localhost:8443',
@@ -360,6 +369,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
             'namespace_name' => 'default',
             'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
+            'namespace_labels' => {
+              'tenant' => 'test'
+            },
             'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'pod_ip' => '172.17.0.8',
             'master_url' => 'https://localhost:8443',
@@ -410,6 +422,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
             'namespace_name' => 'default',
             'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
+            'namespace_labels' => {
+              'tenant' => 'test'
+            },
             'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'pod_ip' => '172.17.0.8',
             'master_url' => 'https://localhost:8443',
@@ -585,8 +600,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'host' => 'jimmi-redhat.localnet',
             'pod_name' => 'fabric8-console-controller-98rqc',
             'container_name' => 'fabric8-console-container',
-            'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
             'namespace_name' => 'default',
+            'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
             'container_image' => 'fabric8/hawtio-kubernetes:latest',
             'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
             'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
@@ -628,8 +643,8 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'container_name' => 'fabric8-console-container',
             'container_image' => 'fabric8/hawtio-kubernetes:latest',
             'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
-            'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
             'namespace_name' => 'default',
+            'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
             'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'pod_ip' => '172.17.0.8',
             'master_url' => 'https://localhost:8443',
@@ -643,7 +658,7 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
     end
 
     test 'processes all events when reading from MessagePackEventStream' do
-      VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, 
+      VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' },
                          { name: 'kubernetes_get_api_v1' },
                          { name: 'kubernetes_get_pod' },
                          { name: 'kubernetes_get_namespace_default' }]) do
@@ -675,6 +690,9 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
             'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
             'namespace_name' => 'default',
             'namespace_id' => '898268c8-4a36-11e5-9d81-42010af0194c',
+            'namespace_labels' => {
+              'tenant' => 'test'
+            },
             'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
             'pod_ip' => '172.17.0.8',
             'master_url' => 'https://localhost:8443',
@@ -718,5 +736,75 @@ class KubernetesMetadataFilterTest < Test::Unit::TestCase
         assert_equal(expected_kube_metadata, filtered[0])
       end
     end
+
+    test 'with docker & kubernetes metadata using skip namespace labels config param' do
+      VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }, { name: 'kubernetes_get_pod' },
+                         { name: 'kubernetes_get_namespace_default' }]) do
+        filtered = emit({}, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          stats_interval 0
+          skip_namespace_labels true
+          skip_master_url true
+        ')
+        expected_kube_metadata = {
+          'docker'=>{
+            'container_id'=>'49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          'kubernetes' => {
+            'host' => 'jimmi-redhat.localnet',
+            'pod_name' => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            'container_image' => 'fabric8/hawtio-kubernetes:latest',
+            'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
+            'namespace_name' => 'default',
+            "namespace_id"=>"898268c8-4a36-11e5-9d81-42010af0194c",
+            'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'pod_ip' => '172.17.0.8',
+            'labels' => {
+              'component' => 'fabric8Console'
+            }
+          }
+        }
+
+        assert_equal(expected_kube_metadata, filtered[0])
+      end
+    end
+    test 'with docker & kubernetes metadata using skip pod labels config param' do
+      VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }, { name: 'kubernetes_get_pod' },
+                         { name: 'kubernetes_get_namespace_default' }]) do
+        filtered = emit({}, '
+          kubernetes_url https://localhost:8443
+          watch false
+          cache_size 1
+          stats_interval 0
+          skip_pod_labels true
+          skip_master_url true
+        ')
+        expected_kube_metadata = {
+          'docker'=>{
+            'container_id'=>'49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459'
+          },
+          'kubernetes' => {
+            'host' => 'jimmi-redhat.localnet',
+            'pod_name' => 'fabric8-console-controller-98rqc',
+            'container_name' => 'fabric8-console-container',
+            'container_image' => 'fabric8/hawtio-kubernetes:latest',
+            'container_image_id' => 'docker://b2bd1a24a68356b2f30128e6e28e672c1ef92df0d9ec01ec0c7faea5d77d2303',
+            'namespace_name' => 'default',
+            "namespace_id"=>"898268c8-4a36-11e5-9d81-42010af0194c",
+            'namespace_labels' => {
+              'tenant' => 'test'
+            },
+            'pod_id' => 'c76927af-f563-11e4-b32d-54ee7527188d',
+            'pod_ip' => '172.17.0.8',
+          }
+        }
+
+        assert_equal(expected_kube_metadata, filtered[0])
+      end
+    end
+
   end
 end

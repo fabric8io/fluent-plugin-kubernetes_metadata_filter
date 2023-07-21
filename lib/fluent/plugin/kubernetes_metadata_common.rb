@@ -40,7 +40,7 @@ module KubernetesMetadata
 
     def parse_namespace_metadata(namespace_object)
       labels = ''
-      labels = syms_to_strs(namespace_object[:metadata][:labels].to_h) unless @skip_labels
+      labels = syms_to_strs(namespace_object[:metadata][:labels].to_h) unless (@skip_labels || @skip_namespace_labels)
 
       annotations = match_annotations(syms_to_strs(namespace_object[:metadata][:annotations].to_h))
 
@@ -55,7 +55,7 @@ module KubernetesMetadata
 
     def parse_pod_metadata(pod_object)
       labels = ''
-      labels = syms_to_strs(pod_object[:metadata][:labels].to_h) unless @skip_labels
+      labels = syms_to_strs(pod_object[:metadata][:labels].to_h) unless (@skip_labels || @skip_pod_labels)
 
       annotations = match_annotations(syms_to_strs(pod_object[:metadata][:annotations].to_h))
 
