@@ -53,7 +53,10 @@ http_interactions:
             "selfLink": "/api/v1/namespaces/default",
             "uid": "898268c8-4a36-11e5-9d81-42010af0194c",
             "resourceVersion": "6",
-            "creationTimestamp": "2015-05-08T09:22:01Z"
+            "creationTimestamp": "2015-05-08T09:22:01Z",
+            "labels": {
+              "tenant": "test"
+            }
           },
           "spec": {
             "finalizers": [

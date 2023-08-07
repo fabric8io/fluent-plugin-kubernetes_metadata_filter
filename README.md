@@ -55,6 +55,8 @@ when true (default: `true`)
   to trust the intermediate CA certs we do have, set this to `true` - this corresponds to
   the `openssl s_client -partial_chain` flag and `X509_V_FLAG_PARTIAL_CHAIN` (default: `false`)
 * `skip_labels` - Skip all label fields from the metadata.
+* `skip_pod_labels` - Skip only pod label fields from the metadata.
+* `skip_namespace_labels` - Skip only namespace label fields from the metadata.
 * `skip_container_metadata` - Skip some of the container data of the metadata. The metadata will not contain the container_image and container_image_id fields.
 * `skip_master_url` - Skip the master_url field from the metadata.
 * `skip_namespace_metadata` - Skip the namespace_id field from the metadata. The fetch_namespace_metadata function will be skipped. The plugin will be faster and cpu consumption will be less.
