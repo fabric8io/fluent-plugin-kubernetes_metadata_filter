@@ -64,6 +64,7 @@ when true (default: `true`)
 * `watch_retry_interval` - The time interval in seconds for retry backoffs when watch connections fail. (default: `10`)
 * `open_timeout` - The time in seconds to wait for a connection to kubernetes service. (default: `3`)
 * `read_timeout` - The time in seconds to wait for a read from kubernetes service. (default: `10`)
+* `include_ownerrefs_metadata` - If set to true, it will include metadata (`kind` & `name`) in `kubernetes.ownerrefs` about the controller that owns the pod. (default: `false`)
 
 
 Reading from a JSON formatted log files with `in_tail` and wildcard filenames while respecting the CRI-o log format with the same config you need the fluent-plugin "multi-format-parser":
