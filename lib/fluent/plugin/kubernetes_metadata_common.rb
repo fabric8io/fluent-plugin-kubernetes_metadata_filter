@@ -82,14 +82,27 @@ module KubernetesMetadata
         log.warn("parsing container meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]}: #{e}")
       end
 
+      ownerrefs_meta = []
+      begin
+        pod_object[:metadata][:ownerReferences].each do |owner_reference|
+          ownerrefs_meta.append({
+            'kind' => owner_reference[:kind],
+            'name' => owner_reference[:name]
+          })
+        end
+      rescue StandardError => e
+        log.warn("parsing ownerrefs meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]}: #{e}")
+      end if @include_ownerrefs_metadata && pod_object[:metadata][:ownerReferences]
+
       kubernetes_metadata = {
         'namespace_name' => pod_object[:metadata][:namespace],
         'pod_id' => pod_object[:metadata][:uid],
         'pod_name' => pod_object[:metadata][:name],
         'pod_ip' => pod_object[:status][:podIP],
         'containers' => syms_to_strs(container_meta),
-        'host' => pod_object[:spec][:nodeName]
-      }
+        'host' => pod_object[:spec][:nodeName],
+        'ownerrefs' => (ownerrefs_meta if @include_ownerrefs_metadata)
+      }.compact
       kubernetes_metadata['annotations'] = annotations unless annotations.empty?
       kubernetes_metadata['labels'] = labels unless labels.empty?
       kubernetes_metadata['master_url'] = @kubernetes_url unless @skip_master_url

@@ -82,6 +82,7 @@ module Fluent::Plugin
     config_param :skip_container_metadata, :bool, default: false
     config_param :skip_master_url, :bool, default: false
     config_param :skip_namespace_metadata, :bool, default: false
+    config_param :include_ownerrefs_metadata, :bool, default: false
 
     # A classname in the form of Test::APIAdapter which will try
     # to be resolved from a relative named file 'test_api_adapter'
