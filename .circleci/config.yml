@@ -21,9 +21,6 @@ test: &test
   command: bundle exec rake test --trace
 
 executors:
-  ruby-2-6:
-    docker:
-      - image: circleci/ruby:2.6.3
   ruby-2-7:
     docker:
       - image: circleci/ruby:2.7.1
@@ -47,7 +44,5 @@ jobs:
 workflows:
   "test_multiple_ruby_versions":
     jobs:
-      - ruby-test:
-          ruby-version: ruby-2-6
       - ruby-test:
           ruby-version: ruby-2-7
