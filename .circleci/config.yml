@@ -3,7 +3,7 @@ version: 2.1
 install: &install
   name: Install bundle
   command: |
-            gem install bundler
+            gem install bundler -v 2.4.22
             bundle config set --local path vendor/bundle
             bundle install
 
@@ -11,7 +11,7 @@ missingdeps: &missingdeps
   name: Install missing dependecies
   command: |
             cat /etc/os-release
-            printf "deb http://deb.debian.org/debian buster main\ndeb http://security.debian.org buster/updates main\ndeb-src http://security.debian.org buster/updates main" > /tmp/sources.list
+            sed -e 's/^# deb-src/deb-src/g' /etc/apt/sources.list > /tmp/sources.list
             sudo cp /tmp/sources.list /etc/apt/sources.list
             sudo apt-get --allow-releaseinfo-change update
             sudo apt-get install cmake libicu-dev libssl-dev
@@ -21,12 +21,9 @@ test: &test
   command: bundle exec rake test --trace
 
 executors:
-  ruby-2-6:
-    docker:
-      - image: circleci/ruby:2.6.3
   ruby-2-7:
     docker:
-      - image: circleci/ruby:2.7.1
+      - image: cimg/ruby:2.7.8
 jobs:
   "ruby-test":
     parameters:
@@ -47,7 +44,5 @@ jobs:
 workflows:
   "test_multiple_ruby_versions":
     jobs:
-      - ruby-test:
-          ruby-version: ruby-2-6
       - ruby-test:
           ruby-version: ruby-2-7
