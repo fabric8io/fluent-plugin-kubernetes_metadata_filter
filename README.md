@@ -50,7 +50,7 @@ This must use named capture groups for `container_name`, `pod_name`, `namespace`
 when true (default: `true`)
 * `orphaned_namespace_name` - The namespace to associate with records where the namespace can not be determined (default: `.orphaned`)
 * `orphaned_namespace_id` - The namespace id to associate with records where the namespace can not be determined (default: `orphaned`)
-* `lookup_from_k8s_field` - If the field `kubernetes` is present, lookup the metadata from the given subfields such as `kubernetes.namespace_name`, `kubernetes.pod_name`, etc.  This allows you to avoid having to pass in metadata to lookup in an explicitly formatted tag name or in an explicitly formatted `CONTAINER_NAME` value.  For example, set `kubernetes.namespace_name`, `kubernetes.pod_name`, `kubernetes.container_name`, and `docker.id` in the record, and the filter will fill in the rest. (default: `true`)
+* `lookup_from_k8s_field` - If the field `kubernetes` is present, lookup the metadata from the given subfields such as `kubernetes.namespace_name`, `kubernetes.pod_name`, etc.  This allows you to avoid having to pass in metadata to lookup in an explicitly formatted tag name or in an explicitly formatted `CONTAINER_NAME` value.  For example, set `kubernetes.namespace_name`, `kubernetes.pod_name`, `kubernetes.container_name`, and `docker.container_id` in the record, and the filter will fill in the rest. (default: `true`)
 * `ssl_partial_chain` - if `ca_file` is for an intermediate CA, or otherwise we do not have the root CA and want
   to trust the intermediate CA certs we do have, set this to `true` - this corresponds to
   the `openssl s_client -partial_chain` flag and `X509_V_FLAG_PARTIAL_CHAIN` (default: `false`)
@@ -144,7 +144,7 @@ Then output becomes as belows
   "log": "2015/05/05 19:54:41 \n",
   "stream": "stderr",
   "docker": {
-    "id": "df14e0d5ae4c07284fa636d739c8fc2e6b52bc344658de7d3f08c36a2e804115",
+    "container_id": "df14e0d5ae4c07284fa636d739c8fc2e6b52bc344658de7d3f08c36a2e804115",
   }
   "kubernetes": {
     "host": "jimmi-redhat.localnet",
