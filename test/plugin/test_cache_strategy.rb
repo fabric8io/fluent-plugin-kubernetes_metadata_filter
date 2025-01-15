@@ -25,9 +25,9 @@ class TestCacheStrategy
 
   def initialize
     @stats = KubernetesMetadata::Stats.new
-    @cache = LruRedux::TTL::ThreadSafeCache.new(100, 3600)
-    @id_cache = LruRedux::TTL::ThreadSafeCache.new(100, 3600)
-    @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(100, 3600)
+    @cache = LruRedux::TTL::ThreadSafeCache.new(100, 3600, true)
+    @id_cache = LruRedux::TTL::ThreadSafeCache.new(100, 3600, true)
+    @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(100, 3600, true)
     @orphaned_namespace_name = '.orphaned'
     @orphaned_namespace_id = 'orphaned'
   end
