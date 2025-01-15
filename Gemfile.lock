@@ -4,7 +4,7 @@ PATH
     fluent-plugin-kubernetes_metadata_filter (3.6.0)
       fluentd (>= 0.14.0, < 1.19)
       kubeclient (>= 4.0.0, < 5.0.0)
-      lru_redux
+      sin_lru_redux
 
 GEM
   remote: https://rubygems.org/
@@ -78,7 +78,6 @@ GEM
       ffi-compiler (~> 1.0)
       rake (~> 13.0)
     logger (1.6.2)
-    lru_redux (1.1.0)
     mime-types (3.6.0)
       logger
       mime-types-data (~> 3.2015)
@@ -130,6 +129,7 @@ GEM
       simplecov_json_formatter (~> 0.1)
     simplecov-html (0.12.3)
     simplecov_json_formatter (0.1.4)
+    sin_lru_redux (2.4.0)
     strptime (0.2.5)
     test-unit (3.5.5)
       power_assert
