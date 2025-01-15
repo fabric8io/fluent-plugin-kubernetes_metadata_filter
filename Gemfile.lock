@@ -13,6 +13,7 @@ GEM
       public_suffix (>= 2.0.2, < 5.0)
     ast (2.4.2)
     base64 (0.2.0)
+    bigdecimal (3.1.9)
     bump (0.10.0)
     charlock_holmes (0.7.7)
     codeclimate-test-reporter (0.6.0)
@@ -21,7 +22,8 @@ GEM
     cool.io (1.9.0)
     copyright-header (1.0.22)
       github-linguist
-    crack (0.4.5)
+    crack (1.0.0)
+      bigdecimal
       rexml
     csv (3.3.0)
     docile (1.4.0)
