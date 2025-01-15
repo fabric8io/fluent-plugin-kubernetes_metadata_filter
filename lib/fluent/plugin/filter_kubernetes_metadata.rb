@@ -44,6 +44,7 @@ module Fluent::Plugin
     config_param :kubernetes_url, :string, default: nil
     config_param :cache_size, :integer, default: 1000
     config_param :cache_ttl, :integer, default: 60 * 60
+    config_param :ignore_nil, :integer, default: true
     config_param :watch, :bool, default: true
     config_param :apiVersion, :string, default: 'v1'
     config_param :client_cert, :string, default: nil
@@ -192,13 +193,13 @@ module Fluent::Plugin
       end
 
       # Caches pod/namespace UID tuples for a given container UID.
-      @id_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+      @id_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl, @ignore_nil)
 
       # Use the container UID as the key to fetch a hash containing pod metadata
-      @cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+      @cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl, @ignore_nil)
 
       # Use the namespace UID as the key to fetch a hash containing namespace metadata
-      @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl)
+      @namespace_cache = LruRedux::TTL::ThreadSafeCache.new(@cache_size, @cache_ttl, @ignore_nil)
 
       @tag_to_kubernetes_name_regexp_compiled = Regexp.compile(@tag_to_kubernetes_name_regexp)
 

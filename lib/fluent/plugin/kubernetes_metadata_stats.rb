@@ -22,7 +22,7 @@ require 'lru_redux'
 module KubernetesMetadata
   class Stats
     def initialize
-      @stats = ::LruRedux::TTL::ThreadSafeCache.new(1000, 3600)
+      @stats = ::LruRedux::TTL::ThreadSafeCache.new(1000, 3600, true)
     end
 
     def bump(key)
