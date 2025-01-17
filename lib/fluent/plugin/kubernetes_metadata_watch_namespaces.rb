@@ -18,14 +18,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 # TODO: this is mostly copy-paste from kubernetes_metadata_watch_pods.rb unify them
 require_relative 'kubernetes_metadata_common'
 
 module KubernetesMetadata
-  module WatchNamespaces
+  module WatchNamespaces # rubocop:disable Metrics/ModuleLength
     include ::KubernetesMetadata::Common
 
-    def set_up_namespace_thread
+    def set_up_namespace_thread # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/PerceivedComplexity
       # Any failures / exceptions in the initial setup should raise
       # Fluent:ConfigError, so that users can inspect potential errors in
       # the configuration.
@@ -37,7 +38,7 @@ module KubernetesMetadata
       # processing will be swallowed and retried. These failures /
       # exceptions could be caused by Kubernetes API being temporarily
       # down. We assume the configuration is correct at this point.
-      loop do
+      loop do # rubocop:disable Metrics/BlockLength
         namespace_watcher ||= get_namespaces_and_start_watcher
         process_namespace_watcher_notices(namespace_watcher)
       rescue GoneError => e
@@ -50,7 +51,7 @@ module KubernetesMetadata
         if e.error_code == 401
           # recreate client to refresh token
           log.info("Encountered '401 Unauthorized' exception in watch, recreating client to refresh token")
-          create_client()
+          create_client
           namespace_watcher = nil
         else
           # treat all other errors the same as StandardError, log, swallow and reset
@@ -62,7 +63,8 @@ module KubernetesMetadata
               'Exception encountered parsing namespace watch event. ' \
               'The connection might have been closed. Sleeping for ' \
               "#{Thread.current[:namespace_watch_retry_backoff_interval]} " \
-              'seconds and resetting the namespace watcher.', e
+              'seconds and resetting the namespace watcher.',
+              e
             )
             sleep(Thread.current[:namespace_watch_retry_backoff_interval])
             Thread.current[:namespace_watch_retry_count] += 1
@@ -88,7 +90,8 @@ module KubernetesMetadata
             'Exception encountered parsing namespace watch event. ' \
             'The connection might have been closed. Sleeping for ' \
             "#{Thread.current[:namespace_watch_retry_backoff_interval]} " \
-            'seconds and resetting the namespace watcher.', e
+            'seconds and resetting the namespace watcher.',
+            e
           )
           sleep(Thread.current[:namespace_watch_retry_backoff_interval])
           Thread.current[:namespace_watch_retry_count] += 1
@@ -121,7 +124,7 @@ module KubernetesMetadata
 
     # List all namespaces, record the resourceVersion and return a watcher
     # starting from that resourceVersion.
-    def get_namespaces_and_start_watcher
+    def get_namespaces_and_start_watcher # rubocop:disable Metrics/MethodLength, Naming/AccessorMethodName
       options = {
         resource_version: '0' # Fetch from API server cache instead of etcd quorum read
       }
@@ -148,13 +151,13 @@ module KubernetesMetadata
     end
 
     # Process a watcher notice and potentially raise an exception.
-    def process_namespace_watcher_notices(watcher)
-      watcher.each do |notice|
+    def process_namespace_watcher_notices(watcher) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+      watcher.each do |notice| # rubocop:disable Metrics/BlockLength
         case notice[:type]
         when 'MODIFIED'
           reset_namespace_watch_retry_stats
           cache_key = notice[:object][:metadata][:uid]
-          cached    = @namespace_cache[cache_key]
+          cached = @namespace_cache[cache_key]
           if cached
             @namespace_cache[cache_key] = parse_namespace_metadata(notice[:object])
             @stats.bump(:namespace_cache_watch_updates)

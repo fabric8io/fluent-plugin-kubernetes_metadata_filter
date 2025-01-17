@@ -170,7 +170,7 @@ PLATFORMS
 
 DEPENDENCIES
   bump
-  bundler (~> 2.0)
+  bundler
   codeclimate-test-reporter (< 1.0.0)
   copyright-header
   fluent-plugin-kubernetes_metadata_filter!

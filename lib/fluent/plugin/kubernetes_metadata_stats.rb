@@ -18,7 +18,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 require 'lru_redux'
+
 module KubernetesMetadata
   class Stats
     def initialize
@@ -38,15 +40,11 @@ module KubernetesMetadata
     end
 
     def to_s
-      'stats - ' + [].tap do |a|
-        @stats.each { |k, v| a << "#{k}: #{v}" }
-      end.join(', ')
+      "stats - #{@stats.to_a.map { |k, v| "#{k}: #{v}" }.join(', ')}"
     end
   end
-  class NoOpStats
-    def initialize
-    end
 
+  class NoOpStats
     def bump(key)
     end
 
