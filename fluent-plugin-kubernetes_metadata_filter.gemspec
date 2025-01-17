@@ -6,14 +6,19 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 Gem::Specification.new do |gem|
   gem.name          = 'fluent-plugin-kubernetes_metadata_filter'
   gem.version       = '3.7.0'
-  gem.authors       = ['OpenShift Cluster Logging','Jimmi Dyson']
-  gem.email         = ['team-logging@redhat.com','jimmidyson@gmail.com']
+  gem.authors       = ['OpenShift Cluster Logging', 'Jimmi Dyson']
+  gem.email         = ['team-logging@redhat.com', 'jimmidyson@gmail.com']
   gem.description   = 'Filter plugin to add Kubernetes metadata'
   gem.summary       = 'Fluentd filter plugin to add Kubernetes metadata'
   gem.homepage      = 'https://github.com/fabric8io/fluent-plugin-kubernetes_metadata_filter'
   gem.license       = 'Apache-2.0'
 
-  gem.files         = `git ls-files`.split($/)
+  gemspec = File.basename(__FILE__)
+  gem.files = IO.popen(['git', 'ls-files', '-z'], chdir: __dir__, err: IO::NULL) do |ls|
+    ls.readlines("\x0", chomp: true).reject do |f|
+      (f == gemspec) || f.start_with?('coverage/', 'test/', '.git', '.circleci', '.rubocop.yml', 'Gemfile')
+    end
+  end
 
   gem.required_ruby_version = '>= 2.7.0'
 
