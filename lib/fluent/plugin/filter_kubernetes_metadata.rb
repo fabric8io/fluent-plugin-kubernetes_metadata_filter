@@ -22,7 +22,6 @@
 require_relative 'kubernetes_metadata_cache_strategy'
 require_relative 'kubernetes_metadata_common'
 require_relative 'kubernetes_metadata_stats'
-require_relative 'kubernetes_metadata_util'
 require_relative 'kubernetes_metadata_watch_namespaces'
 require_relative 'kubernetes_metadata_watch_pods'
 
@@ -271,8 +270,12 @@ module Fluent
 
           if @test_api_adapter
             log.info "Extending client with test api adapter #{@test_api_adapter}"
-            require_relative @test_api_adapter.underscore
-
+            @test_api_adapter = @test_api_adapter.gsub('::', '_')
+                                                 .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+                                                 .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+                                                 .tr('-', '_')
+                                                 .downcase
+            require_relative @test_api_adapter
             @client.extend(eval(@test_api_adapter)) # rubocop:disable Security/Eval
           end
 
