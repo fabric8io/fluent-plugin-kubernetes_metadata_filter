@@ -18,51 +18,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 require 'kubeclient'
 
 module KubernetesMetadata
-    module TestApiAdapter
-      
-      def api_valid?
-        true
-      end
-      def get_namespace(namespace_name, unused, options)
-        return {
-          metadata: {
-            name: namespace_name,
-            uid: namespace_name + 'uuid',
-            labels: {
-              foo_ns: 'bar_ns'
-            }
+  module TestApiAdapter
+    def api_valid?
+      true
+    end
+
+    def get_namespace(namespace_name, _unused, _options)
+      {
+        metadata: {
+          name: namespace_name,
+          uid: "#{namespace_name}uuid",
+          labels: {
+            foo_ns: 'bar_ns'
           }
         }
-      end
+      }
+    end
 
-      def get_pod(pod_name, namespace_name, options)
-        return {
-          metadata: {
-            name: pod_name,
-            namespace: namespace_name,
-            uid: namespace_name + namespace_name + "uuid",
-            labels: {
-              foo: 'bar'
-            }
-          },
-          spec: {
-            nodeName: 'aNodeName',
-            containers: [{
+    def get_pod(pod_name, namespace_name, _options) # rubocop:disable Metrics/MethodLength
+      {
+        metadata: {
+          name: pod_name,
+          namespace: namespace_name,
+          uid: "#{namespace_name}#{namespace_name}uuid",
+          labels: {
+            foo: 'bar'
+          }
+        },
+        spec: {
+          nodeName: 'aNodeName',
+          containers: [
+            {
               name: 'foo',
               image: 'bar'
-            }, {
+            },
+            {
               name: 'bar',
               image: 'foo'
-            }]
-          },
-          status: {
-            podIP: '172.17.0.8'
-          }
+            }
+          ]
+        },
+        status: {
+          podIP: '172.17.0.8'
         }
-      end
-
+      }
     end
+  end
 end

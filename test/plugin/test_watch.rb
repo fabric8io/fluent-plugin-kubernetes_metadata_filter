@@ -18,9 +18,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 require_relative '../helper'
 
-class WatchTest < Test::Unit::TestCase
+class TestWatch < Test::Unit::TestCase
   def thread_current_running?
     true
   end
@@ -36,7 +37,8 @@ class WatchTest < Test::Unit::TestCase
     Thread.current[:pod_watch_retry_count] = 0
     Thread.current[:namespace_watch_retry_count] = 0
 
-    @client = OpenStruct.new
+    @client = {}
+
     def @client.watch_pods(_options = {})
       []
     end
@@ -61,6 +63,7 @@ class WatchTest < Test::Unit::TestCase
 
   def log
     logger = {}
+
     def logger.debug(message)
     end
 
@@ -69,8 +72,10 @@ class WatchTest < Test::Unit::TestCase
 
     def logger.error(message, error)
     end
+
     def logger.warn(message)
     end
+
     logger
   end
 end

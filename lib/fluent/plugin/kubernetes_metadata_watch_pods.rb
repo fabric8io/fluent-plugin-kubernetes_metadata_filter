@@ -18,14 +18,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 # TODO: this is mostly copy-paste from kubernetes_metadata_watch_namespaces.rb unify them
 require_relative 'kubernetes_metadata_common'
 
 module KubernetesMetadata
-  module WatchPods
+  module WatchPods # rubocop:disable Metrics/ModuleLength
     include ::KubernetesMetadata::Common
 
-    def set_up_pod_thread
+    def set_up_pod_thread # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Metrics/PerceivedComplexity
       # Any failures / exceptions in the initial setup should raise
       # Fluent:ConfigError, so that users can inspect potential errors in
       # the configuration.
@@ -38,7 +39,7 @@ module KubernetesMetadata
       # processing will be swallowed and retried. These failures /
       # exceptions could be caused by Kubernetes API being temporarily
       # down. We assume the configuration is correct at this point.
-      loop do
+      loop do # rubocop:disable Metrics/BlockLength
         pod_watcher ||= get_pods_and_start_watcher
         process_pod_watcher_notices(pod_watcher)
       rescue GoneError => e
@@ -51,7 +52,7 @@ module KubernetesMetadata
         if e.error_code == 401
           # recreate client to refresh token
           log.info("Encountered '401 Unauthorized' exception in watch, recreating client to refresh token")
-          create_client()
+          create_client
           pod_watcher = nil
         else
           # treat all other errors the same as StandardError, log, swallow and reset
@@ -63,7 +64,8 @@ module KubernetesMetadata
               'Exception encountered parsing pod watch event. The ' \
               'connection might have been closed. Sleeping for ' \
               "#{Thread.current[:pod_watch_retry_backoff_interval]} " \
-              'seconds and resetting the pod watcher.', e
+              'seconds and resetting the pod watcher.',
+              e
             )
             sleep(Thread.current[:pod_watch_retry_backoff_interval])
             Thread.current[:pod_watch_retry_count] += 1
@@ -89,7 +91,8 @@ module KubernetesMetadata
             'Exception encountered parsing pod watch event. The ' \
             'connection might have been closed. Sleeping for ' \
             "#{Thread.current[:pod_watch_retry_backoff_interval]} " \
-            'seconds and resetting the pod watcher.', e
+            'seconds and resetting the pod watcher.',
+            e
           )
           sleep(Thread.current[:pod_watch_retry_backoff_interval])
           Thread.current[:pod_watch_retry_count] += 1
@@ -122,13 +125,11 @@ module KubernetesMetadata
 
     # List all pods, record the resourceVersion and return a watcher starting
     # from that resourceVersion.
-    def get_pods_and_start_watcher
+    def get_pods_and_start_watcher # rubocop:disable Metrics/AbcSize, Metrics/MethodLength, Naming/AccessorMethodName
       options = {
         resource_version: '0' # Fetch from API server cache instead of etcd quorum read
       }
-      if ENV['K8S_NODE_NAME']
-        options[:field_selector] = 'spec.nodeName=' + ENV['K8S_NODE_NAME']
-      end
+      options[:field_selector] = "spec.nodeName=#{ENV['K8S_NODE_NAME']}" if ENV['K8S_NODE_NAME']
       if @last_seen_resource_version
         options[:resource_version] = @last_seen_resource_version
       else
@@ -156,19 +157,19 @@ module KubernetesMetadata
     end
 
     # Process a watcher notice and potentially raise an exception.
-    def process_pod_watcher_notices(watcher)
-      watcher.each do |notice|
+    def process_pod_watcher_notices(watcher) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+      watcher.each do |notice| # rubocop:disable Metrics/BlockLength
         # store version we processed to not reprocess it ... do not unset when there is no version in response
-        version = ( # TODO: replace with &.dig once we are on ruby 2.5+
+        version = # TODO: replace with &.dig once we are on ruby 2.5+
           notice[:object] && notice[:object][:metadata] && notice[:object][:metadata][:resourceVersion]
-        )
+
         @last_seen_resource_version = version if version
 
         case notice[:type]
         when 'MODIFIED'
           reset_pod_watch_retry_stats
           cache_key = notice.dig(:object, :metadata, :uid)
-          cached    = @cache[cache_key]
+          cached = @cache[cache_key]
           if cached
             @cache[cache_key] = parse_pod_metadata(notice[:object])
             @stats.bump(:pod_cache_watch_updates)

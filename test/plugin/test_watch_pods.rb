@@ -18,10 +18,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-require_relative '../helper'
-require_relative 'watch_test'
 
-class DefaultPodWatchStrategyTest < WatchTest
+require_relative '../helper'
+require_relative 'test_watch'
+
+class TestWatchPods < TestWatch
   include KubernetesMetadata::WatchPods
 
   setup do
@@ -38,13 +39,15 @@ class DefaultPodWatchStrategyTest < WatchTest
           },
           spec: {
             nodeName: 'aNodeName',
-            containers: [{
-              name: 'foo',
-              image: 'bar'
-            }, {
-              name: 'bar',
-              image: 'foo'
-            }]
+            containers: [
+              {
+                name: 'foo',
+                image: 'bar'
+              }, {
+                name: 'bar',
+                image: 'foo'
+              }
+            ]
           },
           status: {
             podIP: '172.17.0.8'
@@ -59,13 +62,15 @@ class DefaultPodWatchStrategyTest < WatchTest
           },
           spec: {
             nodeName: 'aNodeName',
-            containers: [{
-              name: 'foo',
-              image: 'bar'
-            }, {
-              name: 'bar',
-              image: 'foo'
-            }]
+            containers: [
+              {
+                name: 'foo',
+                image: 'bar'
+              }, {
+                name: 'bar',
+                image: 'foo'
+              }
+            ]
           },
           status: {
             podIP: '172.17.0.8'
@@ -85,13 +90,15 @@ class DefaultPodWatchStrategyTest < WatchTest
         },
         spec: {
           nodeName: 'aNodeName',
-          containers: [{
-            name: 'foo',
-            image: 'bar'
-          }, {
-            name: 'bar',
-            image: 'foo'
-          }]
+          containers: [
+            {
+              name: 'foo',
+              image: 'bar'
+            }, {
+              name: 'bar',
+              image: 'foo'
+            }
+          ]
         },
         status: {
           podIP: '172.17.0.8'
@@ -110,13 +117,16 @@ class DefaultPodWatchStrategyTest < WatchTest
         },
         spec: {
           nodeName: 'aNodeName',
-          containers: [{
-            name: 'foo',
-            image: 'bar'
-          }, {
-            name: 'bar',
-            image: 'foo'
-          }]
+          containers: [
+            {
+              name: 'foo',
+              image: 'bar'
+            },
+            {
+              name: 'bar',
+              image: 'foo'
+            }
+          ]
         },
         status: {
           podIP: '172.17.0.8',
@@ -177,8 +187,9 @@ class DefaultPodWatchStrategyTest < WatchTest
     ENV['K8S_NODE_NAME'] = 'aNodeName'
     @client.stub :get_pods, @initial do
       process_pod_watcher_notices(start_pod_watch)
-      assert_equal(true, @cache.key?('initial_uid'))
-      assert_equal(true, @cache.key?('modified_uid'))
+
+      assert(@cache.key?('initial_uid'))
+      assert(@cache.key?('modified_uid'))
       assert_equal(2, @stats[:pod_cache_host_updates])
     end
     ENV['K8S_NODE_NAME'] = orig_env_val
@@ -190,11 +201,13 @@ class DefaultPodWatchStrategyTest < WatchTest
     @client.stub :get_pods, @initial do
       @client.stub :watch_pods, [@modified] do
         process_pod_watcher_notices(start_pod_watch)
+
         assert_equal(2, @stats[:pod_cache_host_updates])
         assert_equal(1, @stats[:pod_cache_watch_updates])
       end
     end
     ENV['K8S_NODE_NAME'] = orig_env_val
+
     assert_equal('123', @last_seen_resource_version) # from @modified
   end
 
@@ -202,7 +215,8 @@ class DefaultPodWatchStrategyTest < WatchTest
     @client.stub :get_pods, @initial do
       @client.stub :watch_pods, [@created] do
         process_pod_watcher_notices(start_pod_watch)
-        assert_equal(false, @cache.key?('created_uid'))
+
+        refute(@cache.key?('created_uid'))
         assert_equal(1, @stats[:pod_cache_watch_ignored])
       end
     end
@@ -211,7 +225,8 @@ class DefaultPodWatchStrategyTest < WatchTest
   test 'pod watch notice is ignored when info not cached and MODIFIED is received' do
     @client.stub :watch_pods, [@modified] do
       process_pod_watcher_notices(start_pod_watch)
-      assert_equal(false, @cache.key?('modified_uid'))
+
+      refute(@cache.key?('modified_uid'))
       assert_equal(1, @stats[:pod_cache_watch_misses])
     end
   end
@@ -221,7 +236,8 @@ class DefaultPodWatchStrategyTest < WatchTest
     ENV['K8S_NODE_NAME'] = 'aNodeName'
     @client.stub :watch_pods, [@modified] do
       process_pod_watcher_notices(start_pod_watch)
-      assert_equal(true, @cache.key?('modified_uid'))
+
+      assert(@cache.key?('modified_uid'))
       assert_equal(1, @stats[:pod_cache_host_updates])
     end
     ENV['K8S_NODE_NAME'] = orig_env_val
@@ -231,7 +247,8 @@ class DefaultPodWatchStrategyTest < WatchTest
     @cache['modified_uid'] = {}
     @client.stub :watch_pods, [@modified] do
       process_pod_watcher_notices(start_pod_watch)
-      assert_equal(true, @cache.key?('modified_uid'))
+
+      assert(@cache.key?('modified_uid'))
       assert_equal(1, @stats[:pod_cache_watch_updates])
     end
   end
@@ -240,7 +257,8 @@ class DefaultPodWatchStrategyTest < WatchTest
     @cache['deleted_uid'] = {}
     @client.stub :watch_pods, [@deleted] do
       process_pod_watcher_notices(start_pod_watch)
-      assert_equal(true, @cache.key?('deleted_uid'))
+
+      assert(@cache.key?('deleted_uid'))
       assert_equal(1, @stats[:pod_cache_watch_delete_ignored])
     end
   end
@@ -248,10 +266,11 @@ class DefaultPodWatchStrategyTest < WatchTest
   test 'pod watch raises Fluent::UnrecoverableError when cannot re-establish connection to k8s API server' do
     # Stub start_pod_watch to simulate initial successful connection to API server
     stub(self).start_pod_watch
-    # Stub watch_pods to simluate not being able to set up watch connection to API server
+    # Stub watch_pods to simulate not being able to set up watch connection to API server
     stub(@client).watch_pods { raise }
+
     @client.stub :get_pods, @initial do
-      assert_raise Fluent::UnrecoverableError do
+      assert_raise(Fluent::UnrecoverableError) do
         set_up_pod_thread
       end
     end
@@ -261,12 +280,12 @@ class DefaultPodWatchStrategyTest < WatchTest
     assert_nil(@stats[:pod_watch_error_type_notices])
   end
 
-  test 'pod watch resets watch retry count when exceptions are encountered and connection to k8s API server is re-established' do
+  test 'pod watch resets watch retry count when exceptions are encountered and connection to k8s API server is re-established' do # rubocop:disable Layout/LineLength
     @client.stub :get_pods, @initial do
       @client.stub :watch_pods, [[@created, @exception_raised]] do
         # Force the infinite watch loop to exit after 3 seconds. Verifies that
         # no unrecoverable error was thrown during this period of time.
-        assert_raise Timeout::Error.new('execution expired') do
+        assert_raise(Timeout::Error.new('execution expired')) do
           Timeout.timeout(3) do
             set_up_pod_thread
           end
@@ -283,7 +302,7 @@ class DefaultPodWatchStrategyTest < WatchTest
       @client.stub :watch_pods, [@error] do
         # Force the infinite watch loop to exit after 3 seconds. Verifies that
         # no unrecoverable error was thrown during this period of time.
-        assert_raise Timeout::Error.new('execution expired') do
+        assert_raise(Timeout::Error.new('execution expired')) do
           Timeout.timeout(3) do
             set_up_pod_thread
           end
@@ -301,7 +320,7 @@ class DefaultPodWatchStrategyTest < WatchTest
       @client.stub :watch_pods, [@modified, @error, @modified] do
         # Force the infinite watch loop to exit after 3 seconds. Verifies that
         # no unrecoverable error was thrown during this period of time.
-        assert_raise Timeout::Error.new('execution expired') do
+        assert_raise(Timeout::Error.new('execution expired')) do
           Timeout.timeout(3) do
             set_up_pod_thread
           end
@@ -318,7 +337,7 @@ class DefaultPodWatchStrategyTest < WatchTest
     @cache['gone_uid'] = {}
     @client.stub :watch_pods, [@gone] do
       @last_seen_resource_version = '100'
-      assert_raise KubernetesMetadata::Common::GoneError do
+      assert_raise(KubernetesMetadata::Common::GoneError) do
         process_pod_watcher_notices(start_pod_watch)
       end
       assert_equal(1, @stats[:pod_watch_gone_notices])
@@ -331,7 +350,7 @@ class DefaultPodWatchStrategyTest < WatchTest
       @client.stub :watch_pods, [@created, @gone, @modified] do
         # Force the infinite watch loop to exit after 3 seconds because the code sleeps 3 times.
         # Verifies that no unrecoverable error was thrown during this period of time.
-        assert_raise Timeout::Error.new('execution expired') do
+        assert_raise(Timeout::Error.new('execution expired')) do
           Timeout.timeout(3) do
             set_up_pod_thread
           end
