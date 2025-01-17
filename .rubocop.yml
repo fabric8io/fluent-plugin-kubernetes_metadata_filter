@@ -1,5 +1,5 @@
 AllCops:
-  TargetRubyVersion: 2.5 # keep in sync with .circleci/config.yml and gemspec
+  TargetRubyVersion: 2.7 # keep in sync with .circleci/config.yml and gemspec
   NewCops: enable
 
 Style/EmptyMethod:
