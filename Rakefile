@@ -12,13 +12,13 @@ task default: [:test, :build, :rubocop]
 RuboCop::RakeTask.new
 
 desc 'Run test_unit based test'
-Rake::TestTask.new(:base_test) do |t|
+Rake::TestTask.new(:base_test) do |task|
   # To run test for only one file (or file path pattern)
   #  $ bundle exec rake base_test TEST=test/test_specified_path.rb
   #  $ bundle exec rake base_test TEST=test/test_*.rb
-  t.libs << 'test'
-  t.test_files = Dir['test/**/test_*.rb'].sort
-  t.warning = false
+  task.libs << 'test'
+  task.test_files = Dir['test/**/test_*.rb'].sort
+  task.warning = false
 end
 
 desc 'Add copyright headers'

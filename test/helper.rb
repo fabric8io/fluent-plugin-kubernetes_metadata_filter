@@ -18,13 +18,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 require 'bundler/setup'
 require 'codeclimate-test-reporter'
+
 SimpleCov.start do
-  formatter SimpleCov::Formatter::MultiFormatter.new [
-    SimpleCov::Formatter::HTMLFormatter,
-    CodeClimate::TestReporter::Formatter
-  ]
+  formatter(
+    SimpleCov::Formatter::MultiFormatter.new([
+                                               SimpleCov::Formatter::HTMLFormatter,
+                                               CodeClimate::TestReporter::Formatter
+                                             ])
+  )
 end
 
 require 'rr'
@@ -50,7 +54,11 @@ VCR.configure do |config|
 end
 
 unless defined?(Test::Unit::AssertionFailedError)
-  class Test::Unit::AssertionFailedError < StandardError
+  module Test
+    module Unit
+      class AssertionFailedError < StandardError
+      end
+    end
   end
 end
 

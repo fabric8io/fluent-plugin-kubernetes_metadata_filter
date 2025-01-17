@@ -18,11 +18,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 require_relative '../helper'
 
-class KubernetesMetadataCacheStatsTest < Test::Unit::TestCase
+class TestCacheStats < Test::Unit::TestCase
   test 'watch stats' do
     require 'lru_redux'
+
     stats = KubernetesMetadata::Stats.new
     stats.bump(:missed)
     stats.bump(:deleted)

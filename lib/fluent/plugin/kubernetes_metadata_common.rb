@@ -18,6 +18,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 module KubernetesMetadata
   module Common
     class GoneError < StandardError
@@ -30,18 +31,15 @@ module KubernetesMetadata
       result = {}
       @annotations_regexps.each do |regexp|
         annotations.each do |key, value|
-          if ::Fluent::StringUtil.match_regexp(regexp, key.to_s)
-            result[key] = value
-          end
+          result[key] = value if ::Fluent::StringUtil.match_regexp(regexp, key.to_s)
         end
       end
       result
     end
 
-    def parse_namespace_metadata(namespace_object)
+    def parse_namespace_metadata(namespace_object) # rubocop:disable Metrics/AbcSize
       labels = ''
-      labels = syms_to_strs(namespace_object[:metadata][:labels].to_h) unless (@skip_labels || @skip_namespace_labels)
-
+      labels = syms_to_strs(namespace_object[:metadata][:labels].to_h) unless @skip_labels || @skip_namespace_labels
       annotations = match_annotations(syms_to_strs(namespace_object[:metadata][:annotations].to_h))
 
       kubernetes_metadata = {
@@ -53,46 +51,48 @@ module KubernetesMetadata
       kubernetes_metadata
     end
 
-    def parse_pod_metadata(pod_object)
+    def parse_pod_metadata(pod_object) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
       labels = ''
-      labels = syms_to_strs(pod_object[:metadata][:labels].to_h) unless (@skip_labels || @skip_pod_labels)
-
+      labels = syms_to_strs(pod_object[:metadata][:labels].to_h) unless @skip_labels || @skip_pod_labels
       annotations = match_annotations(syms_to_strs(pod_object[:metadata][:annotations].to_h))
 
       # collect container information
       container_meta = {}
       begin
-        pod_object[:status][:containerStatuses].each do |container_status|
-          container_id = (container_status[:containerID]||"").sub(%r{^[-_a-zA-Z0-9]+://}, '')
-          key = container_status[:name]
-          container_meta[key] = if @skip_container_metadata
-                                           {
-                                             'name' => container_status[:name]
-                                           }
-                                         else
-                                           {
-                                             'name' => container_status[:name],
-                                             'image' => container_status[:image],
-                                             'image_id' => container_status[:imageID],
-                                             :containerID => container_id
-                                           }
-                                         end
-        end if pod_object[:status] && pod_object[:status][:containerStatuses]
-      rescue StandardError=>e
-        log.warn("parsing container meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]}: #{e}")
+        if pod_object[:status] && pod_object[:status][:containerStatuses]
+          pod_object[:status][:containerStatuses].each do |container_status|
+            container_id = (container_status[:containerID] || '').sub(%r{^[-_a-zA-Z0-9]+://}, '')
+            key = container_status[:name]
+            container_meta[key] = if @skip_container_metadata
+                                    {
+                                      'name' => container_status[:name]
+                                    }
+                                  else
+                                    {
+                                      'name' => container_status[:name],
+                                      'image' => container_status[:image],
+                                      'image_id' => container_status[:imageID],
+                                      :containerID => container_id
+                                    }
+                                  end
+          end
+        end
+      rescue StandardError => e
+        log.warn("parsing container meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]}: #{e}") # rubocop:disable Layout/LineLength
       end
 
       ownerrefs_meta = []
-      begin
-        pod_object[:metadata][:ownerReferences].each do |owner_reference|
-          ownerrefs_meta.append({
-            'kind' => owner_reference[:kind],
-            'name' => owner_reference[:name]
-          })
+      if @include_ownerrefs_metadata && pod_object[:metadata][:ownerReferences]
+        begin
+          pod_object[:metadata][:ownerReferences].each do |owner_reference|
+            ownerrefs_meta.append({ 'kind' => owner_reference[:kind], 'name' => owner_reference[:name] })
+          end
+        rescue StandardError => e
+          log.warn(
+            "parsing ownerrefs meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]}: #{e}" # rubocop:disable Layout/LineLength
+          )
         end
-      rescue StandardError => e
-        log.warn("parsing ownerrefs meta information failed for: #{pod_object[:metadata][:namespace]}/#{pod_object[:metadata][:name]}: #{e}")
-      end if @include_ownerrefs_metadata && pod_object[:metadata][:ownerReferences]
+      end
 
       kubernetes_metadata = {
         'namespace_name' => pod_object[:metadata][:namespace],
@@ -103,8 +103,8 @@ module KubernetesMetadata
         'host' => pod_object[:spec][:nodeName],
         'ownerrefs' => (ownerrefs_meta if @include_ownerrefs_metadata)
       }.compact
-      kubernetes_metadata['annotations'] = annotations unless annotations.empty?
       kubernetes_metadata['labels'] = labels unless labels.empty?
+      kubernetes_metadata['annotations'] = annotations unless annotations.empty?
       kubernetes_metadata['master_url'] = @kubernetes_url unless @skip_master_url
       kubernetes_metadata
     end
@@ -112,9 +112,7 @@ module KubernetesMetadata
     def syms_to_strs(hsh)
       newhsh = {}
       hsh.each_pair do |kk, vv|
-        if vv.is_a?(Hash)
-          vv = syms_to_strs(vv)
-        end
+        vv = syms_to_strs(vv) if vv.is_a?(Hash)
         if kk.is_a?(Symbol)
           newhsh[kk.to_s] = vv
         else
