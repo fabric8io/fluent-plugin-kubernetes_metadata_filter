@@ -3,6 +3,7 @@
 .bundle
 .config
 .yardoc
+.vscode
 vendor/
 InstalledFiles
 _yardoc
