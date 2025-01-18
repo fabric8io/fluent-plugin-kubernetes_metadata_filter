@@ -31,35 +31,25 @@ SimpleCov.start do
   )
 end
 
-require 'rr'
 require 'test/unit'
-require 'test/unit/rr'
 require 'fileutils'
 require 'fluent/log'
 require 'fluent/test'
 require 'minitest/autorun'
+require 'minitest/pride'
 require 'vcr'
 require 'ostruct'
 require 'fluent/plugin/filter_kubernetes_metadata'
 require 'fluent/test/driver/filter'
 require 'kubeclient'
 
-require 'webmock/test_unit'
+require 'webmock/minitest'
 WebMock.disable_net_connect!
 
 VCR.configure do |config|
   config.cassette_library_dir = 'test/cassettes'
   config.hook_into :webmock # or :fakeweb
   config.ignore_hosts 'codeclimate.com'
-end
-
-unless defined?(Test::Unit::AssertionFailedError)
-  module Test
-    module Unit
-      class AssertionFailedError < StandardError
-      end
-    end
-  end
 end
 
 def unused_port
@@ -78,13 +68,4 @@ def ipv6_enabled?
   rescue StandardError
     false
   end
-end
-
-# TEST_NAME='foo' ruby test_file.rb to run a single test case
-if ENV['TEST_NAME']
-  (class << Test::Unit::TestCase; self; end).prepend(Module.new do
-    def test(name)
-      super if name == ENV['TEST_NAME']
-    end
-  end)
 end

@@ -128,7 +128,7 @@ module KubernetesMetadata
       options = {
         resource_version: '0' # Fetch from API server cache instead of etcd quorum read
       }
-      namespaces = @client.get_namespaces(options)
+      namespaces = @client.get_namespaces(**options)
       namespaces[:items].each do |namespace|
         cache_key = namespace[:metadata][:uid]
         @namespace_cache[cache_key] = parse_namespace_metadata(namespace)
@@ -138,7 +138,7 @@ module KubernetesMetadata
       # continue watching from most recent resourceVersion
       options[:resource_version] = namespaces[:metadata][:resourceVersion]
 
-      watcher = @client.watch_namespaces(options)
+      watcher = @client.watch_namespaces(**options)
       reset_namespace_watch_retry_stats
       watcher
     end

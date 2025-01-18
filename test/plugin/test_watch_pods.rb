@@ -25,7 +25,7 @@ require_relative 'test_watch'
 class TestWatchPods < TestWatch
   include KubernetesMetadata::WatchPods
 
-  setup do
+  before do
     @initial = {
       kind: 'PodList',
       metadata: { resourceVersion: '123' },
@@ -182,10 +182,10 @@ class TestWatchPods < TestWatch
     }
   end
 
-  test 'pod list caches pods' do
+  it 'pod list caches pods' do
     orig_env_val = ENV['K8S_NODE_NAME']
     ENV['K8S_NODE_NAME'] = 'aNodeName'
-    @client.stub :get_pods, @initial do
+    @client.stub(:get_pods, @initial) do
       process_pod_watcher_notices(start_pod_watch)
 
       assert(@cache.key?('initial_uid'))
@@ -195,11 +195,11 @@ class TestWatchPods < TestWatch
     ENV['K8S_NODE_NAME'] = orig_env_val
   end
 
-  test 'pod list caches pods and watch updates' do
+  it 'pod list caches pods and watch updates' do
     orig_env_val = ENV['K8S_NODE_NAME']
     ENV['K8S_NODE_NAME'] = 'aNodeName'
-    @client.stub :get_pods, @initial do
-      @client.stub :watch_pods, [@modified] do
+    @client.stub(:get_pods, @initial) do
+      @client.stub(:watch_pods, [@modified]) do
         process_pod_watcher_notices(start_pod_watch)
 
         assert_equal(2, @stats[:pod_cache_host_updates])
@@ -211,9 +211,9 @@ class TestWatchPods < TestWatch
     assert_equal('123', @last_seen_resource_version) # from @modified
   end
 
-  test 'pod watch notice ignores CREATED' do
-    @client.stub :get_pods, @initial do
-      @client.stub :watch_pods, [@created] do
+  it 'pod watch notice ignores CREATED' do
+    @client.stub(:get_pods, @initial) do
+      @client.stub(:watch_pods, [@created]) do
         process_pod_watcher_notices(start_pod_watch)
 
         refute(@cache.key?('created_uid'))
@@ -222,8 +222,8 @@ class TestWatchPods < TestWatch
     end
   end
 
-  test 'pod watch notice is ignored when info not cached and MODIFIED is received' do
-    @client.stub :watch_pods, [@modified] do
+  it 'pod watch notice is ignored when info not cached and MODIFIED is received' do
+    @client.stub(:watch_pods, [@modified]) do
       process_pod_watcher_notices(start_pod_watch)
 
       refute(@cache.key?('modified_uid'))
@@ -231,10 +231,10 @@ class TestWatchPods < TestWatch
     end
   end
 
-  test 'pod MODIFIED cached when hostname matches' do
+  it 'pod MODIFIED cached when hostname matches' do
     orig_env_val = ENV['K8S_NODE_NAME']
     ENV['K8S_NODE_NAME'] = 'aNodeName'
-    @client.stub :watch_pods, [@modified] do
+    @client.stub(:watch_pods, [@modified]) do
       process_pod_watcher_notices(start_pod_watch)
 
       assert(@cache.key?('modified_uid'))
@@ -243,9 +243,9 @@ class TestWatchPods < TestWatch
     ENV['K8S_NODE_NAME'] = orig_env_val
   end
 
-  test 'pod watch notice is updated when MODIFIED is received' do
+  it 'pod watch notice is updated when MODIFIED is received' do
     @cache['modified_uid'] = {}
-    @client.stub :watch_pods, [@modified] do
+    @client.stub(:watch_pods, [@modified]) do
       process_pod_watcher_notices(start_pod_watch)
 
       assert(@cache.key?('modified_uid'))
@@ -253,9 +253,9 @@ class TestWatchPods < TestWatch
     end
   end
 
-  test 'pod watch notice is ignored when delete is received' do
+  it 'pod watch notice is ignored when delete is received' do
     @cache['deleted_uid'] = {}
-    @client.stub :watch_pods, [@deleted] do
+    @client.stub(:watch_pods, [@deleted]) do
       process_pod_watcher_notices(start_pod_watch)
 
       assert(@cache.key?('deleted_uid'))
@@ -263,29 +263,30 @@ class TestWatchPods < TestWatch
     end
   end
 
-  test 'pod watch raises Fluent::UnrecoverableError when cannot re-establish connection to k8s API server' do
+  it 'pod watch raises Fluent::UnrecoverableError when cannot re-establish connection to k8s API server' do
     # Stub start_pod_watch to simulate initial successful connection to API server
-    stub(self).start_pod_watch
-    # Stub watch_pods to simulate not being able to set up watch connection to API server
-    stub(@client).watch_pods { raise }
-
-    @client.stub :get_pods, @initial do
-      assert_raise(Fluent::UnrecoverableError) do
-        set_up_pod_thread
+    stub(:start_pod_watch, nil) do
+      # Stub watch_pods to simulate not being able to set up watch connection to API server
+      @client.stub(:watch_pods, -> { raise StandardError }) do
+        @client.stub(:get_pods, @initial) do
+          assert_raises(Fluent::UnrecoverableError) do
+            set_up_pod_thread
+          end
+          assert_equal(3, @stats[:pod_watch_failures])
+          assert_equal(2, Thread.current[:pod_watch_retry_count])
+          assert_equal(4, Thread.current[:pod_watch_retry_backoff_interval])
+          assert_nil(@stats[:pod_watch_error_type_notices])
+        end
       end
     end
-    assert_equal(3, @stats[:pod_watch_failures])
-    assert_equal(2, Thread.current[:pod_watch_retry_count])
-    assert_equal(4, Thread.current[:pod_watch_retry_backoff_interval])
-    assert_nil(@stats[:pod_watch_error_type_notices])
   end
 
-  test 'pod watch resets watch retry count when exceptions are encountered and connection to k8s API server is re-established' do # rubocop:disable Layout/LineLength
-    @client.stub :get_pods, @initial do
-      @client.stub :watch_pods, [[@created, @exception_raised]] do
+  it 'pod watch resets watch retry count when exceptions are encountered and connection to k8s API server is re-established' do # rubocop:disable Layout/LineLength
+    @client.stub(:get_pods, @initial) do
+      @client.stub(:watch_pods, [[@created, @exception_raised]]) do
         # Force the infinite watch loop to exit after 3 seconds. Verifies that
         # no unrecoverable error was thrown during this period of time.
-        assert_raise(Timeout::Error.new('execution expired')) do
+        assert_raises(Timeout::Error) do
           Timeout.timeout(3) do
             set_up_pod_thread
           end
@@ -297,30 +298,12 @@ class TestWatchPods < TestWatch
     end
   end
 
-  test 'pod watch resets watch retry count when error is received and connection to k8s API server is re-established' do
-    @client.stub :get_pods, @initial do
-      @client.stub :watch_pods, [@error] do
+  it 'pod watch resets watch retry count when error is received and connection to k8s API server is re-established' do
+    @client.stub(:get_pods, @initial) do
+      @client.stub(:watch_pods, [@error]) do
         # Force the infinite watch loop to exit after 3 seconds. Verifies that
         # no unrecoverable error was thrown during this period of time.
-        assert_raise(Timeout::Error.new('execution expired')) do
-          Timeout.timeout(3) do
-            set_up_pod_thread
-          end
-        end
-        assert_operator(@stats[:pod_watch_failures], :>=, 3)
-        assert_operator(Thread.current[:pod_watch_retry_count], :<=, 1)
-        assert_operator(Thread.current[:pod_watch_retry_backoff_interval], :<=, 1)
-        assert_operator(@stats[:pod_watch_error_type_notices], :>=, 3)
-      end
-    end
-  end
-
-  test 'pod watch continues after retries succeed' do
-    @client.stub :get_pods, @initial do
-      @client.stub :watch_pods, [@modified, @error, @modified] do
-        # Force the infinite watch loop to exit after 3 seconds. Verifies that
-        # no unrecoverable error was thrown during this period of time.
-        assert_raise(Timeout::Error.new('execution expired')) do
+        assert_raises(Timeout::Error) do
           Timeout.timeout(3) do
             set_up_pod_thread
           end
@@ -333,24 +316,42 @@ class TestWatchPods < TestWatch
     end
   end
 
-  test 'pod watch raises a GoneError when a 410 Gone error is received' do
+  it 'pod watch continues after retries succeed' do
+    @client.stub(:get_pods, @initial) do
+      @client.stub(:watch_pods, [@modified, @error, @modified]) do
+        # Force the infinite watch loop to exit after 3 seconds. Verifies that
+        # no unrecoverable error was thrown during this period of time.
+        assert_raises(Timeout::Error) do
+          Timeout.timeout(3) do
+            set_up_pod_thread
+          end
+        end
+        assert_operator(@stats[:pod_watch_failures], :>=, 3)
+        assert_operator(Thread.current[:pod_watch_retry_count], :<=, 1)
+        assert_operator(Thread.current[:pod_watch_retry_backoff_interval], :<=, 1)
+        assert_operator(@stats[:pod_watch_error_type_notices], :>=, 3)
+      end
+    end
+  end
+
+  it 'pod watch raises a GoneError when a 410 Gone error is received' do
     @cache['gone_uid'] = {}
-    @client.stub :watch_pods, [@gone] do
+    @client.stub(:watch_pods, [@gone]) do
       @last_seen_resource_version = '100'
-      assert_raise(KubernetesMetadata::Common::GoneError) do
+      assert_raises(KubernetesMetadata::Common::GoneError) do
         process_pod_watcher_notices(start_pod_watch)
       end
       assert_equal(1, @stats[:pod_watch_gone_notices])
-      assert_nil @last_seen_resource_version # forced restart
+      assert_nil(@last_seen_resource_version) # forced restart
     end
   end
 
-  test 'pod watch retries when 410 Gone errors are encountered' do
-    @client.stub :get_pods, @initial do
-      @client.stub :watch_pods, [@created, @gone, @modified] do
+  it 'pod watch retries when 410 Gone errors are encountered' do
+    @client.stub(:get_pods, @initial) do
+      @client.stub(:watch_pods, [@created, @gone, @modified]) do
         # Force the infinite watch loop to exit after 3 seconds because the code sleeps 3 times.
         # Verifies that no unrecoverable error was thrown during this period of time.
-        assert_raise(Timeout::Error.new('execution expired')) do
+        assert_raises(Timeout::Error) do
           Timeout.timeout(3) do
             set_up_pod_thread
           end

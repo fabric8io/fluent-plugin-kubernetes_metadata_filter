@@ -21,12 +21,8 @@
 
 require_relative '../helper'
 
-class TestWatch < Test::Unit::TestCase
-  def thread_current_running?
-    true
-  end
-
-  setup do
+class TestWatch < Minitest::Spec
+  before do
     @annotations_regexps = []
     @namespace_cache = {}
     @watch_retry_max_times = 2
@@ -56,6 +52,10 @@ class TestWatch < Test::Unit::TestCase
     end
 
     @exception_raised = :blow_up_when_used
+  end
+
+  def thread_current_running?
+    true
   end
 
   def watcher=(value)

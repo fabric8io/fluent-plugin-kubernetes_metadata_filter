@@ -16,8 +16,7 @@ Rake::TestTask.new(:base_test) do |task|
   # To run test for only one file (or file path pattern)
   #  $ bundle exec rake base_test TEST=test/test_specified_path.rb
   #  $ bundle exec rake base_test TEST=test/test_*.rb
-  task.libs << 'test'
-  task.test_files = Dir['test/**/test_*.rb'].sort
+  task.pattern = 'test/**/test_*.rb'
   task.warning = false
 end
 
