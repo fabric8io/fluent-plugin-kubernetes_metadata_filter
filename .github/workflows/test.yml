@@ -1,0 +1,40 @@
+name: Test
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/test.yml'
+      - 'Gemfile*'
+      - 'Rakefile'
+      - 'fluent-plugin-kubernetes_metadata_filter.gemspec'
+      - '**/*.rb'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version:
+          - '2.7'
+          - '3.0'
+          - '3.1'
+          - '3.2'
+          - '3.3'
+          - '3.4'
+          - 'ruby-head'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true
+      - name: Run tests
+        run: bundle exec rake test
+      - name: Upload coverage results
+        if: matrix.ruby-version == '2.7'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/

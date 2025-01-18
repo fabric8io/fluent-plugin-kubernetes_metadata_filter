@@ -1,0 +1,24 @@
+name: Lint
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/lint.yml'
+      - '.rubocop.yml'
+      - 'Gemfile*'
+      - 'Rakefile'
+      - 'fluent-plugin-kubernetes_metadata_filter.gemspec'
+      - '**/*.rb'
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 2.7
+          bundler-cache: true
+      - name: RuboCop
+        run: bundle exec rake rubocop
