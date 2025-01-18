@@ -133,7 +133,7 @@ module KubernetesMetadata
       if @last_seen_resource_version
         options[:resource_version] = @last_seen_resource_version
       else
-        pods = @client.get_pods(options)
+        pods = @client.get_pods(**options)
         pods[:items].each do |pod|
           cache_key = pod[:metadata][:uid]
           @cache[cache_key] = parse_pod_metadata(pod)
@@ -144,7 +144,7 @@ module KubernetesMetadata
         options[:resource_version] = pods[:metadata][:resourceVersion]
       end
 
-      watcher = @client.watch_pods(options)
+      watcher = @client.watch_pods(**options)
       reset_pod_watch_retry_stats
       watcher
     end

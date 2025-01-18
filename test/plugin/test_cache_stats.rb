@@ -21,8 +21,8 @@
 
 require_relative '../helper'
 
-class TestCacheStats < Test::Unit::TestCase
-  test 'watch stats' do
+class TestCacheStats < Minitest::Spec
+  it 'watch stats' do
     require 'lru_redux'
 
     stats = KubernetesMetadata::Stats.new

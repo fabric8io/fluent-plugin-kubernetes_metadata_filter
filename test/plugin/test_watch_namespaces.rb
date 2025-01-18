@@ -25,7 +25,7 @@ require_relative 'test_watch'
 class TestWatchNamespaces < TestWatch
   include KubernetesMetadata::WatchNamespaces
 
-  setup do
+  before do
     @initial = {
       kind: 'NamespaceList',
       metadata: { resourceVersion: '123' },
@@ -94,7 +94,7 @@ class TestWatchNamespaces < TestWatch
     }
   end
 
-  test 'namespace list caches namespaces' do
+  it 'namespace list caches namespaces' do
     @client.stub(:get_namespaces, @initial) do
       process_namespace_watcher_notices(start_namespace_watch)
 
@@ -104,7 +104,7 @@ class TestWatchNamespaces < TestWatch
     end
   end
 
-  test 'namespace list caches namespaces and watch updates' do
+  it 'namespace list caches namespaces and watch updates' do
     orig_env_val = ENV['K8S_NODE_NAME']
     ENV['K8S_NODE_NAME'] = 'aNodeName'
     @client.stub(:get_namespaces, @initial) do
@@ -118,7 +118,7 @@ class TestWatchNamespaces < TestWatch
     ENV['K8S_NODE_NAME'] = orig_env_val
   end
 
-  test 'namespace watch ignores CREATED' do
+  it 'namespace watch ignores CREATED' do
     @client.stub(:watch_namespaces, [@created]) do
       process_namespace_watcher_notices(start_namespace_watch)
 
@@ -127,7 +127,7 @@ class TestWatchNamespaces < TestWatch
     end
   end
 
-  test 'namespace watch ignores MODIFIED when info not in cache' do
+  it 'namespace watch ignores MODIFIED when info not in cache' do
     @client.stub(:watch_namespaces, [@modified]) do
       process_namespace_watcher_notices(start_namespace_watch)
 
@@ -136,7 +136,7 @@ class TestWatchNamespaces < TestWatch
     end
   end
 
-  test 'namespace watch updates cache when MODIFIED is received and info is cached' do
+  it 'namespace watch updates cache when MODIFIED is received and info is cached' do
     @namespace_cache['modified_uid'] = {}
     @client.stub(:watch_namespaces, [@modified]) do
       process_namespace_watcher_notices(start_namespace_watch)
@@ -146,7 +146,7 @@ class TestWatchNamespaces < TestWatch
     end
   end
 
-  test 'namespace watch ignores DELETED' do
+  it 'namespace watch ignores DELETED' do
     @namespace_cache['deleted_uid'] = {}
     @client.stub(:watch_namespaces, [@deleted]) do
       process_namespace_watcher_notices(start_namespace_watch)
@@ -156,29 +156,30 @@ class TestWatchNamespaces < TestWatch
     end
   end
 
-  test 'namespace watch raises Fluent::UnrecoverableError when cannot re-establish connection to k8s API server' do
+  it 'namespace watch raises Fluent::UnrecoverableError when cannot re-establish connection to k8s API server' do
     # Stub start_namespace_watch to simulate initial successful connection to API server
-    stub(self).start_namespace_watch
-    # Stub watch_namespaces to simulate not being able to set up watch connection to API server
-    stub(@client).watch_namespaces { raise }
-
-    @client.stub(:get_namespaces, @initial) do
-      assert_raise(Fluent::UnrecoverableError) do
-        set_up_namespace_thread
+    stub(:start_namespace_watch, nil) do
+      # Stub watch_namespaces to simulate not being able to set up watch connection to API server
+      @client.stub(:watch_namespaces, -> { raise StandardError }) do
+        @client.stub(:get_namespaces, @initial) do
+          assert_raises(Fluent::UnrecoverableError) do
+            set_up_namespace_thread
+          end
+          assert_equal(3, @stats[:namespace_watch_failures])
+          assert_equal(2, Thread.current[:namespace_watch_retry_count])
+          assert_equal(4, Thread.current[:namespace_watch_retry_backoff_interval])
+          assert_nil(@stats[:namespace_watch_error_type_notices])
+        end
       end
     end
-    assert_equal(3, @stats[:namespace_watch_failures])
-    assert_equal(2, Thread.current[:namespace_watch_retry_count])
-    assert_equal(4, Thread.current[:namespace_watch_retry_backoff_interval])
-    assert_nil(@stats[:namespace_watch_error_type_notices])
   end
 
-  test 'namespace watch resets watch retry count when exceptions are encountered and connection to k8s API server is re-established' do # rubocop:disable Layout/LineLength
+  it 'namespace watch resets watch retry count when exceptions are encountered and connection to k8s API server is re-established' do # rubocop:disable Layout/LineLength
     @client.stub(:get_namespaces, @initial) do
       @client.stub(:watch_namespaces, [[@created, @exception_raised]]) do
         # Force the infinite watch loop to exit after 3 seconds. Verifies that
         # no unrecoverable error was thrown during this period of time.
-        assert_raise(Timeout::Error.new('execution expired')) do
+        assert_raises(Timeout::Error) do
           Timeout.timeout(3) do
             set_up_namespace_thread
           end
@@ -190,12 +191,12 @@ class TestWatchNamespaces < TestWatch
     end
   end
 
-  test 'namespace watch resets watch retry count when error is received and connection to k8s API server is re-established' do # rubocop:disable Layout/LineLength
+  it 'namespace watch resets watch retry count when error is received and connection to k8s API server is re-established' do # rubocop:disable Layout/LineLength
     @client.stub(:get_namespaces, @initial) do
       @client.stub(:watch_namespaces, [@error]) do
         # Force the infinite watch loop to exit after 3 seconds. Verifies that
         # no unrecoverable error was thrown during this period of time.
-        assert_raise(Timeout::Error.new('execution expired')) do
+        assert_raises(Timeout::Error) do
           Timeout.timeout(3) do
             set_up_namespace_thread
           end
@@ -207,12 +208,12 @@ class TestWatchNamespaces < TestWatch
     end
   end
 
-  test 'namespace watch continues after retries succeed' do
+  it 'namespace watch continues after retries succeed' do
     @client.stub(:get_namespaces, @initial) do
       @client.stub(:watch_namespaces, [@modified, @error, @modified]) do
         # Force the infinite watch loop to exit after 3 seconds. Verifies that
         # no unrecoverable error was thrown during this period of time.
-        assert_raise(Timeout::Error.new('execution expired')) do
+        assert_raises(Timeout::Error) do
           Timeout.timeout(3) do
             set_up_namespace_thread
           end
@@ -225,22 +226,22 @@ class TestWatchNamespaces < TestWatch
     end
   end
 
-  test 'namespace watch raises a GoneError when a 410 Gone error is received' do
+  it 'namespace watch raises a GoneError when a 410 Gone error is received' do
     @cache['gone_uid'] = {}
     @client.stub(:watch_namespaces, [@gone]) do
-      assert_raise(KubernetesMetadata::Common::GoneError) do
+      assert_raises(KubernetesMetadata::Common::GoneError) do
         process_namespace_watcher_notices(start_namespace_watch)
       end
       assert_equal(1, @stats[:namespace_watch_gone_notices])
     end
   end
 
-  test 'namespace watch retries when 410 Gone errors are encountered' do
+  it 'namespace watch retries when 410 Gone errors are encountered' do
     @client.stub(:get_namespaces, @initial) do
       @client.stub(:watch_namespaces, [@created, @gone, @modified]) do
         # Force the infinite watch loop to exit after 3 seconds. Verifies that
         # no unrecoverable error was thrown during this period of time.
-        assert_raise(Timeout::Error.new('execution expired')) do
+        assert_raises(Timeout::Error) do
           Timeout.timeout(3) do
             set_up_namespace_thread
           end
