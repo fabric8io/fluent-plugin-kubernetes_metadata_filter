@@ -21,13 +21,8 @@
 
 require_relative '../helper'
 
-class TestFilterKubernetesMetadata < Test::Unit::TestCase
+class TestFilterKubernetesMetadata < Minitest::Spec
   include Fluent
-
-  setup do
-    Fluent::Test.setup
-    @time = Fluent::Engine.now
-  end
 
   VAR_LOG_CONTAINER_TAG = 'var.log.containers.fabric8-console-controller-98rqc_default_fabric8-console-container-49095a2894da899d3b327c5fde1e056a81376cc9a8f8b09a195f2a92bceed459.log' # rubocop:disable Layout/LineLength
   VAR_LOG_POD_TAG = 'var.log.pods.default_fabric8-console-controller-98rqc_c76927af-f563-11e4-b32d-54ee7527188d.fabric8-console-container.0.log' # rubocop:disable Layout/LineLength
@@ -36,24 +31,29 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
     Test::Driver::Filter.new(Plugin::KubernetesMetadataFilter).configure(conf)
   end
 
-  sub_test_case 'configure' do
-    test 'check default' do
+  before do
+    Fluent::Test.setup
+    @time = Fluent::Engine.now
+  end
+
+  describe 'configure' do
+    it 'check default' do
       d = create_driver
 
       assert_equal(1000, d.instance.cache_size)
     end
 
-    sub_test_case 'stats_interval' do
-      test 'enables stats when greater than zero' do
+    describe 'stats_interval' do
+      it 'enables stats when greater than zero' do
         d = create_driver('stats_interval 1')
 
         assert_equal(1, d.instance.stats_interval)
         d.instance.dump_stats
 
-        assert_false(d.instance.instance_variable_get(:@curr_time).nil?)
+        refute_nil(d.instance.instance_variable_get(:@curr_time))
       end
 
-      test 'disables stats when <= zero' do
+      it 'disables stats when <= zero' do
         d = create_driver('stats_interval 0')
 
         assert_equal(0, d.instance.stats_interval)
@@ -63,13 +63,13 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'check test_api_adapter' do
+    it 'check test_api_adapter' do
       d = create_driver('test_api_adapter KubernetesMetadata::TestApiAdapter')
 
       assert_equal('KubernetesMetadata::TestApiAdapter', d.instance.test_api_adapter)
     end
 
-    test 'kubernetes url' do
+    it 'kubernetes url' do
       VCR.use_cassette('valid_kubernetes_api_server') do
         d = create_driver('
           kubernetes_url https://localhost:8443
@@ -81,7 +81,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'cache size' do
+    it 'cache size' do
       VCR.use_cassette('valid_kubernetes_api_server') do
         d = create_driver('
           kubernetes_url https://localhost:8443
@@ -94,9 +94,9 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'invalid API server config' do
+    it 'invalid API server config' do
       VCR.use_cassette('invalid_api_server_config') do
-        assert_raise(Fluent::ConfigError) do
+        assert_raises(Fluent::ConfigError) do
           create_driver('
             kubernetes_url https://localhost:8443
             bearer_token_file test/plugin/test.token
@@ -107,7 +107,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'service account credentials' do
+    it 'service account credentials' do
       VCR.use_cassette('valid_kubernetes_api_server') do
         ENV['KUBERNETES_SERVICE_HOST'] = 'localhost'
         ENV['KUBERNETES_SERVICE_PORT'] = '8443'
@@ -135,7 +135,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'service account credential files are tested for existence' do
+    it 'service account credential files are tested for existence' do
       VCR.use_cassette('valid_kubernetes_api_server') do
         ENV['KUBERNETES_SERVICE_HOST'] = 'localhost'
         ENV['KUBERNETES_SERVICE_PORT'] = '8443'
@@ -157,7 +157,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
     end
   end
 
-  sub_test_case 'filter' do
+  describe 'filter' do
     def emit(
       msg = {},
       config = '
@@ -186,8 +186,8 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       d.filtered.map(&:last)
     end
 
-    sub_test_case 'parsing_pod_metadata when container_status is missing from the pod status' do
-      test 'using the tag_to_kubernetes_name_regexp for /var/log/containers ' do
+    describe 'parsing_pod_metadata when container_status is missing from the pod status' do
+      it 'using the tag_to_kubernetes_name_regexp for /var/log/containers ' do
         VCR.use_cassettes([
                             { name: 'valid_kubernetes_api_server' },
                             { name: 'kubernetes_get_api_v1' },
@@ -226,7 +226,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
         end
       end
 
-      test 'using the tag_to_kubernetes_name_regexp for /var/log/pods' do
+      it 'using the tag_to_kubernetes_name_regexp for /var/log/pods' do
         VCR.use_cassettes([
                             { name: 'valid_kubernetes_api_server' },
                             { name: 'kubernetes_get_api_v1' },
@@ -263,7 +263,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test "inability to connect to the api server handles exception and doesn't block pipeline" do
+    it "inability to connect to the api server handles exception and doesn't block pipeline" do
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }]) do
         driver = create_driver('
           kubernetes_url https://localhost:8443
@@ -297,7 +297,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with docker & kubernetes metadata where id cache hit and metadata miss' do
+    it 'with docker & kubernetes metadata where id cache hit and metadata miss' do
       VCR.use_cassettes([{ name: 'valid_kubernetes_api_server' }, { name: 'kubernetes_get_api_v1' }]) do
         driver = create_driver('
           kubernetes_url https://localhost:8443
@@ -330,7 +330,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with docker & kubernetes metadata where id cache hit and metadata is reloaded' do
+    it 'with docker & kubernetes metadata where id cache hit and metadata is reloaded' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -377,7 +377,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with docker & kubernetes metadata' do
+    it 'with docker & kubernetes metadata' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -414,7 +414,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'kubernetes metadata is cloned so it further processing does not modify the cache' do
+    it 'kubernetes metadata is cloned so it further processing does not modify the cache' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -431,12 +431,14 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
         end
         filtered = d.filtered.map(&:last)
 
-        assert_not_equal(filtered[0]['kubernetes']['labels'].object_id, filtered[1]['kubernetes']['labels'].object_id,
-                         'Exp. meta to be cloned')
+        refute_same(
+          filtered[0]['kubernetes']['labels'].object_id, filtered[1]['kubernetes']['labels'].object_id,
+          'Exp. meta to be cloned'
+        )
       end
     end
 
-    test 'with docker & kubernetes metadata & namespace_id enabled' do
+    it 'with docker & kubernetes metadata & namespace_id enabled' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -476,7 +478,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with docker & kubernetes metadata using bearer token' do
+    it 'with docker & kubernetes metadata using bearer token' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server_using_token' },
                           { name: 'kubernetes_get_api_v1_using_token' },
@@ -514,7 +516,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with docker & kubernetes metadata but no configured api server' do
+    it 'with docker & kubernetes metadata but no configured api server' do
       filtered = emit({}, '')
       expected_kube_metadata = {
         'docker' => {
@@ -530,7 +532,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       assert_equal(expected_kube_metadata, filtered[0])
     end
 
-    test 'with docker & inaccessible kubernetes metadata' do
+    it 'with docker & inaccessible kubernetes metadata' do
       stub_request(:any, 'https://localhost:8443/api').to_return(
         'body' => {
           'versions' => ['v1beta3', 'v1']
@@ -555,7 +557,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       assert_equal(expected_kube_metadata, filtered[0])
     end
 
-    test 'with dot in pod name' do
+    it 'with dot in pod name' do
       stub_request(:any, 'https://localhost:8443/api').to_return(
         'body' => {
           'versions' => ['v1beta3', 'v1']
@@ -581,13 +583,13 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       assert_equal(expected_kube_metadata, filtered[0])
     end
 
-    test 'with docker metadata, non-kubernetes' do
+    it 'with docker metadata, non-kubernetes' do
       filtered = emit_with_tag('non-kubernetes', {}, '')
 
-      assert_false(filtered[0].key?(:kubernetes))
+      refute(filtered[0].key?(:kubernetes))
     end
 
-    test 'ignores invalid json in log field' do
+    it 'ignores invalid json in log field' do
       json_log = "{'foo':123}"
       msg = {
         'log' => json_log
@@ -597,7 +599,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       assert_equal(msg, filtered[0])
     end
 
-    test 'with kubernetes annotations' do
+    it 'with kubernetes annotations' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -639,7 +641,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with kubernetes namespace annotations' do
+    it 'with kubernetes namespace annotations' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -684,7 +686,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with kubernetes namespace annotations no match' do
+    it 'with kubernetes namespace annotations no match' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -722,7 +724,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'processes all events when reading from MessagePackEventStream' do
+    it 'processes all events when reading from MessagePackEventStream' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -774,7 +776,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with docker & kubernetes metadata using skip config params' do
+    it 'with docker & kubernetes metadata using skip config params' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -808,7 +810,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with docker & kubernetes metadata using skip namespace labels config param' do
+    it 'with docker & kubernetes metadata using skip namespace labels config param' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -847,7 +849,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with docker & kubernetes metadata using skip pod labels config param' do
+    it 'with docker & kubernetes metadata using skip pod labels config param' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },
@@ -886,7 +888,7 @@ class TestFilterKubernetesMetadata < Test::Unit::TestCase
       end
     end
 
-    test 'with docker & kubernetes metadata using include ownerrefs metadata' do
+    it 'with docker & kubernetes metadata using include ownerrefs metadata' do
       VCR.use_cassettes([
                           { name: 'valid_kubernetes_api_server' },
                           { name: 'kubernetes_get_api_v1' },

@@ -57,8 +57,8 @@ class KubernetesMetadataCacheStrategyMock
   end
 end
 
-class TestCacheStrategy < Test::Unit::TestCase
-  def setup
+class TestCacheStrategy < Minitest::Spec
+  before do
     @strategy = KubernetesMetadataCacheStrategyMock.new
     @cache_key = 'some_long_container_id'
     @namespace_name = 'some_namespace_name'
@@ -70,7 +70,7 @@ class TestCacheStrategy < Test::Unit::TestCase
     @namespace_meta = { 'namespace_id' => @namespace_uuid, 'creation_timestamp' => @time.to_s }
   end
 
-  test 'when cached metadata is found' do
+  it 'when cached metadata is found' do
     exp = @pod_meta.merge(@namespace_meta)
     exp.delete('creation_timestamp')
     @strategy.id_cache[@cache_key] = { pod_id: @pod_uuid, namespace_id: @namespace_uuid }
@@ -80,7 +80,7 @@ class TestCacheStrategy < Test::Unit::TestCase
     assert_equal(exp, @strategy.get_pod_metadata(@cache_key, 'namespace', 'pod', @time, {}))
   end
 
-  test 'when previously processed record for pod but metadata is not cached and can not be fetched' do
+  it 'when previously processed record for pod but metadata is not cached and can not be fetched' do
     exp = { 'pod_id' => @pod_uuid, 'namespace_id' => @namespace_uuid }
     @strategy.id_cache[@cache_key] = { pod_id: @pod_uuid, namespace_id: @namespace_uuid }
     @strategy.stub(:fetch_pod_metadata, {}) do
@@ -90,18 +90,18 @@ class TestCacheStrategy < Test::Unit::TestCase
     end
   end
 
-  test 'when metadata is not cached and is fetched' do
+  it 'when metadata is not cached and is fetched' do
     exp = @pod_meta.merge(@namespace_meta)
     exp.delete('creation_timestamp')
     @strategy.stub(:fetch_pod_metadata, @pod_meta) do
       @strategy.stub(:fetch_namespace_metadata, @namespace_meta) do
         assert_equal(exp, @strategy.get_pod_metadata(@cache_key, 'namespace', 'pod', @time, {}))
-        assert_true(@strategy.id_cache.key?(@cache_key))
+        assert(@strategy.id_cache.key?(@cache_key))
       end
     end
   end
 
-  test 'when metadata is not cached and pod is deleted and namespace metadata is fetched' do
+  it 'when metadata is not cached and pod is deleted and namespace metadata is fetched' do
     # this is the case for a record from a deleted pod where no other
     # records were read.  using the container hash since that is all
     # we ever will have and should allow us to process all the deleted
@@ -110,24 +110,24 @@ class TestCacheStrategy < Test::Unit::TestCase
     @strategy.stub(:fetch_pod_metadata, {}) do
       @strategy.stub(:fetch_namespace_metadata, @namespace_meta) do
         assert_equal(exp, @strategy.get_pod_metadata(@cache_key, 'namespace', 'pod', @time, {}))
-        assert_true(@strategy.id_cache.key?(@cache_key))
+        assert(@strategy.id_cache.key?(@cache_key))
       end
     end
   end
 
-  test 'when metadata is not cached and pod is deleted and namespace is for a different namespace with the same name' do
+  it 'when metadata is not cached and pod is deleted and namespace is for a different namespace with the same name' do
     # this is the case for a record from a deleted pod from a deleted namespace
     # where new namespace was created with the same name
     exp = { 'namespace_id' => @namespace_uuid }
     @strategy.stub(:fetch_pod_metadata, {}) do
       @strategy.stub(:fetch_namespace_metadata, @namespace_meta) do
         assert_equal(exp, @strategy.get_pod_metadata(@cache_key, 'namespace', 'pod', @time - (1 * 86_400), {}))
-        assert_true(@strategy.id_cache.key?(@cache_key))
+        assert(@strategy.id_cache.key?(@cache_key))
       end
     end
   end
 
-  test 'when metadata is not cached and no metadata can be fetched and not allowing orphans' do
+  it 'when metadata is not cached and no metadata can be fetched and not allowing orphans' do
     # we should never see this since pod meta should not be retrievable
     # unless the namespace exists
     @strategy.stub(:fetch_pod_metadata, @pod_meta) do
@@ -137,7 +137,7 @@ class TestCacheStrategy < Test::Unit::TestCase
     end
   end
 
-  test 'when metadata is not cached and no metadata can be fetched and allowing orphans' do
+  it 'when metadata is not cached and no metadata can be fetched and allowing orphans' do
     # we should never see this since pod meta should not be retrievable
     # unless the namespace exists
     @strategy.allow_orphans = true
@@ -149,7 +149,7 @@ class TestCacheStrategy < Test::Unit::TestCase
     end
   end
 
-  test 'when metadata is not cached and no metadata can be fetched and not allowing orphans for multiple records' do
+  it 'when metadata is not cached and no metadata can be fetched and not allowing orphans for multiple records' do
     # processing a batch of records with no meta. ideally we only hit the api server once
     batch_miss_cache = {}
     @strategy.stub(:fetch_pod_metadata, {}) do
@@ -161,7 +161,7 @@ class TestCacheStrategy < Test::Unit::TestCase
     assert_empty(@strategy.get_pod_metadata(@cache_key, 'namespace', 'pod', @time, batch_miss_cache))
   end
 
-  test 'when metadata is not cached and no metadata can be fetched and allowing orphans for multiple records' do
+  it 'when metadata is not cached and no metadata can be fetched and allowing orphans for multiple records' do
     # we should never see this since pod meta should not be retrievable
     # unless the namespace exists
     @strategy.allow_orphans = true
