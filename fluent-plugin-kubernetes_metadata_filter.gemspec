@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   gemspec = File.basename(__FILE__)
   spec.files = IO.popen(['git', 'ls-files', '-z'], chdir: __dir__, err: IO::NULL) do |ls|
     ls.readlines("\x0", chomp: true).reject do |f|
-      (f == gemspec) || f.start_with?('coverage/', 'test/', '.git', '.circleci', '.rubocop.yml', 'Gemfile')
+      (f == gemspec) || f.start_with?('coverage/', 'test/', '.git', '.rubocop.yml', 'Gemfile')
     end
   end
 
