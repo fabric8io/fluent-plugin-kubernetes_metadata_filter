@@ -41,8 +41,7 @@ module KubernetesMetadata
         ids = { pod_id: pod_metadata['pod_id'], namespace_id: namespace_metadata['namespace_id'] }
         if !ids[:pod_id].nil? && !ids[:namespace_id].nil?
           # pod found and namespace found
-          metadata = pod_metadata
-          metadata.merge!(namespace_metadata)
+          metadata = pod_metadata.merge(namespace_metadata)
         else
           if ids[:pod_id].nil? && !ids[:namespace_id].nil? # rubocop:disable Style/IfInsideElse
             # pod not found, but namespace found
@@ -55,7 +54,7 @@ module KubernetesMetadata
                 { 'pod_id' => ids[:pod_id] }
               end
             end
-            metadata.merge!(namespace_metadata)
+            metadata = metadata.merge(namespace_metadata)
           else
             if !ids[:pod_id].nil? && ids[:namespace_id].nil? # rubocop:disable Metrics/BlockNesting
               # pod found, but namespace NOT found
@@ -94,7 +93,7 @@ module KubernetesMetadata
               end
           m.nil? || m.empty? ? { 'namespace_id' => ids[:namespace_id] } : m
         end
-        metadata.merge!(namespace_metadata)
+        metadata = metadata.merge(namespace_metadata)
       end
 
       # remove namespace info that is only used for comparison
